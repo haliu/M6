@@ -1,0 +1,87 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>move.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"HANOI"</span>)
+(include-book <span class="string">"misc/records"</span> <span class="builtin">:dir</span> <span class="builtin">:system</span>)
+(include-book <span class="string"><a href="state.lisp.html">"state"</a></span>)
+
+(acl2::set-verify-guards-eagerness 2)
+
+(local (in-theory (enable pegp)))
+
+(defund new-move (from to)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (pegp from)
+                              (pegp to))))
+  (s 'FROM from (s 'TO to nil)))
+
+(defund movep (m)
+  (and (pegp (g 'FROM m))
+       (pegp (g 'TO m))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">src</span> (m)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (movep m)))
+  (g 'FROM m))
+
+
+(<span class="keyword">defun</span> <span class="function-name">dest</span> (m)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (movep m)))
+  (g 'TO m))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>(defthm g-src-move-peg
+  (implies (movep m)
+           (pegp (g 'FROM m)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable movep))))
+
+(defthm g-dest-move-peg
+  (implies (movep m)
+           (pegp (g 'TO m)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable movep))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span></pre>
+  </body>
+</html>

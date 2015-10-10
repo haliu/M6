@@ -1,0 +1,83 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>symbols.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      .variable-name {
+        /* font-lock-variable-name-face */
+        color: #eedd82;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+<span class="comment">#|
+(certify-book <a href="symbols.lisp.html">"symbols"</a> 0)
+|#</span>
+
+<span class="comment">;; Sun Dec 21 02:00:42 2003
+</span>
+(<span class="keyword">in-package</span> <span class="string">"ACL2"</span>)
+
+<span class="comment">; Define <a href="symbols.lisp.html">symbols</a> that will be shared among BCV, DJVM, M6
+</span>
+(<span class="keyword">defconst</span> <span class="variable-name">*jvm-symbols*</span>
+  '(class 
+    field 
+    int 
+    long 
+    float 
+    double 
+    string 
+    array 
+    frame
+    null 
+    reference 
+    oneword 
+    twoword 
+    topx  <span class="comment">;; we will use this?? Sat May 21 19:42:28 2005. 
+</span>    void  <span class="comment">;; Sat May 21 19:44:07 2005. Let me use it!! 
+</span>    <span class="comment">;; value used in the BCV to represent unknown type 
+</span>    <span class="comment">;; there are type checking rules associated with it. 
+</span>    <span class="comment">;; top definition. 
+</span>    
+    *interface*
+    locals 
+    stack 
+    flags
+    uninitialized 
+    uninitializedThis
+    ))
+
+<span class="comment">;;; Expect constant update. 
+</span></pre>
+  </body>
+</html>

@@ -1,0 +1,321 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>hanoi-safety.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"HANOI"</span>)
+
+(include-book <span class="string"><a href="state.lisp.html">"state"</a></span>)
+(include-book <span class="string"><a href="move.lisp.html">"move"</a></span>)
+(include-book <span class="string"><a href="hanoi-model.lisp.html">"hanoi-model"</a></span>)
+(include-book <span class="string"><a href="hanoi-solution.lisp.html">"hanoi-solution"</a></span>)
+(include-book <span class="string"><a href="perm.lisp.html">"perm"</a></span>)
+
+<span class="comment">;; (defun disks-perm (st l)
+;;   (<a href="perm.lisp.html">perm</a> (app (get-peg 'A st) 
+;;              (app (get-peg 'B st)
+;;                   (get-peg 'C st)))
+;;         l))
+</span>
+(<span class="keyword">defun</span> <span class="function-name">disks-perm</span> (st l)
+   (<a href="perm.lisp.html">perm</a> (app (get-peg 'A st) 
+              (app (get-peg 'B st)
+                   (get-peg 'C st)))
+         l))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defund wff-move (m) 
+   (and (movep m)
+        (not (equal (src m)
+                    (dest m)))))
+
+(defund legal-movep1 (m s)
+  (<span class="keyword">let</span> ((from-stk (get-peg (src m) s)))
+    (and (wff-move m)
+         (has-morep from-stk))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthmd do-move-preserve-disk-perm
+     (implies (and (legal-movep1 m st)
+                   (disks-perm st l))
+              (disks-perm (<span class="keyword">do-move</span> m st) l))
+     <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (push top pop
+                                           has-morep
+                                           wff-move 
+                                           movep
+                                           pegp
+                                           perm-app-cons-norm-1
+                                           perm-app-cons-norm-0
+                                           legal-movep1
+                                           perm-app-reduce-1
+                                           perm-app-reduce-2)
+                                     (<a href="perm.lisp.html">perm</a>)))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">stack-inorder</span> (stk) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable has-morep pop push)))))
+  (<span class="keyword">if</span> (has-morep stk)
+      (<span class="keyword">if</span> (has-morep (pop stk))
+          (and (&lt; (top stk) 
+                  (top (pop stk)))
+               (stack-inorder (pop stk)))
+        t)
+    t))
+
+
+(defund disks-inorder (st)
+  (and (stack-inorder (g 'A st))
+       (stack-inorder (g 'B st))
+       (stack-inorder (g 'C st))))
+
+(defund legal-movep2 (m s)
+  (<span class="keyword">let</span> ((from-stk (get-peg  (src m) s))
+        (to-stk (get-peg (dest m) s)))
+    (and (wff-move m)
+         (has-morep from-stk)
+         (or (not (has-morep to-stk))
+             (&lt; (top from-stk)
+                (top to-stk))))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthmd do-move-preserve-disks-inorder
+     (implies (and (legal-movep2 m st)
+                   (disks-inorder st))
+              (disks-inorder (<span class="keyword">do-move</span> m st)))
+     <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (push top pop
+                                           has-morep
+                                           disks-inorder
+                                           wff-move 
+                                           movep
+                                           pegp
+                                           legal-movep2)
+                                     ()))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">safe-state</span> (st n)
+  (and (disks-perm st (tower n))
+       (disks-inorder st)))
+
+
+(defund legal-movep (m s)
+  (and (legal-movep1 m s)
+       (legal-movep2 m s)))
+
+
+
+(defthmd do-move-preserve-safe-state
+     (implies (and (legal-movep m st)
+                   (safe-state st n))
+              (safe-state (<span class="keyword">do-move</span> m st) n))
+     <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (legal-movep 
+                                      safe-state
+                                      do-move-preserve-disk-perm
+                                      do-move-preserve-disks-inorder)
+                                     (<span class="keyword">do-move</span> disks-perm disks-inorder)))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">safe-moves</span> (moves s)
+  (<span class="keyword">if</span> (endp moves)
+      t
+    (and (legal-movep (car moves) s)
+         (safe-moves (cdr moves)
+                     (<span class="keyword">do-move</span> (car moves) s)))))
+
+
+(defthm safe-moves-app
+  (implies (safe-moves a s)
+           (equal (safe-moves (app a b) s)
+                  (safe-moves b (play a s)))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm safe-moves-preserve-safe-state
+  (implies (and (safe-state st n)
+                (safe-moves moves st))
+           (safe-state (play moves st) n))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<span class="keyword">do-move-preserve-safe-state</span>)
+                                  (safe-state do-move)))))
+
+(local 
+(defthmd h-lemma-2
+  (implies (and (natp n)
+                (pegp from)
+                (pegp to)
+                (pegp temp)
+                (not (equal from to))
+                (not (equal from temp))
+                (not (equal to temp))
+                (big-tops from to temp (s from anylist s) n))
+           (equal (play (h from to temp n)
+                        (s from (app (tower n) anylist) s))
+                  (s from anylist 
+                     (s to (app (tower n)
+                                (g to s)) s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> ((<span class="builtin">:instance</span> h-lemma
+                                   (s (s from anylist s))))))))
+
+
+(local
+(defthmd h-is-safe-lemma
+   (implies (and (natp n)
+                 (pegp from)
+                 (pegp to)
+                 (pegp temp)
+                 (not (equal from to))
+                 (not (equal from temp))
+                 (not (equal to temp))
+                 (big-tops from to temp s n))
+            (safe-moves (h from to temp n)
+                        (s from (app (tower n)
+                                     (g from s)) s))) 
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize fertilize)
+           <span class="builtin">:in-theory</span> (enable wff-move has-morep 
+                              legal-movep h-lemma-2
+                              h-lemma new-move movep
+                              legal-movep1 legal-movep2)
+           <span class="builtin">:induct</span> (induction-hint from to temp n s)))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm safe-play
+  (safe-moves (Hanoi n) (init-state n))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> ((<span class="builtin">:instance</span> h-is-safe-lemma
+                                   (from 'A)
+                                   (to 'B)
+                                   (temp 'C)
+                                   (s nil))))))
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">collect-states</span> (moves st)
+  (<span class="keyword">if</span> (endp moves)
+      nil
+    (<span class="keyword">let</span> ((nx-state (<span class="keyword">do-move</span> (car moves) st)))
+      (cons nx-state (collect-states (cdr moves) nx-state)))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">all-safe-states</span> (stl n)
+  (<span class="keyword">if</span> (endp stl) t
+    (and (safe-state (car stl) n)
+         (all-safe-states (cdr stl) n))))
+
+
+(defthm safe-moves-implies-safe-state
+  (implies (and (safe-moves moves st)
+                (safe-state st n))
+           (all-safe-states (collect-states moves st) n))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+           <span class="builtin">:in-theory</span> (e/d (<span class="keyword">do-move-preserve-safe-state</span>)
+                           (safe-state legal-movep do-move)))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>(defthm stack-inorder-app
+  (implies (and (stack-inorder stk)
+                (case-split (consp stk))
+                (case-split (&lt; (car (last stk)) n)))
+           (stack-inorder (app stk (list n))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (stack-inorder
+                                   pop push top has-morep)
+                                  ()))))
+
+(defthm stack-inorder-list-n
+  (stack-inorder (list n))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable has-morep pop top 
+                                     stack-inorder))))
+
+
+<span class="comment">;; (defthm stack-inorder-app-2
+;;   (implies (and (stack-inorder stk)
+;;                 (not (consp stk))
+;;            (stack-inorder (app stk (list n))))
+;;   :hints (("Goal" :in-theory (e/d (stack-inorder
+;;                                    pop push top has-morep)
+;;                                   ()))))
+</span>
+(defthm last-app
+  (equal  (car (last (app l (list n))))
+          n))
+
+(defthm last-tower-n
+  (implies (and (natp n)
+                (case-split (&gt; n 0)))
+           (equal (car (last (tower n))) n))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable tower))))
+
+(defthm consp-tower-n
+  (implies (natp n)
+           (iff (consp (tower n))
+                (&gt; n 0))))
+                
+
+
+(defthm stack-inorder-tower-n
+  (implies (natp n)
+           (stack-inorder (tower n)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+           <span class="builtin">:in-theory</span> (e/d (stack-inorder
+                            pop push top has-morep)
+                           ()))))
+
+(defthm safe-state-init-state
+  (safe-state (init-state n) n)
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable disks-inorder stack-inorder))))
+
+
+(defthm safe-play-1
+  (all-safe-states (collect-states (Hanoi n) (init-state n)) n)
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (Hanoi init-state)))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span></pre>
+  </body>
+</html>

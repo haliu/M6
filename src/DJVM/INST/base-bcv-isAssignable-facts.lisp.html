@@ -1,0 +1,382 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-bcv-isAssignable-facts.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="base.lisp.html">"base"</a></span>)
+(include-book <span class="string"><a href="../../BCV/typechecker.lisp.html">"../../BCV/typechecker"</a></span>)
+(include-book <span class="string"><a href="../../BCV/bcv-functions.lisp.html">"../../BCV/bcv-functions"</a></span>)
+(include-book <span class="string"><a href="../consistent-state.lisp.html">"../../DJVM/consistent-state"</a></span>)
+(include-book <span class="string"><a href="base-djvm-functions.lisp.html">"base-djvm-functions"</a></span>)
+
+<span class="comment">;; doesn't hurt to have this expander exported!! 
+</span>(defthm isAssignable-expander
+   (implies (syntaxp (and (eq (car bcv::t1) 'QUOTE)
+                          (eq (car bcv::t2) 'QUOTE)))
+            (equal (bcv::isAssignable bcv::t1 bcv::t2 bcv::env)
+                   (LET
+                    ((BCV::CL (BCV::CLASSTABLEENVIRONMENT BCV::ENV)))
+                    (IF
+                     (EQUAL BCV::T1 BCV::T2)
+                     T
+                     (COND
+                      ((AND (EQUAL BCV::T1 'ONEWORD)
+                            (EQUAL BCV::T2 'topx))
+                       T)
+                      ((AND (EQUAL BCV::T1 'TWOWORD)
+                            (EQUAL BCV::T2 'topx))
+                       T)
+                      ((EQUAL BCV::T1 'INT)
+                       (BCV::ISASSIGNABLE 'ONEWORD
+                                          BCV::T2 BCV::ENV))
+                      ((EQUAL BCV::T1 'FLOAT)
+                       (BCV::ISASSIGNABLE 'ONEWORD
+                                          BCV::T2 BCV::ENV))
+                      ((EQUAL BCV::T1 'LONG)
+                       (BCV::ISASSIGNABLE 'TWOWORD
+                                          BCV::T2 BCV::ENV))
+                      ((EQUAL BCV::T1 'DOUBLE)
+                       (BCV::ISASSIGNABLE 'TWOWORD
+                                          BCV::T2 BCV::ENV))
+                      ((EQUAL BCV::T1 'REFERENCE)
+                       (BCV::ISASSIGNABLE 'ONEWORD
+                                          BCV::T2 BCV::ENV))
+                      ((EQUAL 'UNINITIALIZED BCV::T1)
+                       (BCV::ISASSIGNABLE 'REFERENCE
+                                          BCV::T2 BCV::ENV))
+                      ((BCV::ISCLASSTYPE BCV::T1)
+                       (OR (BCV::ISASSIGNABLE 'REFERENCE
+                                              BCV::T2 BCV::ENV)
+                           (BCV::ISJAVAASSIGNABLE BCV::T1 BCV::T2 BCV::CL)))
+                      ((BCV::ISARRAYTYPE BCV::T1)
+                       (OR
+                        (BCV::ISASSIGNABLE 'REFERENCE
+                                           BCV::T2 BCV::ENV)
+                        (AND (BCV::ISCLASSTYPE BCV::T2)
+                             (BCV::ISJAVAASSIGNABLE BCV::T1 BCV::T2 BCV::CL))
+                        (AND (BCV::ISARRAYTYPE BCV::T2)
+                             (BCV::ISJAVAASSIGNABLE BCV::T1 BCV::T2 BCV::CL))))
+                      ((EQUAL BCV::T1 'UNINITIALIZEDTHIS)
+                       (BCV::ISASSIGNABLE 'UNINITIALIZED
+                                          BCV::T2 BCV::ENV))
+                      ((BCV::ISUNINITIALIZEDOBJECT BCV::T1)
+                       (BCV::ISASSIGNABLE 'UNINITIALIZED
+                                          BCV::T2 BCV::ENV))
+                      ((BCV::ISNULLTYPE BCV::T1)
+                       (OR (BCV::ISCLASSTYPE BCV::T2)
+                           (BCV::ISARRAYTYPE BCV::T2)
+                           (BCV::ISASSIGNABLE '(CLASS <span class="string">"java.lang.Object"</span>)
+                                              BCV::T2 BCV::ENV)))
+                      (T NIL)))))))
+
+<span class="comment">;;; this above can be exported! 
+</span>
+
+(defthm primitive-type-primitive-type-equal
+  (implies (and (djvm::primitive-type? typ1)
+                (djvm::primitive-type? typ2))
+           (equal (bcv::isAssignable typ1 typ2 any-env)
+                  (equal typ1 typ2)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable primitive-type?))))
+
+<span class="comment">;;; this is also a nice rule! 
+</span>
+
+
+(local 
+ (encapsulate ()
+              (local (include-book <span class="string"><a href="base-skip-proofs.lisp.html">"base-skip-proofs"</a></span>))
+              (defthm djvm-isjavaassignment-compatible-cl-implies-BCV-isJavaAssignable
+                (implies (and (isJavaAssignmentCompatible rtype type cl)
+                              (reference-type-s rtype cl)
+                              (reference-type-s type cl)
+                              (consistent-class-hierachy cl)
+                              (class-table-is-loaded-from cl (bcv::scl-bcv2jvm scl)))
+                         (bcv::isjavaassignable (fix-sig rtype) (fix-sig type) scl))
+                <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not-induct</span> t
+                         <span class="builtin">:in-theory</span> (e/d () (bcv::isJavaAssignable
+                                             fix-sig
+                                             isJavaAssignmentCompatible
+                                             reference-type-s
+                                             array-component-type component-type))
+                         <span class="builtin">:do-not</span> '(generalize))))))
+<span class="comment">;;;
+;;; skip proof this!!  Sat Apr 30 17:58:16 2005
+;;;
+</span>
+(local (defthm primitive-type-isJavaAssignment-compatible
+         (implies (and (PRIMITIVE-TYPE? RTYPE)
+                       (not (equal rtype type)))
+                  (not (ISJAVAASSIGNMENTCOMPATIBLE RTYPE TYPE CL)))))
+
+
+(local (defthm primitive-type-isJavaAssignment-compatible-2
+         (implies (and (not (PRIMITIVE-TYPE? RTYPE))
+                       (primitive-type? type))
+                  (not (ISJAVAASSIGNMENTCOMPATIBLE RTYPE TYPE CL)))
+         <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable primitive-type?)))))
+
+<span class="comment">;;; (i-am-here) ;; Mon May  2 20:57:20 2005
+</span>
+
+(local 
+ (defthm wff-icl-fact
+   (implies (bcv::wff-icl icl)
+            (not (class-exists? 'NULL icl)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable class-exists? classname)))))
+
+(local 
+ (defthm good-icl-fact-1
+   (implies (bcv::good-icl icl)
+            (not (class-exists? 'NULL icl)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv::good-icl)))))
+
+
+(local (defthm not-primitive-type-not-fix-sig-primitive-type
+  (implies (not (primitive-type? type))
+           (not (primitive-type? (fix-sig type))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable primitive-type?)))))
+
+
+
+(local (defthm good-icl-implies-consistent-class-hierachy
+  (implies (bcv::good-icl icl)
+           (consistent-class-hierachy icl))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv::good-icl)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+<span class="comment">;;; not sure why we need these simple theorems
+</span>
+(local (defthm icl-scl-compatible-implies-class-table-loaded-from
+         (implies (bcv::icl-scl-compatible icl scl)
+                  (class-table-is-loaded-from icl (bcv::scl-bcv2jvm scl)))
+         <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (bcv::icl-scl-compatible)
+                                         (class-table-is-loaded-from))))
+         <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+(local 
+ (defthm icl-scl-compatible-implies-class-table-loaded-from-b
+   (implies (bcv::icl-scl-compatible icl scl)
+            (class-table-is-loaded-from icl (bcv::scl-bcv2jvm scl)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (bcv::icl-scl-compatible)
+                                   (class-table-is-loaded-from))))))
+
+(local 
+ (defthm good-java-type-not-top-fact
+   (implies (bcv::good-java-type type icl)
+            (not (equal type 'topx)))))
+
+
+(local 
+ (defthm primitive-is-java-assignable-implies-equal
+   (implies (and (primitive-type? rtype)
+                 (ISJAVAASSIGNMENTCOMPATIBLE RTYPE TYPE CL))
+            (equal (equal rtype type) t))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable isjavaassignmentcompatible)))))
+
+
+(local (defthm primitive-is-java-assignable-implies-equal-specific
+  (implies (and (primitive-type? rtype)
+                (ISJAVAASSIGNMENTCOMPATIBLE RTYPE TYPE CL))
+           (equal (fix-sig type) rtype))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable isjavaassignmentcompatible)))))
+           
+
+(defthm reference-type-s-implied-by-existing
+  (implies (class-exists? typ cl)
+           (reference-type-s typ cl)))
+
+
+(local 
+ (defthm not-stringp-implies-not-class-exists
+   (implies (and (not (stringp typ))
+                 (bcv::wff-icl cl))
+            (not (class-exists? typ cl)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable class-exists? 
+                                      classname
+                                      bcv::good-icl)))))
+
+
+<span class="comment">;; (defthm class-exists-good-icl
+;;   (implies (and (CLASS-EXISTS? TYPE CL)
+;;                 (bcv::good-icl icl))
+;;            (NOT (PRIMITIVE-TYPE? TYPE)))
+;;   :hints (("Goal" :in-theory (enable primitive-type?))))
+</span>
+
+(local (defthm bcv-good-scl-equal-equal
+  (implies (bcv::good-scl scl)
+           (equal (BCV::SCL-JVM2BCV (BCV::SCL-BCV2JVM SCL)) scl))))
+
+<span class="comment">;; (i-am-here) ;; Mon May  2 22:00:52 2005
+</span>
+
+(defthm classtableEnvironment-fake-env
+  (equal (bcv::classtableEnvironment (fake-env scl))
+         scl)
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv::classtableEnvironment))))
+
+(in-theory (disable fake-env))
+
+
+(local (defthm <span class="string">|Subgoal 4'|</span>
+  (IMPLIES (AND (CLASS-EXISTS? RTYPE CL)
+                (CLASS-EXISTS? TYPE CL)
+              (ISJAVAASSIGNMENTCOMPATIBLE RTYPE TYPE CL)
+              (BCV::GOOD-JAVA-TYPE (FIX-SIG RTYPE) CL)
+              (BCV::GOOD-JAVA-TYPE (FIX-SIG TYPE) CL)
+              (BCV::GOOD-ICL CL)
+              (EQUAL (BCV::SCL-JVM2BCV (BCV::SCL-BCV2JVM SCL))
+                     SCL)
+              (CLASS-TABLE-IS-LOADED-FROM CL (BCV::SCL-BCV2JVM SCL)))
+         (BCV::ISASSIGNABLE (FIX-SIG RTYPE)
+                            (FIX-SIG TYPE)
+                            (FAKE-ENV SCL)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> 
+           <span class="builtin">:in-theory</span> (disable bcv::good-scl bcv::good-icl
+                               djvm-isJavaAssignment-compatible-cl-implies-BCV-isJavaAssignable)
+           <span class="builtin">:use</span>
+           djvm-isJavaAssignment-compatible-cl-implies-BCV-isJavaAssignable
+           <span class="builtin">:do-not-induct</span> t
+           <span class="builtin">:expand</span> (BCV::ISASSIGNABLE (FIX-SIG RTYPE)
+                                      (FIX-SIG TYPE)
+                                      (FAKE-ENV SCL))))))
+
+(local (defthm <span class="string">|Subgoal 3'|</span>
+  (IMPLIES (AND (CLASS-EXISTS? RTYPE CL)
+              (NOT (PRIMITIVE-TYPE? TYPE))
+              (ARRAY-TYPE-S TYPE CL)
+              (ISJAVAASSIGNMENTCOMPATIBLE RTYPE TYPE CL)
+              (BCV::GOOD-JAVA-TYPE (FIX-SIG RTYPE) CL)
+              (BCV::GOOD-JAVA-TYPE (FIX-SIG TYPE) CL)
+              (BCV::GOOD-ICL CL)
+              (EQUAL (BCV::SCL-JVM2BCV (BCV::SCL-BCV2JVM SCL))
+                     SCL)
+              (CLASS-TABLE-IS-LOADED-FROM CL (BCV::SCL-BCV2JVM SCL)))
+         (BCV::ISASSIGNABLE (FIX-SIG RTYPE)
+                            (FIX-SIG TYPE)
+                            (FAKE-ENV SCL)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> 
+           <span class="builtin">:in-theory</span> (disable bcv::good-scl bcv::good-icl
+                               djvm-isJavaAssignment-compatible-cl-implies-BCV-isJavaAssignable)
+           <span class="builtin">:use</span>
+           djvm-isJavaAssignment-compatible-cl-implies-BCV-isJavaAssignable
+           <span class="builtin">:do-not-induct</span> t
+           <span class="builtin">:expand</span> (BCV::ISASSIGNABLE (FIX-SIG RTYPE)
+                                      (FIX-SIG TYPE)
+                                      (FAKE-ENV SCL))))))
+
+
+(local (defthm <span class="string">|Subgoal 2'|</span>
+  (IMPLIES (AND (ARRAY-TYPE-S RTYPE CL)
+                (NOT (PRIMITIVE-TYPE? TYPE))
+                (CLASS-EXISTS? TYPE CL)
+                (ISJAVAASSIGNMENTCOMPATIBLE RTYPE TYPE CL)
+                (BCV::GOOD-JAVA-TYPE (FIX-SIG RTYPE) CL)
+                (BCV::GOOD-JAVA-TYPE (FIX-SIG TYPE) CL)
+                (BCV::GOOD-ICL CL)
+                (EQUAL (BCV::SCL-JVM2BCV (BCV::SCL-BCV2JVM SCL))
+                       SCL)
+                (CLASS-TABLE-IS-LOADED-FROM CL (BCV::SCL-BCV2JVM SCL)))
+           (BCV::ISASSIGNABLE (FIX-SIG RTYPE)
+                              (FIX-SIG TYPE)
+                              (FAKE-ENV SCL)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> 
+           <span class="builtin">:in-theory</span> (disable bcv::good-scl bcv::good-icl
+                               djvm-isJavaAssignment-compatible-cl-implies-BCV-isJavaAssignable)
+           <span class="builtin">:use</span>
+           djvm-isJavaAssignment-compatible-cl-implies-BCV-isJavaAssignable
+           <span class="builtin">:do-not-induct</span> t
+           <span class="builtin">:expand</span> (BCV::ISASSIGNABLE (FIX-SIG RTYPE)
+                                      (FIX-SIG TYPE)
+                                      (FAKE-ENV SCL))))))
+
+
+(local (defthm <span class="string">|Subgoal 1'|</span>
+  (IMPLIES (AND (ARRAY-TYPE-S RTYPE CL)
+                (NOT (PRIMITIVE-TYPE? TYPE))
+                (ARRAY-TYPE-S TYPE CL)
+                (ISJAVAASSIGNMENTCOMPATIBLE RTYPE TYPE CL)
+                (BCV::GOOD-JAVA-TYPE (FIX-SIG RTYPE) CL)
+                (BCV::GOOD-JAVA-TYPE (FIX-SIG TYPE) CL)
+                (BCV::GOOD-ICL CL)
+                (EQUAL (BCV::SCL-JVM2BCV (BCV::SCL-BCV2JVM SCL))
+                       SCL)
+              (CLASS-TABLE-IS-LOADED-FROM CL (BCV::SCL-BCV2JVM SCL)))
+           (BCV::ISASSIGNABLE (FIX-SIG RTYPE)
+                              (FIX-SIG TYPE)
+                              (FAKE-ENV SCL)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> 
+           <span class="builtin">:in-theory</span> (disable bcv::good-scl bcv::good-icl
+                               djvm-isJavaAssignment-compatible-cl-implies-BCV-isJavaAssignable)
+           <span class="builtin">:use</span>
+           djvm-isJavaAssignment-compatible-cl-implies-BCV-isJavaAssignable
+           <span class="builtin">:do-not-induct</span> t
+           <span class="builtin">:expand</span> (BCV::ISASSIGNABLE (FIX-SIG RTYPE)
+                                      (FIX-SIG TYPE)
+                                      (FAKE-ENV SCL))))))
+
+
+<span class="comment">;;;; this is the rule that we want to export to 
+;;;;
+;;;; base-consistent-state.lisp
+;;;;
+;;;; Mon May  2 21:33:38 2005
+</span>
+
+(defthm djvm-assignment-compatible-cl-implies-BCV-isAssignable
+  (implies (and (AssignmentCompatible rtype type cl)
+                (bcv::good-java-type (fix-sig rtype) cl)
+                (bcv::good-java-type (fix-sig type) cl)
+                (bcv::good-icl cl)
+                (bcv::icl-scl-compatible cl scl))
+           (bcv::isAssignable (fix-sig rtype) (fix-sig type) (fake-env scl)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (assignmentcompatible bcv::isAssignable)
+                                  (isJavaAssignmentCompatible bcv::good-icl
+                                                              bcv::isjavaassignable))
+           <span class="builtin">:do-not-induct</span> t
+           <span class="builtin">:do-not</span> '(fertilize)
+           <span class="builtin">:restrict</span>
+           ((djvm-isJavaAssignment-compatible-cl-implies-BCV-isJavaAssignable
+             ((cl cl))))))))
+
+</pre>
+  </body>
+</html>

@@ -1,0 +1,110 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-bcv-fact-isMatchingType-isAssignableTo.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="base.lisp.html">"base"</a></span>)
+(include-book <span class="string"><a href="base-consistent-state.lisp.html">"base-consistent-state"</a></span>)
+
+
+
+
+(local (include-book <span class="string"><a href="base-bcv-fact-isMatchingType-isAssignableTo-support.lisp.html">"base-bcv-fact-isMatchingType-isAssignableTo-support"</a></span>))
+
+<span class="comment">;; we do know that Thu Jun 23 15:35:26 2005
+;; 
+</span>
+(defthm isMatchingType-isAssignableTo
+  (implies 
+   (and (BCV::ISMATCHINGTYPE
+         (BCV::PREFIX-CLASS (BCV::FIELDCLASSNAMECP (BCV::ARG1 INST)))
+         (OPSTACK-SIG (OPERAND-STACK (CURRENT-FRAME S))
+                      (INSTANCE-CLASS-TABLE S)
+                      (HEAP S)
+                      (HEAP-INIT-MAP (AUX S))
+                      (METHOD-PTR (CURRENT-FRAME S)))
+         (ENV-SIG S))
+        (not (NULLp (topStack s)))
+        (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+        (no-fatal-error? s)
+        (isClassTerm (class-by-name (fieldcp-classname (arg <a href="inst.lisp.html">inst</a>))
+                                    (instance-class-table s))) 
+        (bcv::class-by-name (bcv::fieldclassnamecp (bcv::arg1 <a href="inst.lisp.html">inst</a>))
+                            (BCV::CLASSTABLEENVIRONMENT (ENV-SIG S)))
+        (not (bcv::classisinterface  (bcv::class-by-name (bcv::fieldclassnamecp (bcv::arg1 <a href="inst.lisp.html">inst</a>))
+                                                         (BCV::CLASSTABLEENVIRONMENT (ENV-SIG S))))))
+    (CAR (ISASSIGNABLETO (OBJ-TYPE (DEREF2 (TOPSTACK S) (HEAP S)))
+                         (FIELDCP-CLASSNAME (ARG INST))
+                         S))))
+
+<span class="comment">;;; Mon Jun 20 15:55:30 2005
+;;;
+;;; Note this above is NOT TRUE!!! Fri Jun 17 15:53:40 2005
+;;; 
+</span>
+<span class="comment">;;; Because BCV's check assume that every object is assignable to 
+;;; any interface!!! 
+;;; However isassignableto does not expect so!!! 
+;;; 
+;;; Why BCV works, is because if resolution succeeds.  
+;;;
+;;; when resolution succeeds, then we know fieldcp-classname is assignable to
+;;; some actual class. 
+;;; And object-type is Assignable to some actual type!!!! 
+;;;;
+;;;;
+;;;; Because resolution will never succeed if the fieldcp-classname is a
+;;;; interface type!! 
+;;;; ....
+</span>
+
+<span class="comment">;;
+;; (skip-proofs 
+;;  (defthm isMatchingType-isAssignableTo
+;;   (implies 
+;;    (BCV::ISMATCHINGTYPE
+;;     (BCV::PREFIX-CLASS (BCV::FIELDCLASSNAMECP (BCV::ARG1 INST)))
+;;     (OPSTACK-SIG (OPERAND-STACK (CURRENT-FRAME S))
+;;                  (INSTANCE-CLASS-TABLE S)
+;;                  (HEAP S)
+;;                  (HEAP-INIT-MAP (AUX S))
+;;                  (METHOD-PTR (CURRENT-FRAME S)))
+;;     (ENV-SIG S))
+;;     (CAR (ISASSIGNABLETO (OBJ-TYPE (DEREF2 (TOPSTACK S) (HEAP S)))
+;;                          (FIELDCP-CLASSNAME (ARG INST))
+;;                          S)))))</span></pre>
+  </body>
+</html>

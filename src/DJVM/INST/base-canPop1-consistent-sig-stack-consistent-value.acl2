@@ -1,0 +1,3 @@
+(ld "../../BCV/bcv.pkg")
+(ld "../../DJVM/djvm.pkg")
+(certify-book "base-canPop1-consistent-sig-stack-consistent-value" 6 t :skip-proofs-okp t)

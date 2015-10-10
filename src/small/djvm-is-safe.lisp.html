@@ -1,0 +1,216 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>djvm-is-safe.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"ACL2"</span>)
+(include-book <span class="string"><a href="djvm-model.lisp.html">"djvm-model"</a></span>)
+(include-book <span class="string"><a href="consistent-state.lisp.html">"consistent-state"</a></span>)
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(encapsulate () 
+ (local (include-book <span class="string"><a href="djvm-INVOKE.lisp.html">"djvm-INVOKE"</a></span>))
+ (defthm consistent-state-preserved-by-DJVM-INVOKE
+   (implies (and (<a href="consistent-state.lisp.html">consistent-state</a> st)
+                 (equal (next-inst st) inst)
+                 (equal (op-code inst) '<a href="INVOKE.lisp.html">INVOKE</a>)
+                 (djvm-check-INVOKE (next-inst st) st))
+            (<a href="consistent-state.lisp.html">consistent-state</a>
+             (djvm-execute-INVOKE inst st)))))
+
+
+
+(encapsulate () 
+  (local (include-book <span class="string"><a href="djvm-PUSH.lisp.html">"djvm-PUSH"</a></span>))
+  (defthm consistent-state-preserved-by-DJVM-PUSH
+    (implies (and (<a href="consistent-state.lisp.html">consistent-state</a> st)
+                  (equal (next-inst st) inst)
+                  (equal (op-code inst) '<a href="PUSH.lisp.html">PUSH</a>)
+                  (djvm-check-PUSH inst st))
+             (<a href="consistent-state.lisp.html">consistent-state</a>
+              (djvm-execute-PUSH inst st)))))
+
+(encapsulate ()
+ (encapsulate () 
+  (local (include-book <span class="string"><a href="djvm-IFEQ.lisp.html">"djvm-IFEQ"</a></span>))
+  (defthm consistent-state-preserved-by-DJVM-IFEQ
+   (implies (and (<a href="consistent-state.lisp.html">consistent-state</a> st)
+                 (equal (next-inst st) inst)
+                 (equal (op-code inst) '<a href="IFEQ.lisp.html">IFEQ</a>)
+                 (djvm-check-IFEQ inst st))
+            (<a href="consistent-state.lisp.html">consistent-state</a>
+             (djvm-execute-IFEQ inst st))))))
+
+
+(encapsulate ()
+  (local (include-book <span class="string"><a href="djvm-HALT.lisp.html">"djvm-HALT"</a></span>))            
+  (defthm consistent-state-preserved-by-DJVM-HALT
+    (implies (and (<a href="consistent-state.lisp.html">consistent-state</a> st)
+                  (equal (next-inst st) inst)
+                  (equal (op-code inst) '<a href="HALT.lisp.html">HALT</a>)
+                  (djvm-check-HALT inst st))
+             (<a href="consistent-state.lisp.html">consistent-state</a>
+              (djvm-execute-HALT inst st)))))
+
+
+(encapsulate () 
+  (local (include-book <span class="string"><a href="djvm-POP.lisp.html">"djvm-POP"</a></span>))            
+  (defthm consistent-state-preserved-by-DJVM-POP
+   (implies (and (<a href="consistent-state.lisp.html">consistent-state</a> st)
+                 (equal (next-inst st) inst)
+                 (equal (op-code inst) '<a href="POP.lisp.html">POP</a>)
+                 (djvm-check-POP inst st))
+            (<a href="consistent-state.lisp.html">consistent-state</a>
+             (djvm-execute-POP inst st))))))
+
+
+(encapsulate ()
+ (local (include-book <span class="string"><a href="djvm-RETURN.lisp.html">"djvm-RETURN"</a></span>))
+ (defthm consistent-state-preserved-by-DJVM-RETURN
+   (implies (and (<a href="consistent-state.lisp.html">consistent-state</a> st)
+                 (equal (next-inst st) inst)
+                 (equal (op-code inst) '<a href="RETURN.lisp.html">RETURN</a>)
+                 (djvm-check-RETURN inst st))
+            (<a href="consistent-state.lisp.html">consistent-state</a>
+             (djvm-execute-RETURN inst st))))))
+
+(local (in-theory (disable <a href="consistent-state.lisp.html">consistent-state</a>
+                           next-inst 
+                           op-code
+                           djvm-check-INVOKE
+                           djvm-check-PUSH
+                           djvm-check-IFEQ
+                           djvm-check-HALT
+                           djvm-check-POP
+                           djvm-check-RETURN
+                           djvm-execute-INVOKE
+                           djvm-execute-PUSH
+                           djvm-execute-IFEQ
+                           djvm-execute-HALT
+                           djvm-execute-POP
+                           djvm-execute-RETURN)))
+
+(defthm djvm-step-preserve-consistent-state
+  (implies (<a href="consistent-state.lisp.html">consistent-state</a> st)
+           (<a href="consistent-state.lisp.html">consistent-state</a> (djvm-step st))))
+
+(local (in-theory (disable djvm-step)))
+
+(defthm consistent-state-implies-opstack-is-in-range
+  (implies (<a href="consistent-state.lisp.html">consistent-state</a> st)
+           (&lt;= (len (g 'op-stack (topx (g 'call-stack st))))
+               (g 'max-stack 
+                  (current-method st))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="consistent-state.lisp.html">consistent-state</a>))))
+
+
+(local (in-theory (disable current-method topx)))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(defthm djvm-run-preserve-consistent-state
+  (implies (<a href="consistent-state.lisp.html">consistent-state</a> st)
+           (<a href="consistent-state.lisp.html">consistent-state</a> (djvm-run st any))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(local (in-theory (disable djvm-run current-method topx)))
+
+(local 
+ (defthm verified-program-never-overflow-operand-stack-lemma
+   (implies (<a href="consistent-state.lisp.html">consistent-state</a> st)
+            (&lt;= (len (g 'op-stack (topx (g 'call-stack (djvm-run st n)))))
+                (max-stack (current-method (djvm-run st n)))))))
+
+<span class="comment">;; in fact, we may still want to show that method-table does not change!! 
+;; depend on whether people thing that this is straight forward! 
+</span>
+<span class="comment">;; and current-method look up the current executing method in the original
+;; method table
+</span>
+
+(defthm popStack-n-does-not-change-method-table
+  (equal (g 'method-table (popStack-n st n))
+         (g 'method-table st)))
+
+(defthm method-table-does-not-change
+  (equal (g 'method-table (djvm-step st))
+         (g 'method-table st))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable djvm-step
+                                     djvm-execute-INVOKE
+                                     djvm-execute-PUSH
+                                     djvm-execute-IFEQ
+                                     djvm-execute-POP
+                                     djvm-execute-HALT
+                                     djvm-execute-RETURN))))
+
+<span class="comment">;;
+;; in more complicated cases, we will prove this above as a properties of
+;; individual 
+;;
+;;   execute-XXXX
+;;
+</span>
+(defthm method-table-does-not-change-m-run
+  (equal (g 'method-table (djvm-run st n))
+         (g 'method-table st))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable djvm-run))))
+
+
+(defthm verified-program-never-overflow-operand-stack-in-djvm
+   (implies (and (<a href="consistent-state.lisp.html">consistent-state</a> st)
+                 (all-method-verified (g 'method-table st)))
+            (&lt;= (len (g 'op-stack (topx (g 'call-stack (djvm-run st n)))))
+                (max-stack (binding (g 'method-name 
+                                       (topx (g 'call-stack (djvm-run st n))))
+                                    (g 'method-table st)))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> verified-program-never-overflow-operand-stack-lemma
+            <span class="builtin">:in-theory</span> (e/d (current-method)
+                            (verified-program-never-overflow-operand-stack-lemma)))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span></pre>
+  </body>
+</html>

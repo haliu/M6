@@ -1,0 +1,1015 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>djvm-INVOKE.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"ACL2"</span>)
+(include-book <span class="string"><a href="djvm-model.lisp.html">"djvm-model"</a></span>)
+(include-book <span class="string"><a href="generic.lisp.html">"generic"</a></span>)
+(include-book <span class="string"><a href="consistent-state.lisp.html">"consistent-state"</a></span>)
+(include-book <span class="string"><a href="consistent-state-properties.lisp.html">"consistent-state-properties"</a></span>)
+
+
+
+(local (include-book <span class="string"><a href="consistent-state-step.lisp.html">"consistent-state-step"</a></span>))
+(local (in-theory (disable <a href="consistent-state.lisp.html">consistent-state</a>)))
+
+
+
+(local (in-theory (disable next-inst bcv-simple-check-step-pre
+                           extract-sig-frame pc-in-range
+                           bcv-method
+                           collect-witness-bcv-method
+                           op-code <a href="consistent-state.lisp.html">consistent-state</a>
+                           sig-frame-compatible
+                           current-method)))
+
+
+(local 
+ (defthm bcv-simple-check-step-pre-INVOKE-1
+   (implies (and (equal (op-code inst) '<a href="INVOKE.lisp.html">INVOKE</a>)
+                 (bcv-simple-check-step-pre inst
+                                     (extract-sig-frame 
+                                      (topx (g 'call-stack st))
+                                      (g 'method-table st))))
+            (&lt;= 0 (g 'max-stack (cdr (assoc-equal (cadr inst) 
+                                                  (g 'method-table st))))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv-simple-check-step-pre)))))
+
+
+(local 
+ (defthm bcv-simple-check-step-pre-INVOKE-1-specific
+   (implies (and (equal (op-code (next-inst st)) '<a href="INVOKE.lisp.html">INVOKE</a>)
+                 (bcv-simple-check-step-pre (next-inst st)
+                                     (extract-sig-frame 
+                                      (topx (g 'call-stack st))
+                                      (g 'method-table st))))
+            (&lt;= 0 (g 'max-stack (cdr (assoc-equal (cadr (next-inst st))
+                                                  (g 'method-table st))))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv-simple-check-step-pre)))))
+
+
+
+
+(local 
+ (defthm consistent-state-op-code-INVOKE-implies-pc-in-range
+   (implies (and (<a href="consistent-state.lisp.html">consistent-state</a> st)
+                 (equal (op-code (next-inst st)) '<a href="INVOKE.lisp.html">INVOKE</a>))
+            (pc-in-range st))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable next-inst)))))
+
+(defthm bcv-simple-method-implies-pc-equal-zero
+  (implies (bcv-simple-method method method-table)
+           (equal (g 'pc (cdr (assoc-equal 0 (g 'sig-vector method))))
+                  0))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable sig-frame-compatible))))
+
+
+(defthm bcv-simple-method-implies-opstack-equal-zero
+  (implies (bcv-simple-method method method-table)
+           (equal (g 'op-stack (cdr (assoc-equal 0 (g 'sig-vector method))))
+                  0))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable sig-frame-compatible))))
+
+
+(defthm bcv-simple-method-implies-max-stack-equal
+  (implies (bcv-simple-method method method-table)
+           (equal (g 'max-stack (cdr (assoc-equal 0 (g 'sig-vector method))))
+                  (g 'max-stack method)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv-simple-method sig-frame-compatible))))
+
+
+(defthm bcv-simple-method-implies-pc-equal-zero
+  (implies (bcv-simple-method method method-table)
+           (equal (g 'pc (cdr (assoc-equal 0 (g 'sig-vector method))))
+                  0))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable sig-frame-compatible))))
+
+
+(defthm bcv-simple-method-implies-method-table-equal-method-table
+  (implies (bcv-simple-method method method-table)
+           (equal (g 'method-table (cdr (assoc-equal 0 (g 'sig-vector method))))
+                  method-table))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable sig-frame-compatible bcv-simple-method))))
+
+
+
+(defthm bcv-simple-method-implies-method-table-equal-method-table
+  (implies (bcv-simple-method method method-table)
+           (equal (g 'method-table (cdr (assoc-equal 0 (g 'sig-vector method))))
+                  method-table))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable sig-frame-compatible bcv-simple-method))))
+
+
+(defthm bcv-simple-method-implies-method-name-equal-method-name
+  (implies (bcv-simple-method method method-table)
+           (equal (g 'method-name (cdr (assoc-equal 0 (g 'sig-vector method))))
+                  (g 'method-name method)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable sig-frame-compatible bcv-simple-method))))
+
+
+
+<span class="comment">;; (i-am-here) ;; Fri Nov 11 14:27:07 2005
+</span>
+<span class="comment">;; (local 
+;;  (defthm bcv-simple-check-step-pre-INVOKE-method-table
+;;    (implies (and (equal (op-code inst) '<a href="INVOKE.lisp.html">INVOKE</a>)
+;;                  (bcv-simple-check-step-pre inst
+;;                                      (extract-sig-frame 
+;;                                       (topx (g 'call-stack st))
+;;                                       (g 'method-table st))))
+;;             (equal (g 'method-table 
+;;                       (cdr (assoc-equal 0 (g 'sig-vector 
+;;                                              (cdr (assoc-equal (cadr inst)
+;;                                                                (g 'method-table st)))))))
+;;                    (g 'method-table st)))
+;;   :hints (("Goal" :in-theory (enable bcv-simple-method sig-frame-compatible
+;;                                      bcv-simple-check-step-pre))))))
+</span>
+
+<span class="comment">;;(i-am-here) ;; Wed Nov  2 22:49:27 2005
+</span>(defthm all-method-verified1-implies-bound-bcv-method
+  (implies (and (all-method-verified1 method-table1 method-table)
+                (assoc-equal name method-table1))
+           (bcv-method (cdr (assoc-equal name method-table1)) method-table)))
+
+
+<span class="comment">;; (defthm wff-method-table-implies-g-method-name-normalize
+;;   (implies (and (wff-method-table method-table)
+;;                 (assoc-equal name method-table))
+;;            (equal (g 'method-name (cdr (assoc-equal name method-table)))
+;;                   name)))
+</span>
+
+
+<span class="comment">;; (local 
+;;  (defthm all-verified1-implies-bcv-simple-method
+;;    (implies (and (all-method-verified1 method-table1 method-table)
+;;                  (wff-method-table method-table1)
+;;                  (assoc-equal name method-table1))
+;;             (bcv-simple-method (s 'sig-vector
+;;                                   (collect-witness-bcv-method 
+;;                                    (cdr (assoc-equal name method-table1))
+;;                                    method-table)
+;;                                   (cdr (assoc-equal name method-table1)))
+;;                                method-table))
+;;    :hints (("Goal" :in-theory (disable bcv-simple-method)))))
+</span>                  
+
+
+(defthm all-verified-implies-bcv-simple-method
+  (implies (and (all-method-verified method-table)
+                (wff-method-table method-table)
+                (assoc-equal name method-table))
+           (bcv-simple-method (s 'sig-vector
+                                 (collect-witness-bcv-method 
+                                  (cdr (assoc-equal name method-table))
+                                  method-table)
+                                 (cdr (assoc-equal name method-table)))
+                       method-table))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable bcv-simple-method all-method-verified1))))
+
+(local (in-theory (disable bcv-simple-method)))
+
+
+<span class="comment">;; Subgoal 2.10
+;; (IMPLIES
+;;  (AND (CONSISTENT-STATE ST)
+;;       (EQUAL (OP-CODE (NEXT-INST ST)) '<a href="INVOKE.lisp.html">INVOKE</a>)
+;;       (CDR (ASSOC-EQUAL (CADR (NEXT-INST ST))
+;;                         (G 'METHOD-TABLE ST))))
+;;  (EQUAL
+;;       (G 'METHOD-TABLE ST)
+;;       (G 'METHOD-TABLE
+;;          (CDR (ASSOC-EQUAL 0
+;;                            (G 'SIG-VECTOR
+;;                               (CDR (ASSOC-EQUAL (CADR (NEXT-INST ST))
+;;                                                 (G 'METHOD-TABLE ST))))))))).
+;;; problematic!! 
+;;; 
+</span>
+<span class="comment">;; (defun bcv-check-INVOKE (inst sig-frame)
+;;   (let* ((method-name (arg inst))
+;;          (method-table (g 'method-table sig-frame))
+;;          (method      (binding method-name method-table))
+;;          (nargs       (g 'nargs method)))
+;;     (and (bound? method-name method-table)
+;;          (&lt;= 0 (g 'max-stack (binding method-name method-table)))
+;;          (equal (g 'method-table 
+;;                    (cdr (assoc-equal 0 (g 'sig-vector (binding method-name
+;;                                                                method-table)))))
+;;                 method-table)
+;;          (&lt;= nargs (g 'op-stack sig-frame))
+;;          (&lt;= (+ 1 (- (g 'op-stack sig-frame) nargs))
+;;              (max-stack sig-frame)))))
+</span>
+
+<span class="comment">;; (local 
+;;  (defthm bcv-simple-check-step-pre-INVOKE-3
+;;    (implies (and (equal (op-code inst) '<a href="INVOKE.lisp.html">INVOKE</a>)
+;;                  (bcv-simple-check-step-pre inst
+;;                                      (extract-sig-frame 
+;;                                       (topx (g 'call-stack st))
+;;                                       (g 'method-table st))))
+;;             (equal (g 'op-stack 
+;;                       (cdr (assoc-equal 0 (g 'sig-vector 
+;;                                              (cdr (assoc-equal (cadr inst) 
+;;                                                                (g 'method-table
+;;                                                                   st)))))))
+;;                    0))
+;;    :hints (("Goal" :in-theory (enable bcv-simple-check-step-pre)))))
+</span>
+
+<span class="comment">;; (skip-proofs 
+;;  (local 
+;;   (defthm bcv-simple-check-step-pre-INVOKE-3-specific
+;;    (implies (and (equal (op-code (next-inst st)) '<a href="INVOKE.lisp.html">INVOKE</a>)
+;;                  (bcv-simple-check-step-pre (next-inst st)
+;;                                      (extract-sig-frame 
+;;                                       (topx (g 'call-stack st))
+;;                                       (g 'method-table st))))
+;;             (equal (g 'op-stack
+;;                       (cdr (assoc-equal 0 (g 'sig-vector 
+;;                                              (cdr (assoc-equal (cadr (next-inst st))
+;;                                                                (g 'method-table
+;;                                                                   st)))))))
+;;                    0))
+;;    :hints (("Goal" :in-theory (enable bcv-simple-check-step-pre))))))
+</span>
+
+<span class="comment">;; (defthm g-max-stack-popStack-n
+;;   (equal (g 'max-stack (car (g 'call-stack (popStack-n st n))))
+;;          (g 'max-stack (car (g 'call-stack st)))))
+</span>
+
+
+(defthm pop-stack-no-increase
+  (&lt;= (LEN
+        (G 'OP-STACK
+           (CAR (G 'CALL-STACK
+                   (POPSTACK-N ST n)))))
+      (len (g 'op-stack 
+              (car (g 'call-stack st)))))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:linear</span>)
+
+
+(defthm consistent-state-len-opstack-less-max-stack
+   (implies (<a href="consistent-state.lisp.html">consistent-state</a> st)
+            (&lt;= (len (g 'op-stack (car (g 'call-stack st))))
+                (g 'max-stack (car (g 'call-stack st)))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="consistent-state.lisp.html">consistent-state</a>)))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:linear</span>)
+
+
+(defthm invoke-produce-consp
+   (implies (equal (op-code inst) '<a href="INVOKE.lisp.html">INVOKE</a>)
+            (CONSP (bcv-simple-execute-step inst any-frame))))
+
+(defthm invoke-produce-consp-2
+   (implies (equal (op-code inst) '<a href="INVOKE.lisp.html">INVOKE</a>)
+            (bcv-simple-execute-step inst any-frame)))
+
+(local 
+(defthm bcv-simple-execute-step-inst-invoke-fact-5
+  (implies (equal (op-code inst) '<a href="INVOKE.lisp.html">INVOKE</a>)
+           (equal (g 'pc (car (bcv-simple-execute-step inst pre)))
+                  (+ 1 (g 'pc pre))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv-simple-execute-step)))))
+
+
+
+(local 
+(defthm bcv-simple-execute-step-inst-invoke-fact-6
+  (implies (equal (op-code inst) '<a href="INVOKE.lisp.html">INVOKE</a>)
+           (equal (g 'max-stack (car (bcv-simple-execute-step inst pre)))
+                  (g 'max-stack pre)))))
+
+(local
+(defthm <span class="string">|Subgoal 4|</span>
+  (IMPLIES
+   (AND (CONSISTENT-STATE ST)
+        (EQUAL (op-code (NEXT-INST ST)) '<a href="INVOKE.lisp.html">INVOKE</a>))
+   (EQUAL
+    (G 'MAX-STACK
+       (CDR (ASSOC-EQUAL (+ 1 (G 'PC (CAR (G 'CALL-STACK ST))))
+                         (collect-witness-bcv-method 
+                          (current-method st)
+                          (g 'method-table st)))))
+    (G 'MAX-STACK (CAR (G 'CALL-STACK ST)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> 
+           <span class="builtin">:in-theory</span> (e/d () (bcv-simple-execute-step))
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span> all-next-state-safe-implies-max-stack-equal
+                            (x (car (bcv-simple-execute-step (next-inst st) 
+                                                      (cdr (assoc-equal
+                                                            (g 'pc 
+                                                               (car 
+                                                                (g 'call-stack
+                                                                   st)))
+                                                            (collect-witness-bcv-method 
+                                                             (current-method st)
+                                                             (g 'method-table st)))))))
+                            (l (bcv-simple-execute-step 
+                                (next-inst st) 
+                                (cdr (assoc-equal
+                                      (g 'pc 
+                                         (car 
+                                          (g 'call-stack
+                                             st)))
+                                      (collect-witness-bcv-method 
+                                       (current-method st)
+                                       (g 'method-table st))))))
+
+                            (sig-vector (collect-witness-bcv-method 
+                                         (current-method st)
+                                         (g 'method-table st)))))))))
+                                                            
+
+
+
+(local 
+(defthm bcv-simple-execute-step-inst-INVOKE-fact-4
+  (implies (equal (op-code inst) '<a href="INVOKE.lisp.html">INVOKE</a>)
+           (equal (g 'method-table (car (bcv-simple-execute-step inst pre)))
+                  (g 'method-table pre)))))
+
+
+(local 
+(defthm <span class="string">|Subgoal 3|</span>
+  (IMPLIES
+   (AND (CONSISTENT-STATE ST)
+        (EQUAL (op-code (NEXT-INST ST)) '<a href="INVOKE.lisp.html">INVOKE</a>))
+   (EQUAL
+    (G 'method-table
+       (CDR (ASSOC-EQUAL (+ 1 (G 'PC (CAR (G 'CALL-STACK ST))))
+                         (collect-witness-bcv-method 
+                          (current-method st)
+                          (g 'method-table st)))))
+    (G 'method-table st)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> 
+           <span class="builtin">:in-theory</span> (e/d () (bcv-simple-execute-step
+                               consistent-state-sig-frame-compatible))
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span> consistent-state-sig-frame-compatible)
+                 (<span class="builtin">:instance</span> all-next-state-safe-implies-method-table-equal
+                            (x (car (bcv-simple-execute-step (next-inst st) 
+                                                      (cdr (assoc-equal
+                                                            (g 'pc 
+                                                               (car 
+                                                                (g 'call-stack
+                                                                   st)))
+                                                            (collect-witness-bcv-method 
+                                                             (current-method
+                                                              st)
+                                                             (g 'method-table st)))))))
+                            (l (bcv-simple-execute-step 
+                                (next-inst st) 
+                                (cdr (assoc-equal
+                                      (g 'pc 
+                                         (car 
+                                          (g 'call-stack
+                                             st)))
+                                      (collect-witness-bcv-method 
+                                       (current-method st)
+                                       (g 'method-table st))))))
+                            (sig-vector 
+                                      (collect-witness-bcv-method 
+                                       (current-method st)
+                                       (g 'method-table st)))))))))
+
+
+(local 
+(defthm bcv-simple-execute-step-inst-push-fact-5
+  (implies (equal (op-code inst) '<a href="INVOKE.lisp.html">INVOKE</a>)
+           (equal (g 'op-stack (car (bcv-simple-execute-step inst pre)))
+                  (+ 1 (g 'op-stack
+                          (SIG-FRAME-POP-N (G 'NARGS
+                                              (CDR (ASSOC-EQUAL (cadr inst) (G 'METHOD-TABLE PRE))))
+                                           PRE)))))))
+
+(defthm len-popStack-n-is-sig-frame-pop-n-general
+  (implies (sig-frame-compatible (extract-sig-frame (car (g 'call-stack st)) method-table)
+                                 frame)
+           (equal (g 'op-stack (sig-frame-pop-n n frame))
+                  (len (g 'op-stack (car (g 'call-stack (popstack-n st n)))))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable sig-frame-pop-n 
+                                     sig-frame-compatible
+                                     extract-sig-frame))))
+
+
+(defthm len-popStack-n-is-sig-frame-pop-n-specific
+  (implies (sig-frame-compatible (extract-sig-frame (car (g 'call-stack st)) method-table)
+                                 (cdr (assoc-equal pc vector)))
+           (equal (g 'op-stack (sig-frame-pop-n n (cdr (assoc-equal pc vector))))
+                  (len (g 'op-stack (car (g 'call-stack (popstack-n st n))))))))
+
+
+
+(local 
+ (defthm <span class="string">|Subgoal 2|</span>
+   (implies (AND (CONSISTENT-STATE ST)
+                 (EQUAL (op-code (NEXT-INST ST)) '<a href="INVOKE.lisp.html">INVOKE</a>))
+            (EQUAL
+             (G 'OP-STACK
+                (CDR (ASSOC-EQUAL (+ 1 (G 'PC (CAR (G 'CALL-STACK ST))))
+                                  (collect-witness-bcv-method 
+                                   (current-method st)
+                                   (g 'method-table st)))))
+             (+ 1 (LEN (G 'OP-STACK (CAR (G 'CALL-STACK 
+                                            (popstack-n st 
+                                                        (g 'nargs
+                                                           (CDR (ASSOC-EQUAL (CADR (NEXT-INST ST))
+                                                                             (G 'METHOD-TABLE ST))))))))))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> 
+           <span class="builtin">:in-theory</span> (e/d () (bcv-simple-execute-step
+                               consistent-state-sig-frame-compatible))
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span> consistent-state-sig-frame-compatible)
+                 (<span class="builtin">:instance</span> all-next-state-safe-implies-opstack-equal
+                            (x (car (bcv-simple-execute-step (next-inst st) 
+                                                      (cdr (assoc-equal
+                                                            (g 'pc 
+                                                               (car 
+                                                                (g 'call-stack
+                                                                   st)))
+                                                            (collect-witness-bcv-method 
+                                                             (current-method st)
+                                                             (g 'method-table st)))))))
+                            (l (bcv-simple-execute-step
+                                (next-inst st) 
+                                (cdr (assoc-equal
+                                      (g 'pc 
+                                         (car 
+                                          (g 'call-stack
+                                             st)))
+                                      (collect-witness-bcv-method 
+                                       (current-method st)
+                                       (g 'method-table st))))))
+                            (sig-vector 
+                                      (collect-witness-bcv-method 
+                                       (current-method st)
+                                       (g 'method-table st)))))))))
+
+   
+
+(local 
+ (defthm <span class="string">|Subgoal 5|</span>
+  (IMPLIES
+   (AND (CONSISTENT-STATE ST)
+        (EQUAL (op-code (NEXT-INST ST)) '<a href="INVOKE.lisp.html">INVOKE</a>))
+   (EQUAL
+    (G 'PC
+       (CDR (ASSOC-EQUAL (+ 1 (g 'pc  (car (g 'call-stack st))))
+                         (collect-witness-bcv-method 
+                          (current-method st)
+                          (g 'method-table st)))))
+    (+ 1 (g 'pc (car (g 'call-stack st))))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> 
+           <span class="builtin">:in-theory</span> (e/d () (bcv-simple-execute-step))
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span> all-next-state-safe-implies-pc-equal
+                            (x (car (bcv-simple-execute-step (next-inst st) 
+                                                      (cdr (assoc-equal
+                                                            (g 'pc 
+                                                               (car 
+                                                                (g 'call-stack
+                                                                   st)))
+                                                            (collect-witness-bcv-method 
+                                                             (current-method st)
+                                                             (g 'method-table st)))))))
+                            (l (bcv-simple-execute-step 
+                                (next-inst st) 
+                                (cdr (assoc-equal
+                                      (g 'pc 
+                                         (car 
+                                          (g 'call-stack st)))
+                                      (collect-witness-bcv-method 
+                                       (current-method st)
+                                       (g 'method-table st))))))
+                            (sig-vector 
+                             (collect-witness-bcv-method 
+                              (current-method st)
+                              (g 'method-table st)))))))))
+
+                                                            
+
+
+
+(local 
+ (defthm current-method-normalize
+   (equal (CDR (ASSOC-EQUAL (G 'METHOD-NAME
+                               (CAR (G 'CALL-STACK ST)))
+                            (G 'METHOD-TABLE ST)))
+          (current-method st))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable current-method)))))
+
+<span class="comment">;;(i-am-here) ;; Sun Oct 23 15:28:45 2005
+</span>
+
+<span class="comment">;; (local 
+;;  (defthm bcv-simple-check-step-pre-INVOKE-size-opstack
+;;    (implies (and (equal (op-code inst) '<a href="INVOKE.lisp.html">INVOKE</a>)
+;;                  (bcv-simple-check-step-pre inst
+;;                                      (extract-sig-frame 
+;;                                       (topx (g 'call-stack st))
+;;                                       (g 'method-table st))))
+;;             (&lt;= (+ 1 (- (len (g 'op-stack (car (g 'call-stack st)))
+;;                              (g 'nargs 
+</span>
+
+<span class="comment">;;                 (g 'max-stack (cdr (assoc-equal (cadr inst) 
+;;                                                   (g 'method-table st))))))
+;;    :hints (("Goal" :in-theory (e/d (current-method
+;;                                     bcv-simple-check-step-pre)
+;;                                    (current-method-normalize))))))
+</span>
+
+<span class="comment">;; (local 
+;;  (defthm bcv-simple-check-step-pre-INVOKE-size-opstack-specific
+;;    (implies (and (equal (op-code (next-inst st)) '<a href="INVOKE.lisp.html">INVOKE</a>)
+;;                  (bcv-simple-check-step-pre (next-inst st)
+;;                                      (extract-sig-frame 
+;;                                       (topx (g 'call-stack st))
+;;                                       (g 'method-table st))))
+;;             (&lt;= 0 (g 'max-stack (cdr (assoc-equal (cadr (next-inst st))
+;;                                                   (g 'method-table st))))))
+;;    :hints (("Goal" :in-theory (enable bcv-simple-check-step-pre)))))
+</span>
+
+
+
+(local 
+  (defthm bcv-simple-check-step-pre-INVOKE-size-opstack-1
+    (implies (and (equal (op-code inst) '<a href="INVOKE.lisp.html">INVOKE</a>)
+                  (bcv-simple-check-step-pre inst
+                                      (extract-sig-frame 
+                                       (topx (g 'call-stack st))
+                                       (g 'method-table st))))
+             (&lt;= (g 'nargs (cdr (assoc-equal (cadr inst) 
+                                             (g 'method-table st))))
+                 (len (g 'op-stack (car (g 'call-stack st))))))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv-simple-check-step-pre)))))
+                              
+
+
+(local 
+  (defthm bcv-simple-check-step-pre-INVOKE-size-opstack-2
+    (implies (and (equal (op-code inst) '<a href="INVOKE.lisp.html">INVOKE</a>)
+                  (bcv-simple-check-step-pre inst
+                                      (extract-sig-frame 
+                                       (topx (g 'call-stack st))
+                                       (g 'method-table st))))
+             (&lt;= 0 (g 'nargs (cdr (assoc-equal (cadr inst) 
+                                             (g 'method-table st))))))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv-simple-check-step-pre)))))
+
+
+
+(local 
+  (defthm bcv-simple-check-step-pre-INVOKE-size-opstack-3
+    (implies (and (equal (op-code inst) '<a href="INVOKE.lisp.html">INVOKE</a>)
+                  (bcv-simple-check-step-pre inst
+                                      (extract-sig-frame 
+                                       (topx (g 'call-stack st))
+                                       (g 'method-table st))))
+             (integerp (g 'nargs (cdr (assoc-equal (cadr inst) 
+                                                   (g 'method-table st))))))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv-simple-check-step-pre)))))
+
+
+
+(local 
+  (defthm bcv-simple-check-step-pre-INVOKE-size-opstack-4
+    (implies (and (equal (op-code inst) '<a href="INVOKE.lisp.html">INVOKE</a>)
+                  (bcv-simple-check-step-pre inst
+                                      (extract-sig-frame 
+                                       (topx (g 'call-stack st))
+                                       (g 'method-table st))))
+             (&lt;= (+ 1 (- (len (g 'op-stack (car (g 'call-stack st))))
+                         (g 'nargs (cdr (assoc-equal (cadr inst) 
+                                                     (g 'method-table st))))))
+                 (g 'max-stack (car (g 'call-stack st)))))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv-simple-check-step-pre)))))
+                              
+
+
+(local 
+ (defthm len-opstack-pop-stack-n-is-lemma
+  (implies (and (integerp n)
+                (&lt;= 0 n)
+                (&lt;= n (len (g 'op-stack (car (g 'call-stack st))))))
+           (equal (len (g 'op-stack 
+                          (car (g 'call-stack 
+                                  (popstack-n st n)))))
+                  (- (len (g 'op-stack 
+                             (car (g 'call-stack st))))
+                     n)))))
+
+
+(local 
+ (defthm len-len-minus
+   (implies (and (&lt;= x max-stack)
+                 (integerp y)
+                 (&lt;= 0 y))
+            (&lt;= (+ x (- y)) max-stack))))
+
+
+<span class="comment">;;(i-am-here) ;; Wed Nov  2 23:26:55 2005
+</span>
+<span class="comment">;; Thu Nov  3 17:09:33 2005
+</span>
+(defthm bcv-simple-method-implies-pc-equal-zero-specific
+  (implies (bcv-simple-method (binding name method-table) method-table)
+           (equal (g 'pc (cdr (assoc-equal 0 (g 'sig-vector (cdr (assoc-equal
+                                                                  name method-table))))))
+                  0))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable sig-frame-compatible))))
+
+
+(defthm bcv-simple-method-implies-opstack-equal-zero-specific
+  (implies (bcv-simple-method (binding name method-table) method-table)
+           (equal (g 'op-stack (cdr (assoc-equal 0 (g 'sig-vector 
+                                                      (cdr (assoc-equal name method-table))))))
+                  0))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable sig-frame-compatible))))
+
+
+
+(defthm bcv-simple-method-implies-max-stack-equal-specific
+  (implies (bcv-simple-method (binding name method-table) method-table)
+           (equal (g 'max-stack (cdr (assoc-equal 0 (g 'sig-vector 
+                                                       (cdr (assoc-equal name method-table))))))
+                  (g 'max-stack (cdr (assoc-equal name method-table)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv-simple-method sig-frame-compatible))))
+
+
+(local (in-theory (disable all-method-verified)))
+
+
+(defthm bcv-simple-method-implies-method-name-equal
+  (implies (bcv-simple-method method method-table)
+           (equal (g 'method-name (cdr (assoc-equal 0 (g 'sig-vector method))))
+                  (g 'method-name method)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv-simple-method sig-frame-compatible))))
+
+(defthm bcv-simple-method-implies-method-name-equal-specific
+  (implies (bcv-simple-method (binding name method-table) method-table)
+           (equal (g 'method-name (cdr (assoc-equal 0 (g 'sig-vector 
+                                                         (cdr (assoc-equal name
+                                                                           method-table))))))
+                  (g 'method-name (cdr (assoc-equal name method-table))))))
+
+
+
+
+<span class="comment">;; (local 
+;;  (defthm bcv-simple-check-step-pre-INVOKE-5
+;;    (implies (and (equal (op-code inst) '<a href="INVOKE.lisp.html">INVOKE</a>)
+;;                  (bcv-simple-check-step-pre inst
+;;                                      (extract-sig-frame 
+;;                                       (topx (g 'call-stack st))
+;;                                       (g 'method-table st))))
+;;             (equal (g 'method-name (cdr (assoc-equal (cadr inst)
+;;                                                      (g 'method-table st))))
+;;                    (cadr inst)))
+;;    :hints (("Goal" :in-theory (enable bcv-simple-check-step-pre)))))
+;;
+</span> 
+
+
+(local 
+ (defthm bcv-simple-check-step-pre-INVOKE-1-specific
+   (implies (and (equal (op-code (next-inst st)) '<a href="INVOKE.lisp.html">INVOKE</a>)
+                 (bcv-simple-check-step-pre (next-inst st)
+                                     (extract-sig-frame 
+                                      (topx (g 'call-stack st))
+                                      (g 'method-table st))))
+            (&lt;= 0 (g 'max-stack (cdr (assoc-equal (cadr (next-inst st))
+                                                  (g 'method-table st))))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv-simple-check-step-pre)))))
+
+
+<span class="comment">;;(i-am-here) ;; Thu Nov  3 22:00:41 2005
+</span>
+
+(local 
+(defthm bcv-simple-execute-step-inst-method-name-fact
+  (implies (equal (op-code inst) '<a href="INVOKE.lisp.html">INVOKE</a>)
+           (equal (g 'method-name (car (bcv-simple-execute-step inst pre)))
+                  (g 'method-name pre)))))
+
+
+
+
+
+(local 
+ (defthm <span class="string">|Subgoal 1|</span>
+   (implies (AND (CONSISTENT-STATE ST)
+                 (EQUAL (op-code (NEXT-INST ST)) '<a href="INVOKE.lisp.html">INVOKE</a>))
+            (EQUAL
+             (G 'method-name
+                (CDR (ASSOC-EQUAL (+ 1 (G 'PC (CAR (G 'CALL-STACK ST))))
+                                  (collect-witness-bcv-method 
+                                   (current-method st)
+                                   (g 'method-table st)))))
+             (G 'method-name
+                (CAR (G 'CALL-STACK ST)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> 
+           <span class="builtin">:in-theory</span> (e/d () (bcv-simple-execute-step
+                               consistent-state-sig-frame-compatible))
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span> consistent-state-sig-frame-compatible)
+                 (<span class="builtin">:instance</span> all-next-state-safe-implies-method-name-equal
+                            (x (car (bcv-simple-execute-step (next-inst st) 
+                                                      (cdr (assoc-equal
+                                                            (g 'pc 
+                                                               (car 
+                                                                (g 'call-stack
+                                                                   st)))
+                                                            (collect-witness-bcv-method 
+                                                             (current-method st)
+                                                             (g 'method-table st)))))))
+                            (l (bcv-simple-execute-step 
+                                (next-inst st) 
+                                (cdr (assoc-equal
+                                      (g 'pc 
+                                         (car 
+                                          (g 'call-stack
+                                             st)))
+                                      (collect-witness-bcv-method 
+                                       (current-method st)
+                                       (g 'method-table st))))))
+                            (sig-vector 
+                             (collect-witness-bcv-method 
+                              (current-method st)
+                              (g 'method-table st)))))))))
+
+   
+<span class="comment">;;(i-am-here);; 
+</span>
+<span class="comment">;; (defthm all-verified-implies-bcv-simple-method
+;;   (implies (and (all-method-verified method-table)
+;;                 (cdr (assoc-equal name method-table)))
+;;            (bcv-simple-method (cdr (assoc-equal name method-table))
+;;                        method-table))
+;;   :hints (("Goal" :in-theory (disable bcv-simple-method all-method-verified1))))
+</span>
+
+<span class="comment">;;(i-am-here) ;; Thu Nov  3 21:40:34 2005
+</span>
+
+<span class="comment">;; (local 
+;;  (defthm consistent-state-preserved-by-INVOKE-lemma-weak
+;;    (implies (and (<a href="consistent-state.lisp.html">consistent-state</a> st)
+;;                  (equal (next-inst st) inst)
+;;                  (equal (op-code inst) '<a href="INVOKE.lisp.html">INVOKE</a>)
+;;                  (bcv-simple-check-INVOKE inst
+;;                                           (extract-sig-frame 
+;;                                            (topx (g 'call-stack st))
+;;                                            (g 'method-table st))))
+;;                  ;;(djvm-check-INVOKE (next-inst st) st))
+;;             (<a href="consistent-state-step.lisp.html">consistent-state-step</a>
+;;              (djvm-execute-INVOKE inst st)))
+;;    :hints (("Goal" :in-theory (enable createinitframe sig-frame-compatible)))))
+</span>
+<span class="comment">;;(i-am-here) ;; Sun Nov 20 19:35:13 2005
+</span>
+(defthm parsecode-consp-implies-consp-code
+  (implies (consp (parsecode1 any code))
+           (consp code))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+(defthm implies-code-0-not-consp
+  (implies (equal (LEN code) 0)
+           (not (CONSP (PARSECODE1 0 code)))))
+
+
+(defthm bcv-method-implies-not-code-len-zero
+  (implies (bcv-method method method-table)
+           (&lt; 0 (len (g 'code method))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv-method)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:linear</span>)
+
+
+(defthm bound-implies-bcv-method
+  (implies (and (<a href="consistent-state.lisp.html">consistent-state</a> st)
+                (bound? name (g 'method-table st)))
+           (bcv-method (cdr (assoc-equal name (g 'method-table st)))
+                       (g 'method-table st)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="consistent-state.lisp.html">consistent-state</a> all-method-verified))))
+
+
+(defthm bound-implies-bcv-method-not-equal-len-zero
+  (implies (and (<a href="consistent-state.lisp.html">consistent-state</a> st)
+                (bound? name (g 'method-table st)))
+           (not (equal (len (g 'code 
+                               (cdr (assoc-equal name 
+                                                 (g 'method-table st)))))
+                       0)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:cases</span> ((bcv-method (cdr (assoc-equal name (g 'method-table
+                                                                st)))
+                                      (g 'method-table st))))))
+
+
+<span class="comment">;; i-am-here 
+</span>
+<span class="comment">;; (skip-proofs 
+;;  (defthm g-method-table-is-method-table
+;;    (implies (bcv-method method method-table)
+;;             (equal (g 'method-table 
+;;                       (cdr (assoc-equal 0 (collect-witness-bcv-method method
+;;                                                                       method-table))))
+;;                    method-table))))
+</span>
+
+<span class="comment">;; (skip-proofs 
+;;  (defthm g-method-name-is-method-name
+;;    (implies (bcv-method method method-table)
+;;             (equal (g 'method-name
+;;                       (cdr (assoc-equal 0 (collect-witness-bcv-method method
+;;                                                                       method-table))))
+;;                    (g 'method-name method)))))
+</span>
+
+
+
+(defthm bcv-simple-method-implies-pc-equal-zero-v2
+  (implies (bcv-simple-method (s 'sig-vector 
+                                 (collect-witness-bcv-method method
+                                                             method-table)
+                                 method)
+                              method-table)
+           (equal (g 'pc (cdr (assoc-equal 0 (collect-witness-bcv-method method method-table))))
+                  0))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> 
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span> bcv-simple-method-implies-pc-equal-zero
+                            (method (s 'sig-vector 
+                                       (collect-witness-bcv-method method
+                                                                   method-table)
+                                       method)))))))
+
+
+
+
+
+(defthm bcv-simple-method-implies-opstack-equal-zero-v2
+  (implies (bcv-simple-method (s 'sig-vector 
+                                 (collect-witness-bcv-method method
+                                                             method-table)
+                                 method)
+                              method-table)
+           (equal (g 'op-stack (cdr (assoc-equal 0 (collect-witness-bcv-method method
+                                                                               method-table))))
+                  0))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> 
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span> bcv-simple-method-implies-opstack-equal-zero
+                            (method (s 'sig-vector 
+                                       (collect-witness-bcv-method method
+                                                                   method-table)
+                                       method)))))))
+
+
+
+
+(defthm bcv-simple-method-implies-max-stack-equal-v2
+  (implies (bcv-simple-method (s 'sig-vector 
+                                 (collect-witness-bcv-method method
+                                                             method-table)
+                                 method)
+                              method-table)
+           (equal (g 'max-stack (cdr (assoc-equal 0 (collect-witness-bcv-method method
+                                                                                method-table))))
+                  (g 'max-stack method)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> 
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span> bcv-simple-method-implies-max-stack-equal
+                            (method (s 'sig-vector 
+                                       (collect-witness-bcv-method method
+                                                                   method-table)
+                                       method)))))))
+
+
+
+
+(defthm bcv-simple-method-implies-method-table-equal-method-table-v2
+  (implies (bcv-simple-method (s 'sig-vector 
+                                 (collect-witness-bcv-method method
+                                                             method-table)
+                                 method)
+                              method-table)
+           (equal (g 'method-table (cdr (assoc-equal 0 (collect-witness-bcv-method method
+                                                                                   method-table))))
+                  method-table))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> 
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span> bcv-simple-method-implies-method-table-equal-method-table
+                            (method (s 'sig-vector 
+                                       (collect-witness-bcv-method method
+                                                                   method-table)
+                                       method)))))))
+
+
+
+(defthm bcv-simple-method-implies-method-name-equal-method-name-v2
+  (implies (bcv-simple-method (s 'sig-vector 
+                                 (collect-witness-bcv-method method
+                                                             method-table)
+                                 method)
+                              method-table)
+           (equal (g 'method-name (cdr (assoc-equal 0 (collect-witness-bcv-method method
+                                                                                   method-table))))
+                  (g 'method-name method)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> 
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span> bcv-simple-method-implies-method-name-equal-method-name
+                            (method (s 'sig-vector 
+                                       (collect-witness-bcv-method method
+                                                                   method-table)
+                                       method)))))))
+
+
+<span class="comment">;;(i-am-here) ;; Sun Nov 20 21:16:13 2005
+</span>
+<span class="comment">;; Sun Nov 20 22:51:34 2005
+;;
+</span>
+(defthm consistent-state-implies-pc-in-range
+  (implies (<a href="consistent-state.lisp.html">consistent-state</a> st)
+           (pc-in-range st))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="consistent-state.lisp.html">consistent-state</a>)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+(defthm consistent-state-implies-pc-greater-than-zero
+  (implies (<a href="consistent-state.lisp.html">consistent-state</a> st)
+           (&lt;= 0 (g 'pc (car (g 'call-stack st)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable pc-in-range <a href="consistent-state.lisp.html">consistent-state</a>)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:linear</span>)
+
+
+(local 
+ (defthm consistent-state-preserved-by-INVOKE-lemma
+   (implies (and (<a href="consistent-state.lisp.html">consistent-state</a> st)
+                 (equal (next-inst st) inst)
+                 (equal (op-code inst) '<a href="INVOKE.lisp.html">INVOKE</a>)
+                 (djvm-check-INVOKE (next-inst st) st))
+            (<a href="consistent-state-step.lisp.html">consistent-state-step</a>
+             (djvm-execute-INVOKE inst st)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (pc-in-range 
+                                    createinitframe sig-frame-compatible)
+                                   ())))))
+
+
+
+(local (in-theory (disable djvm-execute-INVOKE djvm-check-INVOKE <a href="consistent-state-step.lisp.html">consistent-state-step</a>)))
+
+(local 
+ (defthm consistent-state-step-implies-consistent-state-djvm-execute-INVOKE
+   (implies (<a href="consistent-state-step.lisp.html">consistent-state-step</a> (djvm-execute-INVOKE inst st))
+            (<a href="consistent-state.lisp.html">consistent-state</a> (djvm-execute-INVOKE inst st)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> ((<span class="builtin">:instance</span>
+                          consistent-state-step-implies-implies-consistent-state
+                          (s (djvm-execute-INVOKE inst st))))))))
+
+
+
+<span class="comment">;--- EXPORT ----
+</span>
+(defthm consistent-state-preserved-by-DJVM-INVOKE
+  (implies (and (<a href="consistent-state.lisp.html">consistent-state</a> st)
+                (equal (next-inst st) inst)
+                (equal (op-code inst) '<a href="INVOKE.lisp.html">INVOKE</a>)
+                (djvm-check-INVOKE (next-inst st) st))
+           (<a href="consistent-state.lisp.html">consistent-state</a>
+            (djvm-execute-INVOKE inst st))))
+
+</pre>
+  </body>
+</html>

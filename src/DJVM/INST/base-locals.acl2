@@ -1,0 +1,2 @@
+(ld "../../DJVM/djvm.pkg")
+(certify-book "base-locals" 6 t :skip-proofs-okp t)

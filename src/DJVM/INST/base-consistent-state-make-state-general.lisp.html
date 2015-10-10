@@ -1,0 +1,454 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-consistent-state-make-state-general.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="../consistent-state.lisp.html">"../../DJVM/consistent-state"</a></span>)
+(include-book <span class="string"><a href="../consistent-state-properties.lisp.html">"../../DJVM/consistent-state-properties"</a></span>)
+(include-book <span class="string"><a href="../../M6-DJVM-shared/jvm-bytecode.lisp.html">"../../M6-DJVM-shared/jvm-bytecode"</a></span>)
+
+
+(local (include-book <span class="string"><a href="base-loader-preserve-consistent-state.lisp.html">"base-loader-preserve-consistent-state"</a></span>)) 
+
+
+<span class="comment">;;    (MAKE-STATE
+;;         (PC S)
+;;         (CURRENT-THREAD S)
+;;         (HEAP (RESOLVECLASSREFERENCE (FIELDCP-CLASSNAME (ARG INST))
+;;                                      S))
+;;         (THREAD-TABLE S)
+;;         (CLASS-TABLE (RESOLVECLASSREFERENCE (FIELDCP-CLASSNAME (ARG INST))
+;;                                             S))
+;;         (ENV S)
+;;         (ERROR-FLAG (RESOLVECLASSREFERENCE (FIELDCP-CLASSNAME (ARG INST))
+;;                                            S))
+;;         (ACL2::S 'PENDING-EXCEPTION
+;;                  "java.lang.NullPointerException"
+;;                  (AUX (RESOLVECLASSREFERENCE (FIELDCP-CLASSNAME (ARG INST))
+</span>
+
+(defthm make-state-build-a-java-instance-data-guard-general
+  (implies (and (wff-state s)
+                (integerp pc))
+           (equal (build-a-java-visible-instance-data-guard any 
+                                                       (make-state pc 
+                                                                   anycid 
+                                                                   anyhp
+                                                                   anytt
+                                                                   (class-table s)
+                                                                   anyenv
+                                                                   anyefflag
+                                                                   anyaux))
+                  (build-a-java-visible-instance-data-guard any s))))
+
+<span class="comment">;; it can still be made more general. 
+</span>
+<span class="comment">;; (defthm make-state-build-a-java-instance-data-guard
+;;   (implies (and (wff-state s)
+;;                 (integerp pc))
+;;            (equal (build-a-java-visible-instance-data-guard any 
+;;                                                        (make-state pc 
+;;                                                                    cid 
+;;                                                                    (heap s)
+;;                                                                    (thread-table s)
+;;                                                                    (class-table s)
+;;                                                                    (env s)
+;;                                                                    (error-flag s)
+;;                                                                    aux))
+;;                   (build-a-java-visible-instance-data-guard any s))))
+;;
+;;
+</span>
+(defthm make-state-build-a-java-instance-guard-general
+  (implies (and (wff-state s)
+                (equal (env s) env)
+                (integerp pc))
+           (equal (build-a-java-visible-instance-guard any 
+                                                       (make-state pc 
+                                                                   anycid 
+                                                                   anyhp
+                                                                   anytt
+                                                                   (class-table s)
+                                                                   env
+                                                                   anyerr
+                                                                   aux))
+                  (build-a-java-visible-instance-guard any s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable build-a-java-visible-instance-guard))))
+
+
+
+
+
+(defthm loader-inv-make-state-general
+  (implies (and (wff-state s)
+                (or err
+                    (equal (error-flag s) err))
+                (equal (env s) env)
+                (integerp pc)
+                (jvm::loader-inv s))
+           (jvm::loader-inv (make-state pc 
+                                        anycid 
+                                        anyhp
+                                        anytt
+                                        (class-table s)
+                                        env
+                                        err
+                                        aux)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable jvm::loader-inv no-fatal-error?))))
+
+
+
+
+(defthm class-loaded?-make-state-general
+  (equal (class-loaded? any (make-state anypc 
+                                        anycid 
+                                        anyhp
+                                        anytt
+                                        (class-table s)
+                                        anytt
+                                        anyerr
+                                        aux))
+         (class-loaded? any s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable class-loaded?))))
+
+
+
+(defthm make-state-heap-array-class-correctly-loaded?-general
+  (equal (jvm::array-class-correctly-loaded? l 
+                                             (make-state pc 
+                                                         anycid 
+                                                         anyhp
+                                                         anytt
+                                                         (class-table s)
+                                                         anyenv
+                                                         anyerr
+                                                         aux))
+                  (jvm::array-class-correctly-loaded? l s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (array-base-type)))))
+                                  
+  
+(defthm make-state-array-class-table-inv-helper-general
+  (equal (jvm::array-class-table-inv-helper l (make-state anypc 
+                                                          anycid 
+                                                          anyhp
+                                                          anytt
+                                                          (class-table s)
+                                                          anyenv
+                                                          anyerr
+                                                          aux))
+         (jvm::array-class-table-inv-helper l s)))
+
+
+
+
+
+(defthm consistent-state-correctly-loaded
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (correctly-loaded? <span class="string">"java.lang.Object"</span>
+                              (instance-class-table s)
+                              (env-class-table (env s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a>
+                                     boot-strap-class-okp))))
+
+(defthm consistent-state-correctly-loaded-java-lang-Class
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (correctly-loaded? <span class="string">"java.lang.Class"</span>
+                              (instance-class-table s)
+                              (env-class-table (env s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a>
+                                     boot-strap-class-okp))))
+
+(defthm consistent-state-correctly-loaded-java-lang-String
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (correctly-loaded? <span class="string">"java.lang.String"</span>
+                              (instance-class-table s)
+                              (env-class-table (env s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a>
+                                     boot-strap-class-okp))))
+
+
+(defthm correctly-loaded-implies-loaded-x
+  (implies (correctly-loaded? any (instance-class-table s) 
+                              (env-class-table (env s)))
+           (class-loaded? any s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable class-loaded?))))
+
+
+
+(defthm consistent-state-can-build-java-lang-Object
+  (IMPLIES (CONSISTENT-STATE S)
+           (BUILD-A-JAVA-VISIBLE-INSTANCE-GUARD <span class="string">"java.lang.Object"</span> S))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a> boot-strap-class-okp)
+                                  (build-a-java-visible-instance-guard)))))
+
+
+
+(defthm consistent-state-can-build-java-lang-String
+  (IMPLIES (CONSISTENT-STATE S)
+           (BUILD-A-JAVA-VISIBLE-INSTANCE-GUARD <span class="string">"java.lang.String"</span> S))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a> boot-strap-class-okp)
+                                  (build-a-java-visible-instance-guard)))))
+
+
+
+(defthm consistent-state-can-build-java-lang-Class
+  (IMPLIES (CONSISTENT-STATE S)
+           (BUILD-A-JAVA-VISIBLE-INSTANCE-GUARD <span class="string">"java.lang.Class"</span> S))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a> boot-strap-class-okp)
+                                  (build-a-java-visible-instance-guard)))))
+
+
+<span class="comment">;;(i-am-here)  ;; Sun Jun 12 13:02:14 2005
+</span>
+
+<span class="comment">;; (skip-proofs 
+;;  (defthm consistent-state-make-state-x-x
+;;    (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+;;                  (equal (pc s) pc)
+;;                  (equal (thread-table s) tt)
+;;                  (equal (env s) env)
+;;                  (equal (heap-init-map (aux s)) (heap-init-map aux))
+;;                  (equal (current-thread s) cid))
+;;             (<a href="../consistent-state.lisp.html">consistent-state</a> (make-state pc 
+;;                                           cid 
+;;                                           (heap s)
+;;                                           tt 
+;;                                           (class-table s)
+;;                                           env
+;;                                           any
+;;                                           aux)))))
+</span>
+
+<span class="comment">;;(i-am-here) ;; Fri Jul 15 22:13:38 2005
+</span>
+
+<span class="comment">;; (defthm consistent-state-bootstrap-class-ok
+;;   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> 
+;;          (CLASS-LOADED? "java.lang.Object"
+;;                         (MAKE-STATE (PC S)
+;;                                     (CURRENT-THREAD S)
+;;                                     (HEAP S)
+;;                                     (THREAD-TABLE S)
+;;                                     (CLASS-TABLE S)
+;;                                     (ENV S)
+;;                                     ERR AUX))).
+</span>
+<span class="comment">;; (i-am-here) ;; Fri Jul 15 22:23:16 2005
+</span>
+(local 
+  (defthm consistent-state-good-scl
+   (IMPLIES (CONSISTENT-STATE S)
+            (bcv::good-scl (bcv::scl-jvm2bcv (env-class-table (env s)))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a>) (bcv::good-scl))))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+(local 
+ (defthm consistent-scl-implies-not-super-java-lang-Object-bounded
+   (implies (bcv::good-scl scl)
+            (NOT
+             (BCV::ISCLASSTERM
+              (BCV::CLASS-BY-NAME
+               (BCV::CLASSSUPERCLASSNAME
+                (BCV::CLASS-BY-NAME <span class="string">"java.lang.Object"</span> scl))
+               scl))))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+(local 
+ (defthm consistent-scl-implies-not-nil-bounded
+   (implies (bcv::good-scl scl)
+            (NOT
+             (BCV::ISCLASSTERM
+              (BCV::CLASS-BY-NAME  nil  scl))))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+
+(local (in-theory (disable bcv::good-scl)))
+
+(local 
+ (defthm consistent-state-make-state-general
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (equal (pc s) pc)
+                 (equal (heap-init-map (aux s)) (heap-init-map aux))
+                 (equal (heap s) hp)
+                 (equal (thread-table s) tt)
+                 (equal (env s) env)
+                 (or err
+                     (equal (error-flag s) err))
+                 (equal (current-thread s) cid))
+            (consistent-state-step (make-state pc 
+                                         cid 
+                                         hp
+                                         tt
+                                         (class-table s)
+                                         env
+                                         err
+                                         aux)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (consistent-state-step
+                                   instance-class-table-inv
+                                   boot-strap-class-okp
+                                   array-class-table-inv)
+                                  (class-loaded?
+                                   isClassTerm))))))
+
+
+
+(defthm consistent-state-make-state-x-general
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (equal (pc s) pc)
+                 (equal (heap-init-map (aux s)) (heap-init-map aux))
+                 (equal (heap s) hp)
+                 (equal (thread-table s) tt)
+                 (equal (env s) env)
+                 (or err
+                     (equal (error-flag s) err))
+                 (equal (current-thread s) cid))
+           (<a href="../consistent-state.lisp.html">consistent-state</a> (make-state pc 
+                                         cid 
+                                         hp 
+                                         tt
+                                         (class-table s)
+                                         env
+                                         err
+                                         aux)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> ((<span class="builtin">:instance</span> consistent-state-make-state-general)
+                        (<span class="builtin">:instance</span>
+                         consistent-state-step-implies-consistent-state 
+                         <span class="comment">;; from base-loader-preserve-consistent-state.lisp
+</span>                         (s (make-state pc 
+                                         cid 
+                                         hp
+                                         tt
+                                         (class-table s)
+                                         env
+                                         err
+                                         aux))))
+           <span class="builtin">:in-theory</span> (disable <a href="../consistent-state.lisp.html">consistent-state</a> 
+                               consistent-state-step))))
+  
+
+
+
+
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(defthm build-a-java-visible-instance-data-guard-make-state-general
+  (implies (build-a-java-visible-instance-data-guard any s)
+           (build-a-java-visible-instance-data-guard any
+                                                     (MAKE-STATE (pc s)
+                                                                 anytid
+                                                                 anyhp
+                                                                 anytt
+                                                                 (class-table s)
+                                                                 (ENV S)
+                                                                 anyerror
+                                                                 anyaux))))
+
+
+(defthm array-class-table-make-state-is
+  (equal (array-class-table (MAKE-STATE anypc
+                                        anytid
+                                        anyhp
+                                        anytt
+                                        (CLASS-TABLE S)
+                                        anyenv
+                                        anyerror
+                                        anyaux))
+         (array-class-table s)))
+
+
+
+(defthm instance-class-table-make-state-is
+  (equal (instance-class-table (MAKE-STATE anypc
+                                        anytid
+                                        anyhp
+                                        anytt
+                                        (CLASS-TABLE S)
+                                        anyenv
+                                        anyerror
+                                        anyaux))
+         (instance-class-table s)))
+
+
+(defthm array-class-correctly-loaded-make-state-general
+  (implies (jvm::array-class-correctly-loaded? l s)
+           (jvm::array-class-correctly-loaded? l (MAKE-STATE anypc
+                                                             anytid
+                                                             anyhp
+                                                             anytt
+                                                             (CLASS-TABLE S)
+                                                             anyenv
+                                                             anyerror
+                                                             anyaux)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable array-base-type 
+                                     JVM::ARRAY-CLASS-CORRECTLY-LOADED?)
+           <span class="builtin">:do-not</span> '(generalize))))
+
+
+(defthm array-class-table-inv-helper-make-state-general           
+  (implies (JVM::ARRAY-CLASS-TABLE-INV-HELPER l s)
+           (JVM::ARRAY-CLASS-TABLE-INV-HELPER l (MAKE-STATE anypc
+                                                            anytid
+                                                            anyhp
+                                                            anytt
+                                                            (CLASS-TABLE S)
+                                                            anyenv
+                                                            anyerror
+                                                            anyaux))))
+
+(defthm build-a-java-visible-instance-guard-make-state-general
+  (implies (BUILD-A-JAVA-VISIBLE-INSTANCE-GUARD x s)
+           (BUILD-A-JAVA-VISIBLE-INSTANCE-GUARD x (MAKE-STATE (pc s)
+                                                            anytid
+                                                            anyhp
+                                                            anytt
+                                                            (CLASS-TABLE S)
+                                                            (env s)
+                                                            anyerror
+                                                            anyaux)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable build-a-java-visible-instance-guard))))
+
+</pre>
+  </body>
+</html>

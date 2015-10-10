@@ -1,0 +1,284 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>consistent-state-to-sig-state.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="consistent-state.lisp.html">"../DJVM/consistent-state"</a></span>)
+(include-book <span class="string"><a href="../BCV/typechecker.lisp.html">"../BCV/typechecker"</a></span>)
+(include-book <span class="string"><a href="djvm-class-table.lisp.html">"../DJVM/djvm-class-table"</a></span>)
+(include-book <span class="string"><a href="djvm-heap.lisp.html">"../DJVM/djvm-heap"</a></span>)
+
+(acl2::set-verify-guards-eagerness 0) 
+<span class="comment">;; not going to say anything about guard. We did not assert anything about
+;; guard 
+</span>
+(<span class="keyword">defun</span> <span class="function-name">fix-sig</span> (sig)
+  <span class="string">"fix-sig need to transform java.lang.String into (class java.lang.String)"</span>
+  (<span class="keyword">if</span> (primitive-type? sig) 
+      sig
+    (<span class="keyword">if</span> (isArrayType sig)
+        (list 'ARRAY (fix-sig (component-type sig)))
+      (list 'class sig))))
+
+
+
+
+(acl2::set-ignore-ok t)
+
+(<span class="keyword">defun</span> <span class="function-name">djvm-translate-int-type</span> (type)
+  (COND ((EQUAL TYPE 'BOOLEAN) 'INT)
+        ((EQUAL TYPE 'BYTE) 'INT)
+        ((EQUAL TYPE 'SHORT) 'INT)
+        ((EQUAL TYPE 'CHAR) 'INT)
+        (T TYPE)))
+
+(verify-guards djvm-translate-int-type)
+
+(<span class="keyword">defun</span> <span class="function-name">value-sig</span> (v cl hp hp-init curMethodPtr)
+ (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (consistent-class-hierachy cl)
+                             (wff-heap-strong hp)
+                             (wff-heap-init-map-strong hp-init)
+                             (wff-tagged-value v)
+                             (consistent-heap-with-heap-init-map hp hp-init)
+                             (consistent-value-x v cl hp))))
+   (<span class="keyword">if</span> (REFp v hp)
+      (<span class="keyword">if</span> (NULLp v)
+          'null
+        <span class="comment">;; need to deal with different package issue later
+</span>        (<span class="keyword">let</span> ((obj-init-tag (deref2-init v hp-init))
+              (obj (deref2 v hp)))
+          (<span class="keyword">if</span> (not (consp obj-init-tag)) 
+              <span class="comment">;; if not consp obj-init-tag means initialized. Fri Nov 21
+</span>              <span class="comment">;; 16:30:24 2003
+</span>              (fix-sig (obj-type obj))
+            (<span class="keyword">if</span> (equal (cdr obj-init-tag) curMethodPtr)
+                <span class="comment">;; if the object is created in this method
+</span>                <span class="comment">;; then translate into an uninitialized(Offset)
+</span>                (cons 'uninitialized (car obj-init-tag))
+              <span class="comment">;; else translate it into a 'uninitializedThis because one could
+</span>              <span class="comment">;; never pass a 'uninitialized object to a different method,
+</span>              <span class="comment">;; without being the this pointer in calling the constructor.
+</span>              <span class="comment">;; <a href="INST/AASTORE.lisp.html">AASTORE</a> and putfield etc guarantee, an uninitialized object
+</span>              <span class="comment">;; reference will not be stored somewhere. 
+</span>              'uninitializedThis))))
+              <span class="comment">;; at any point of program execution, at the give frame.
+</span>              <span class="comment">;; multiple of uninitialized object created in this call, there
+</span>              <span class="comment">;; is at most one uninitialized object not created from this
+</span>              <span class="comment">;; frame.
+</span>              <span class="comment">;; 
+</span>              <span class="comment">;; the invariant involves that all the object reachable from the
+</span>              <span class="comment">;; references in this frame, no object is uninitialized besides
+</span>              <span class="comment">;; one object. 'uninitializedThis.
+</span>              <span class="comment">;; 
+</span>              <span class="comment">;; pretty hard!! We want to defensive maintain this property
+</span>              <span class="comment">;; we want BCV guarantee the check succeeds. 
+</span>     (djvm-translate-int-type (tag-of v))))
+
+      
+<span class="comment">;; how to deal with the long and 
+;; (defun opstack-sig (opstack cl hp hp-init curMethodPtr)
+;;   (declare (xargs :guard (and (consistent-class-hierachy cl)
+;;                               (wff-heap-strong hp)
+;;                               (wff-heap-init-map-strong hp-init)
+;;                               (consistent-heap-with-heap-init-map hp hp-init)
+;;                               (consistent-opstack opstack cl hp))))
+;;   (if (not (consp opstack))
+;;       nil
+;;     (cond ((canPopCategory1 opstack)
+;;            (push (value-sig (topCategory1 opstack) cl hp hp-init curMethodPtr)
+;;                  (opstack-sig (popCategory1 opstack) cl hp hp-init curMethodPtr)))
+;;           ((canPopCategory2 opstack)
+;;            (push (value-sig (topCategory2 opstack) cl hp hp-init curMethodPtr)
+;;                  (push 'topx
+;;                        (opstack-sig (popCategory2 opstack) cl hp hp-init curMethodPtr)))))))
+</span>
+(<span class="keyword">defun</span> <span class="function-name">opstack-sig</span> (opstack cl hp hp-init curMethodPtr)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (consistent-class-hierachy cl)
+                              (wff-heap-strong hp)
+                              (wff-heap-init-map-strong hp-init)
+                              (consistent-heap-with-heap-init-map hp hp-init)
+                              (consistent-opstack opstack cl hp))))
+  (<span class="keyword">if</span> (not (consp opstack))
+      nil
+    (<span class="keyword">cond</span> ((canPopCategory1 opstack)
+           (push (value-sig (topCategory1 opstack) cl hp hp-init curMethodPtr)
+                 (opstack-sig (popCategory1 opstack) cl hp hp-init curMethodPtr)))
+          ((canPopCategory2 opstack)
+           (push 'topx <span class="comment">;; fixed a bug. Mon May 16 19:32:52 2005;; changed
+</span>                 <span class="comment">;; 'topx into 'topx
+</span>                 (push (value-sig (topCategory2 opstack) cl hp hp-init curMethodPtr)
+                       (opstack-sig (popCategory2 opstack) cl hp hp-init curMethodPtr)))))))
+
+<span class="comment">;;; notice Sun May 22 17:15:28 2005 that on opstack-sig: we have topx on the top
+;;; the actual value on the BCV's sig stack, 
+;;; on locals-sig we have the topx after the actual type !! 
+;;; Sun May 22 17:16:35 2005
+</span>
+<span class="comment">;;; Thu Dec 16 23:20:47 2004. 
+;;; We fix this to match with the BCV
+;;; BCV demands this because this is the order for the StackMap is given. by
+;;; the preverifier!! 
+;;; Thu Dec 16 23:22:14 2004
+</span>
+<span class="comment">;;;; Mon Jan 31 15:44:03 2005. OK. Seem to be fixed already. 
+</span>
+<span class="comment">;; Tue Mar 30 18:36:17 2004
+;; problem. locals-sig assume all slot is initialized!!
+;; which is not true!! some slot may have 'topx
+;;
+;; locals-sig is different rom opstack-sig
+</span>
+(<span class="keyword">defun</span> <span class="function-name">locals-sig</span> (locals cl hp hp-init curMethodPtr)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (consistent-class-hierachy cl)
+                              (wff-heap-strong hp)
+                              (wff-heap-init-map-strong hp-init)            
+                              (consistent-heap-with-heap-init-map hp hp-init)                  
+                              (consistent-locals locals cl hp))))
+  (<span class="keyword">if</span> (not (consp locals))
+      nil
+    (<span class="keyword">cond</span> ((Category1Loc locals)
+           (cons (value-sig (category1value locals) cl hp hp-init curMethodPtr)
+                 (locals-sig (shift1slot locals) cl hp hp-init curMethodPtr)))
+          ((Category2Loc locals)
+           (cons (value-sig (category2value locals) cl hp hp-init curMethodPtr)
+                 (cons 'topx 
+                       (locals-sig (shift2slot locals) cl hp hp-init
+                                   curMethodPtr))))
+          (t (cons 'topx (locals-sig (shift1slot locals) cl hp hp-init curMethodPtr))))))
+
+
+<span class="comment">;; To get a frame with proper flags, we also need the flag about it. 
+;;
+;; This is becoming more interesting. 
+</span>
+<span class="comment">;; The flag together with return's check make sure it called the initializer at
+;; least once.
+</span>
+
+<span class="comment">;; (defun gen-flags (values)
+;;   (if (not (consp values)) nil
+;;     (if (equal (car values) 'uninitializedThis)
+;;         (list 'flagThisUninit)
+;;       (gen-flags (cdr values)))))
+</span>
+<span class="comment">;; (defun gen-frame-flags (local-sig stack-sig)
+;;   (or (gen-flags local-sig)
+;;       (gen-flags stack-sig)))
+</span>
+
+<span class="comment">;;;
+;;; It appears that I have to add a new field into the make-frame We need to
+;;; modify the DJVM's make-frame to keep track of the current this pointer in a
+;;; method.
+;;; 
+</span>
+<span class="comment">;;; Sat Jul 30 23:37:11 2005. !!
+</span>
+<span class="comment">;;(i-am-here) ;; Sun Jul 31 01:22:50 2005
+</span>
+(<span class="keyword">defun</span> <span class="function-name">gen-frame-flags</span> (frame hp-init)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-call-frame frame)))
+  (<span class="keyword">if</span> (not (acl2::g 'this (jvm::frame-aux frame))) 
+      nil
+    (<span class="keyword">if</span> (not (bound? (acl2::g 'this (jvm::frame-aux frame)) hp-init)) nil
+      (<span class="keyword">if</span> (not (binding (acl2::g 'this (jvm::frame-aux frame)) hp-init)) 
+          '(flagThisUninit)
+        nil))))
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">make-sig-frame</span> (Locals Stack Flags) 
+  (list 'frame (cons 'locals locals) (cons 'stack stack) Flags))
+
+
+(<span class="keyword">defun</span> <span class="function-name">frame-sig</span> (frame cl hp hp-init)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (consistent-class-hierachy cl)
+                              (wff-heap-strong hp)
+                              (wff-heap-init-map-strong hp-init)            
+                              (consistent-heap-with-heap-init-map hp hp-init)                  
+                              (consistent-frame frame cl hp))))
+  (<span class="keyword">let*</span> ((locals-sig (locals-sig (locals frame)  cl hp hp-init (method-ptr frame)))
+         (stack-sig  (opstack-sig (operand-stack frame) cl hp hp-init (method-ptr frame)))
+         (flags (gen-frame-flags frame hp-init)))
+    (make-sig-frame  locals-sig stack-sig flags)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">makeEnvironment</span> (Class Method ReturnType MergedCode MaxStack Handlers CL)  
+  (list Class Method ReturnType MergedCode MaxStack Handlers CL))
+
+
+(include-book <span class="string"><a href="../BCV/bcv-functions-basic.lisp.html">"../BCV/bcv-functions-basic"</a></span>) <span class="comment">;; Wed May  4 22:25:50 2005
+;; The static class table format is differnet between BCV and DJVM
+</span>
+(<span class="keyword">defun</span> <span class="function-name">env-sig</span> (s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (<a href="consistent-state.lisp.html">consistent-state</a> s)))
+  (<span class="keyword">let*</span> ((scl (external-class-table s))
+         (cid (current-thread s))
+         (curThread (thread-by-id cid (thread-table s)))
+         (callstack (thread-call-stack curThread))
+         (curFrame  (top callstack))
+         (curmethodptr (method-ptr curFrame))
+         (classname (method-ptr-classname curmethodptr))
+         (curClass (class-by-name classname (instance-class-table s)))
+         (returnType (method-ptr-returntype curmethodptr))
+         (curMethod (deref-method curmethodptr (instance-class-table s)))
+         (parsedCode (method-code curMethod))
+         (stackMaps  (method-stackmap curMethod))
+         (mergedCode (bcv::mergeStackMapAndCode stackMaps parsedCode))
+         (maxStack (method-maxStack curMethod))
+         (handlers (method-handlers curMethod)))
+    <span class="comment">;; those pieces all need some fixs to transform into BCV's format. 
+</span>    (makeEnvironment curClass curMethod returnType mergedCode maxStack handlers
+                     (bcv::scl-jvm2bcv scl))))<span class="comment">;; 11/14/03 pass in scl!!
+</span>
+
+<span class="comment">;; we probably don't need to define and verify guard for those conversion
+;; functions. 
+</span>
+
+
+
+</pre>
+  </body>
+</html>

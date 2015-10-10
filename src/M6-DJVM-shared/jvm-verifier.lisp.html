@@ -1,0 +1,88 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>jvm-verifier.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"JVM"</span>)
+(include-book <span class="string"><a href="jvm-class-table.lisp.html">"../M6-DJVM-shared/jvm-class-table"</a></span>)
+(include-book <span class="string"><a href="jvm-state.lisp.html">"../M6-DJVM-shared/jvm-state"</a></span>)
+
+(<span class="keyword">defun</span> <span class="function-name">class-rep-verified?</span> (class-rep)
+  (&lt; (class-status class-rep) *CLASS_VERIFIED*))
+
+<span class="comment">;; temp implementation, which every class is verified.
+</span>
+(<span class="keyword">defun</span> <span class="function-name">verify-class1</span> (class-rep s)
+  (<span class="keyword">let*</span> ((new-class-rep 
+          (class-rep-set-class-status *CLASS_VERIFIED* class-rep))
+         (old-instance-class-table (instance-class-table s))
+         (new-instance-class-table 
+          (replace-class-table-entry class-rep new-class-rep
+                                     old-instance-class-table)))
+    (state-set-instance-class-table 
+     new-instance-class-table s)))
+         
+
+<span class="comment">;; we can proof, if it reach the stage of verifying class,
+;; loading must succeeded, (super must exists? except for java.lang.Object)
+</span>
+(<span class="keyword">defun</span> <span class="function-name">check-super-class-isnt-final</span> (class-rep s)
+  (<span class="keyword">let*</span> ((supername (super class-rep))
+         (super-rep   (class-by-name supername (instance-class-table s)))
+         (accessflags (class-accessflags super-rep)))
+    (mem '*final* accessflags)))
+
+(<span class="keyword">defun</span> <span class="function-name">check-interface-super-class-is-JavaLangObject</span> (class-rep s)
+  (<span class="keyword">declare</span> (ignore s))
+  (<span class="keyword">let*</span> ((supername (super class-rep)))
+    (equal supername <span class="string">"java.lang.Object"</span>)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">verify-class</span> (class-rep s) 
+  (<span class="keyword">if</span> (not (check-super-class-isnt-final class-rep s))
+      (fatalError <span class="string">"class-extends-final-class"</span> s)
+    (<span class="keyword">if</span> (isInterface class-rep) 
+        (<span class="keyword">if</span> (not (check-interface-super-class-is-JavaLangObject class-rep s))
+            (fatalError <span class="string">"interfaces-does-not-extends-JavaLangObject"</span> s)
+          (verify-class1 class-rep s))
+      (verify-class1 class-rep s))))
+
+</pre>
+  </body>
+</html>

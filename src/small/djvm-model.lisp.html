@@ -1,0 +1,279 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>djvm-model.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"ACL2"</span>)
+(include-book <span class="string"><a href="jvm-model.lisp.html">"jvm-model"</a></span>)
+(include-book <span class="string"><a href="consistent-state.lisp.html">"consistent-state"</a></span>)
+
+
+<span class="comment">;----------------------------------------------------------------------
+;
+;   defensive-JVM
+;
+;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">djvm-check-IFEQ</span> (inst st)
+  (<span class="keyword">let*</span> ((target (arg inst))
+         (pc     (get-pc st)))
+    (and (<a href="consistent-state.lisp.html">consistent-state</a> st)
+         (consp (op-stack st))
+         (pc-in-range (set-pc (+ 1 pc) st))
+         (pc-in-range (set-pc target st)))))
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">djvm-execute-IFEQ</span> (inst st)
+  (<span class="keyword">let*</span> ((target     (arg inst))
+         (v          (topstack st))
+         (pc         (get-pc st)))
+    (<span class="keyword">if</span> (equal v 0) 
+        (set-pc target
+                (popStack st))
+      (set-pc (+ 1 pc)
+              (popStack st)))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">djvm-check-PUSH</span> (inst st)
+  (<span class="keyword">declare</span> (ignore inst))
+  (<span class="keyword">let*</span> ((pc     (get-pc st)))
+    (and (<a href="consistent-state.lisp.html">consistent-state</a> st)
+         (&lt;= (+ 1 (len (op-stack st)))
+             (g 'max-stack (topx (g 'call-stack st))))
+         (pc-in-range (set-pc (+ 1 pc) st)))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">djvm-execute-PUSH</span> (inst st)
+  (<span class="keyword">let*</span> ((v     (arg inst))
+         (pc    (get-pc st)))
+    (set-pc (+ 1 pc)
+            (pushStack v st))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">djvm-check-INVOKE</span> (inst st)
+  (<span class="keyword">let*</span> ((method-name  (arg inst))
+         (method-table (g 'method-table st))
+         (method   (binding method-name method-table))
+         (nargs    (g 'nargs method)))
+    (and (<a href="consistent-state.lisp.html">consistent-state</a> st)
+         (bound? method-name method-table)
+         (&lt;= 0 (g 'max-stack (binding method-name method-table)))
+         (integerp nargs)
+         (&lt;= 0 nargs)
+         (&lt;= nargs (len (op-stack st)))
+         (&lt;= (+ 1 (- (len (op-stack st))
+                     nargs))
+             (g 'max-stack (topx (g 'call-stack st))))
+         (pc-in-range (set-pc (+ 1 (get-pc st))
+                              st)))))
+
+<span class="comment">;; this however does not guarantee that executing djvm-check will preserve
+;; <a href="consistent-state.lisp.html">consistent-state</a>
+;;
+;; because in the <a href="consistent-state.lisp.html">consistent-state</a> we require that 
+</span>
+<span class="comment">;;
+;;          ;; the following two need to has to be true!!!  In the new BCV, we can
+;;          ;; calculate the signiture at the each PC location!!
+;;          ;; 
+;;          (bound? pc (get-sig-vector caller method-table))
+;;          (sig-frame-compatible
+;;           (sig-frame-push-value (g 'ret callee) sig-frame)
+;;           record-frame-sig))))
+;;
+;; However if we don't require this, we will have no way to show that BCV is
+;; correct. 
+;;
+;; We know this is true, although djvm-check-INVOKE does not explicitly check
+;; it!! 
+;; ..... 
+</span>         
+<span class="comment">;;; Sun Nov 20 19:23:33 2005, we update <a href="consistent-state.lisp.html">consistent-state</a> that assert bcv-method
+;;; instead of bcv-simple-method!!!
+;;;
+</span>
+(<span class="keyword">defun</span> <span class="function-name">djvm-execute-INVOKE</span> (inst st)
+  (<span class="keyword">let*</span> ((method-name  (arg inst))
+         (method-table (g 'method-table st))
+         (method   (binding method-name method-table))
+         (nargs    (g 'nargs method)))
+    (pushInitFrame
+     method-name   <span class="comment">;; Thu Nov  3 21:44:09 2005. note. 
+</span>     <span class="comment">;; what if the method-table is not well formed, 
+</span>     <span class="comment">;; binding method-name does not give a method of the correct name?
+</span>     (init-locals (op-stack st) nargs)
+     (set-pc (+ 1 (get-pc st))
+               <span class="comment">;;
+</span>               <span class="comment">;; we could avoid modifying the pc
+</span>               <span class="comment">;; and make the return instruction to modify the pc of caller
+</span>               <span class="comment">;; however we still face the problem that 
+</span>               <span class="comment">;; the caller's operand stack does not comply with the signature
+</span>               <span class="comment">;;
+</span>               (popStack-n st nargs))))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">djvm-check-HALT</span> (inst st)
+  (<span class="keyword">declare</span> (ignore inst))
+  (<a href="consistent-state.lisp.html">consistent-state</a> st))
+
+
+(<span class="keyword">defun</span> <span class="function-name">djvm-execute-HALT</span> (inst st)
+  (<span class="keyword">declare</span> (ignore inst))
+  st)
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">djvm-check-POP</span> (inst st)
+  (<span class="keyword">declare</span> (ignore inst))
+  (and (<a href="consistent-state.lisp.html">consistent-state</a> st)
+       (consp (op-stack st))
+       (pc-in-range (set-pc (+ 1 (get-pc st))
+                            st))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">djvm-execute-POP</span> (inst st)
+  (<span class="keyword">declare</span> (ignore inst))
+  (set-pc (+ 1 (get-pc st))
+          (popStack st)))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">djvm-check-RETURN</span> (inst st)
+  (<span class="keyword">declare</span> (ignore inst))
+  (and (<a href="consistent-state.lisp.html">consistent-state</a> st)
+       (or (not (consp (popx (g 'call-stack st))))
+           (and (consp (op-stack st))
+                (&lt;= (+ 1 (len (g 'op-stack (topx (popx (g 'call-stack st))))))
+                    (g 'max-stack (topx (popx (g 'call-stack st)))))))))
+                      
+
+
+(<span class="keyword">defun</span> <span class="function-name">djvm-execute-RETURN</span> (inst st)
+  (<span class="keyword">declare</span> (ignore inst))
+  <span class="comment">;; update it to halt, when we know this is the very first frame!!  or update
+</span>  <span class="comment">;; our <a href="consistent-state.lisp.html">consistent-state</a> predicate!
+</span>  (<span class="keyword">if</span> (not (consp (popx (g 'call-stack st))))
+      st
+    (pushStack 
+     (topStack st)
+     (s 'call-stack
+        (popx (g 'call-stack st))
+        st))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">djvm-check-step-g</span> (inst st)
+  (<span class="keyword">let*</span> ((opcode (op-code inst)))
+    (<span class="keyword">cond</span> ((equal opcode '<a href="INVOKE.lisp.html">INVOKE</a>)
+           (djvm-check-INVOKE inst st))
+          ((equal opcode '<a href="PUSH.lisp.html">PUSH</a>)
+           (djvm-check-PUSH inst st))
+          ((equal opcode '<a href="IFEQ.lisp.html">IFEQ</a>)
+           (djvm-check-IFEQ inst st))
+          ((equal opcode '<a href="HALT.lisp.html">HALT</a>)
+           (djvm-check-HALT inst st))
+          ((equal opcode '<a href="POP.lisp.html">POP</a>)
+           (djvm-check-POP inst st))
+          ((equal opcode '<a href="RETURN.lisp.html">RETURN</a>)
+           (djvm-check-RETURN inst st))
+          (t nil))))
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">djvm-check-step</span> (st)
+  (<span class="keyword">let*</span> ((inst (next-inst st))
+         (opcode (op-code inst)))
+    (<span class="keyword">cond</span> ((equal opcode '<a href="INVOKE.lisp.html">INVOKE</a>)
+           (djvm-check-INVOKE inst st))
+          ((equal opcode '<a href="PUSH.lisp.html">PUSH</a>)
+           (djvm-check-PUSH inst st))
+          ((equal opcode '<a href="IFEQ.lisp.html">IFEQ</a>)
+           (djvm-check-IFEQ inst st))
+          ((equal opcode '<a href="HALT.lisp.html">HALT</a>)
+           (djvm-check-HALT inst st))
+          ((equal opcode '<a href="POP.lisp.html">POP</a>)
+           (djvm-check-POP inst st))
+          ((equal opcode '<a href="RETURN.lisp.html">RETURN</a>)
+           (djvm-check-RETURN inst st))
+          (t nil))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">djvm-step</span> (st)
+  (<span class="keyword">if</span> (not (djvm-check-step st)) 
+      st
+    (<span class="keyword">let*</span> ((inst (next-inst st))
+           (opcode (op-code inst)))
+      (<span class="keyword">cond</span> ((equal opcode '<a href="INVOKE.lisp.html">INVOKE</a>)
+             (djvm-execute-INVOKE inst st))
+            ((equal opcode '<a href="PUSH.lisp.html">PUSH</a>)
+             (djvm-execute-PUSH inst st))
+            ((equal opcode '<a href="IFEQ.lisp.html">IFEQ</a>)
+             (djvm-execute-IFEQ inst st))
+            ((equal opcode '<a href="HALT.lisp.html">HALT</a>)
+             (djvm-execute-HALT inst st))
+            ((equal opcode '<a href="POP.lisp.html">POP</a>)
+             (djvm-execute-POP inst st))
+            ((equal opcode '<a href="RETURN.lisp.html">RETURN</a>)
+             (djvm-execute-RETURN inst st))
+            (t st)))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">djvm-run</span> (st n)
+  (<span class="keyword">if</span> (zp n) st
+    (djvm-run (djvm-step st) (- n 1))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;;
+;; testing.
+;;
+</span>
+</pre>
+  </body>
+</html>

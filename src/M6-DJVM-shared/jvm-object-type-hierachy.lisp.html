@@ -1,0 +1,588 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>jvm-object-type-hierachy.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"JVM"</span>)
+(include-book <span class="string"><a href="jvm-loader.lisp.html">"../M6-DJVM-shared/jvm-loader"</a></span>)
+(include-book <span class="string"><a href="jvm-state.lisp.html">"../M6-DJVM-shared/jvm-state"</a></span>)
+(include-book <span class="string"><a href="jvm-type-value.lisp.html">"../M6-DJVM-shared/jvm-type-value"</a></span>)
+
+
+(include-book <span class="string">"ordinals/e0-ordinal"</span> <span class="builtin">:dir</span> <span class="builtin">:system</span>)
+(set-well-founded-relation e0-ord-&lt;)
+
+
+<span class="comment">;; This is really runtime type hierachy for M6. and DJVM
+;;; Tue Jan 13 16:09:38 2004 need to get this to guard verify!!
+;;; Need to get class loader to guard verify
+;;;;
+;;;; Tue Jan 13 16:10:01 2004
+</span>
+(acl2::set-verify-guards-eagerness 0) 
+
+(defthm load_class_does_not_change_env 
+   (<span class="keyword">let</span> ((s1 (load_class classname s0)))
+     (equal (env s1) (env s0))))
+
+(in-theory (disable load_class env))
+
+
+(<span class="keyword">defun</span> <span class="function-name">superClass1-measure</span> (seen s)
+  (<span class="keyword">let</span> ((cl (env-class-table (env s))))
+    (len (set-diff (all-class-names-s cl) seen))))
+
+
+<span class="comment">;; to be proved?  no executable... 
+;; we will be able to prove this to be an invariant starting any aribitary
+;; program.
+;;
+;;
+;; this is true for all reachable state. --- use defun to characterize
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">isSuperClass1-invariant</span> (from s)
+  (implies (class-loaded? from s)
+           (class-exists-externally? from (env-class-table (env s)))))
+<span class="comment">;;; needed for termination!! Wed Oct 20 11:03:25 2004
+</span>
+<span class="comment">;; can prove it as the property of the JVM.
+</span>
+<span class="comment">;; rely on the fact that class
+</span>
+(in-theory (disable class-loaded? no-fatal-error? env-class-table))
+
+
+(in-theory (enable class-exists-externally?))
+
+<span class="comment">;;; Wed Oct 20 10:28:56 2004.
+;;; 
+;;; There is a stronger invariant about isSuperClass1 testing.
+;;; JVM will make sure that all superclasses are loaded. 
+;;; before executing the following. 
+;;;
+;;; So we can characterize that all superclasses are loaded as the guard.
+;;;
+;;; So we revise accordingly.
+</span>
+
+<span class="comment">;(i-am-here)
+</span>
+<span class="comment">;; Wed Oct 20 11:09:11 2004
+;;; should be an easy proof 
+</span>(skip-proofs 
+ (defthm loader-inv-class-loaded-implies-isSuperClass-invariant
+   (implies (and (loader-inv s)
+                 (class-loaded? fromClass s))
+            (isSuperClass1-invariant fromClass s))))
+
+
+<span class="comment">;; deal with the guard verification later!! 
+</span>
+<span class="comment">;; ;;; modification here 
+;;;;;; Fri Jun 10 19:54:07 2005
+;;;;;; so it does not return nil merely because 
+;;;;;; there is an fatal error... 
+;;;;;; maybe not. Let me not change it. 
+;;;;;; afraid of changing definition. 
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">isSuperClass1</span> (fromClass toClass s seen)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:measure</span> (superClass1-measure seen s)
+                  <span class="builtin">:guard</span> (and (loader-inv s)
+                              (class-loaded? fromClass s)
+                              (class-loaded? toClass s))))
+  (<span class="keyword">if</span> (not (isSuperClass1-invariant fromClass s))
+      (mv nil s)
+    <span class="comment">;; the guard will ensure this will not fail. 
+</span>    (<span class="keyword">if</span> (not (no-fatal-error? s))
+      (mv nil s)
+    (<span class="keyword">if</span> (mem fromClass seen)
+        (mv nil s)
+      (<span class="keyword">if</span> (equal fromClass toClass) 
+          (mv t s)
+        (<span class="keyword">if</span> (equal fromClass <span class="string">"java.lang.Object"</span>)
+            (mv nil s)
+          (<span class="keyword">if</span> (class-loaded? fromClass s)
+              (isSuperClass1 (super (class-by-name fromClass 
+                                                   (instance-class-table s)))
+                             toClass  s (cons fromClass seen))
+            <span class="comment">;; only possible, when the from Class is does ntot exist in the
+</span>            <span class="comment">;; external class table. Dangling link
+</span>            (mv nil s))))))))
+
+                                                  
+
+<span class="comment">;; (defun isSuperClass1 (fromClass toClass s seen)
+;;   (declare (xargs :measure (superClass1-measure seen s)
+;;                   :hints (("Subgoal 1" :use 
+;;                            no-fatal-error?-after-load-implies-class-exists-externally))))
+;;   ;; guard 
+;;   (if (not (isSuperClass1-invariant fromClass s))
+;;       (mv nil (fatalError "loaded Class desc not found in the env" s))
+</span>
+<span class="comment">;;   (if (mem fromClass seen)
+;;       (mv nil s)
+;;     (if (equal fromClass toClass) 
+;;         (mv t s)
+;;       (if (equal fromClass "java.lang.Object")
+;;           (mv nil s)
+;;         (if (class-loaded? fromClass s)
+;;             (isSuperClass1 (super (class-by-name fromClass 
+;;                                                  (instance-class-table s)))
+;;                            toClass  s (cons fromClass seen))
+;;           (let ((new-s (load_class fromClass s)))
+;;             (if (not (no-fatal-error? new-s))
+;;                 (mv nil new-s)
+;;               (isSuperClass1 (super (class-by-name fromClass 
+;;                                                    (instance-class-table new-s)))
+;;                              toClass new-s  (cons fromClass seen))))))))))
+</span>                                                  
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">isSuperClass</span> (fromClass toClass s)
+  (isSuperClass1 fromClass toClass s nil))
+
+
+(defthm s-not-changed-isSuperClass1
+  (equal (mv-nth 1 (isSuperClass1 from to s seen))  s))
+
+<span class="comment">;; call this method with no array classes.
+;; no termination proof yet.
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">unseen-class-count</span> (seen s)
+  (<span class="keyword">let</span> ((cl (env-class-table (env s))))
+    (+ 1 (len (set-diff (all-class-names-s cl) seen)))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">classImplements-measure</span> (stage seen s)
+  (cons (cons (unseen-class-count seen s) 0) stage))
+        
+
+
+(<span class="keyword">defun</span> <span class="function-name">classImplementsInterface1-invariant</span> (from s)
+  (implies (class-loaded? from s)
+           (class-exists-externally? from (env-class-table (env s)))))
+
+(<span class="keyword">defun</span> <span class="function-name">classImplementsInterface1-aux-invariant</span> (thisClass seen s)
+  (and (class-loaded? thisClass s)
+       (not (mem thisClass seen))
+       (class-exists-externally? thisClass (env-class-table (env s)))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">interfacesImplementsInterface1-inv</span> (s1 s2)
+  (equal (env s1) (env s2)))
+
+(<span class="keyword">defun</span> <span class="function-name">simple-inv1</span> (s1 s2)
+  (equal (env s1) (env s2)))
+
+
+<span class="comment">;; have to manually insert those invariants into the body of functions later we
+;; will prove this invariants are actually true for all reachable state.
+</span>
+<span class="comment">;; make it easier by adding a new parameter 'seen'
+</span>
+(<span class="keyword">defun</span> <span class="function-name">implementInterface-x-measure</span> (p s seen mode)
+  (<span class="keyword">let</span> ((interfaces p))
+    (<span class="keyword">cond</span> ((equal mode 0) 
+           (classImplements-measure 0 seen s))
+          ((equal mode 1)
+           (classImplements-measure 1 seen s))
+          ((equal mode 2)
+           (classImplements-measure (+ 3 (len Interfaces)) seen s))
+          (t 0))))
+           
+
+
+(in-theory (disable interfaces super))
+
+(<span class="keyword">defun</span> <span class="function-name">all-loaded?-x</span> (names s)
+  (<span class="keyword">if</span> (not (consp names))
+      t
+    (and (class-loaded? (car names) s)
+         (all-loaded?-x (cdr names) s))))
+
+(<span class="keyword">defun</span> <span class="function-name">implementInterface-x-guard</span> (p s mode)
+  (and (loader-inv s)
+       (<span class="keyword">let</span> ((interfaces p))
+         (<span class="keyword">cond</span> ((equal mode 0)
+                (class-loaded? p s))
+               ((equal mode 1)
+                (class-loaded? p s))
+               ((equal mode 2)
+                (all-loaded?-x interfaces s))
+               (t nil)))))
+
+
+<span class="comment">;(i-amhere)
+</span>
+(<span class="keyword">defun</span> <span class="function-name">implementInterface-x</span> (p thisInterface s seen mode)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:measure</span> (implementInterface-x-measure p s seen mode)
+                  <span class="builtin">:guard</span> (implementInterface-x-guard p s mode)))
+  (<span class="keyword">cond</span> ((equal mode 0) <span class="comment">;; classImplementsInterface1-aux
+</span>         (<span class="keyword">if</span> (not (no-fatal-error? s))
+             (mv nil s)
+           (<span class="keyword">let</span> ((thisClass p)
+                 (new-s     s))
+             (<span class="keyword">if</span> (not (classImplementsInterface1-aux-invariant thisClass seen new-s))
+                 (mv nil s)
+               (<span class="keyword">let*</span> ((class-rep (class-by-name thisClass 
+                                                (instance-class-table
+                                                 new-s)))
+                      (superclass (super class-rep))
+                      (interfaces (interfaces class-rep)))
+                 (<span class="keyword">if</span> (mem thisInterface interfaces)
+                     (mv t new-s)
+                   (mv-let (assignable new-s2) <span class="comment">;; interfacesImplementInterface1
+</span>                           (implementInterface-x interfaces thisInterface
+                                                 new-s (cons thisClass seen) 2)
+                             
+                           (<span class="keyword">if</span> (not (simple-inv1 new-s2 new-s))
+                               (mv nil s)
+                             (<span class="keyword">if</span> (not (no-fatal-error? new-s2))
+                                 (mv nil new-s2)
+                               (<span class="keyword">if</span> assignable 
+                                   (mv t new-s2)
+                                 (mv-let (assignable new-s3)
+                                         (implementInterface-x <span class="comment">;; classImplementInterface1
+</span>                                          superclass thisInterface new-s2 (cons thisClass seen) 1)
+                                         (<span class="keyword">if</span> (not (simple-inv1 new-s3 new-s))
+                                             (mv nil new-s3)
+                                           (<span class="keyword">if</span> (not (no-fatal-error? new-s3))
+                                               (mv nil new-s3)
+                                             (<span class="keyword">if</span> assignable
+                                                 (mv t new-s3)
+                                               (mv nil new-s3)))))))))))))))
+        ((equal mode 1)
+         (<span class="keyword">if</span> (not (no-fatal-error? s))
+             (mv nil s)
+           (<span class="keyword">if</span> (not (class-loaded? thisInterface s)) <span class="comment">;; Sun Nov  7 20:55:08 2004
+</span>               (mv nil s)  <span class="comment">;; Sun Nov  7 20:55:11 2004
+</span>             (<span class="keyword">let</span> ((thisClass p))
+               (<span class="keyword">if</span> (not (classImplementsInterface1-invariant thisClass s))
+                   (mv nil s)
+
+                 (<span class="keyword">if</span> (mem thisClass seen)
+                     (mv nil s)
+
+                   (<span class="keyword">if</span> (equal thisClass thisInterface)
+                       (mv t s)
+                     (<span class="keyword">if</span> (not (class-loaded? thisClass s))
+                         (mv nil s) <span class="comment">;; impossible. 
+</span>                       <span class="comment">;; 
+</span>                       <span class="comment">;; Sun Nov  7 20:54:00 2004
+</span>                       <span class="comment">;; Shall we assert that To must be loaded?? 
+</span>                       <span class="comment">;; 
+</span>                       <span class="comment">;;
+</span>                       <span class="comment">;;                      (let ((new-s (load_class thisClass s)))
+</span>                       <span class="comment">;;                        (if (not (no-fatal-error? new-s))
+</span>                       <span class="comment">;;                            (mv nil new-s) ;; fatal error marker, the caller can converted
+</span>                       <span class="comment">;;                          ;; into an exception.
+</span>                       <span class="comment">;;                          (implementInterface-x thisClass thisInterface new-s seen 0)))
+</span>                       (implementInterface-x thisClass thisInterface s seen 0)))))))))
+        ((equal mode 2)
+         (<span class="keyword">if</span> (not (no-fatal-error? s))
+             (mv nil s)
+           (<span class="keyword">let</span> ((interfaces p))
+             (<span class="keyword">if</span> (not (consp interfaces))
+                 (mv nil s)
+               (mv-let (res new-s)
+                       (implementInterface-x (car interfaces) thisInterface s seen 1)
+                       <span class="comment">;; classImplementsInterface1
+</span>             
+                       (<span class="keyword">if</span> (not (no-fatal-error? new-s))
+                           (mv nil new-s) <span class="comment">;; return on seen a fatal error
+</span>                         (<span class="keyword">if</span> (not (interfacesImplementsInterface1-inv new-s s))
+                             (mv nil new-s)
+                           (<span class="keyword">if</span> res 
+                               (mv t new-s)
+                             (implementInterface-x (cdr interfaces) thisInterface
+                                                   new-s seen 2)))))))))
+        (t (mv nil s))))
+
+
+<span class="comment">;; (defun implementInterface-x (p thisInterface s seen mode)
+;;   (declare (xargs :measure (implementInterface-x-measure p s seen mode)))
+;;   (cond ((equal mode 0) ;; classImplementsInterface1-aux
+;;          (let ((thisClass p)
+;;                (new-s     s))
+;;                (if (not (classImplementsInterface1-aux-invariant thisClass seen new-s))
+;;                    (mv nil 
+;;                        (fatalError "classImplementsInterface1-aux violate internal inv" new-s))  
+;;                  (let* ((class-rep (class-by-name thisClass 
+;;                                                   (instance-class-table
+;;                                                    new-s)))
+;;                         (superclass (super class-rep))
+;;                         (interfaces (interfaces class-rep)))
+;;                    (if (mem thisInterface interfaces)
+;;                        (mv t new-s)
+;;                      (mv-let (assignable new-s2) ;; interfacesImplementInterface1
+;;                              (implementInterface-x interfaces thisInterface
+;;                                                    new-s (cons thisClass seen) 2)
+</span>                             
+<span class="comment">;;                              (if (not (simple-inv1 new-s2 new-s))
+;;                                  (mv nil (fatalError "env changed: invariant-violated" new-s2))
+</span>
+<span class="comment">;;                                (if (not (no-fatal-error? new-s2))
+;;                                    (mv nil new-s2)
+;;                                  (if assignable 
+;;                                      (mv t new-s2)
+;;                                    (mv-let (assignable new-s3)
+;;                                            (implementInterface-x ;; classImplementInterface1
+;;                                             superclass thisInterface new-s2 (cons thisClass seen) 1)
+;;                                 (if (not (simple-inv1 new-s3 new-s))
+;;                                     (mv nil (fatalError "env changed: invariant-violated" new-s3))
+</span>
+<span class="comment">;;                                   (if (not (no-fatal-error? new-s3))
+;;                                       (mv nil new-s3)
+;;                                     (if assignable
+;;                                         (mv t new-s3)
+;;                                       (mv nil new-s3))))))))))))))
+;;         ((equal mode 1)
+;;          (let ((thisClass p))
+;;            (if (not (classImplementsInterface1-invariant thisClass s))
+;;                (mv nil (fatalError "loaded Class desc not found in the env" s))
+</span>
+<span class="comment">;;              (if (mem thisClass seen)
+;;                  (mv nil s)
+</span>     
+<span class="comment">;;                (if (equal thisClass thisInterface)
+;;                    (mv t s)
+;;                  (if (not (class-loaded? thisClass s))
+;;                      (let ((new-s (load_class thisClass s)))
+;;                        (if (not (no-fatal-error? new-s))
+;;                            (mv nil new-s) ;; fatal error marker, the caller can converted
+;;                          ;; into an exception.
+;;                          (implementInterface-x thisClass thisInterface new-s seen 0)))
+;;                    (implementInterface-x thisClass thisInterface s seen 0)))))))
+;;         ((equal mode 2)
+;;          (let ((interfaces p))
+;;            (if (endp interfaces)
+;;                (mv nil s)
+;;              (mv-let (res new-s)
+;;                      (implementInterface-x (car interfaces) thisInterface s seen 1)
+;;                      ;; classImplementsInterface1
+</span>             
+<span class="comment">;;              (if (not (no-fatal-error? new-s))
+;;                  (mv nil new-s)  ;; return on seen a fatal error
+</span>               
+<span class="comment">;;                (if (not (interfacesImplementsInterface1-inv new-s s))
+;;                    (mv nil 
+;;                        (fatalError "interfacesImplementsInterface1 violate inv" new-s)) 
+;;                  (if res 
+;;                      (mv t new-s)
+;;                    (implementInterface-x (cdr interfaces) thisInterface
+;;                                          new-s seen 2))))))))
+;;         (t (mv nil s))))
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">interfacesImplementsInterface</span> (interfaces thisInterface s)
+  (implementInterface-x interfaces thisInterface s nil 2))
+
+(<span class="keyword">defun</span> <span class="function-name">classImplementsInterface</span> (thisClass thisInterface s)
+  (implementInterface-x thisClass thisInterface s nil 1))
+
+
+
+
+<span class="comment">;; in our implementation of loader, if an array class is loaded, then its <a href="../DJVM/INST/base.lisp.html">base</a>
+;; class must have been loaded, so we don't need to worry about testing whether
+;; a class is loaded or not.
+</span>
+<span class="comment">;; assuming this java.lang.Clone, java.lang.Serializeable are interfaces.
+;; assuming array only implement those two interfaces. 
+</span>
+
+<span class="comment">;; (defthm no-fatal-error?-implies-state-no-change-lemma
+;;   (implies (no-fatal-error? (mv-nth 1 (implementinterface-x any1 any2 s seen mode))) 
+;;            (equal (mv-nth 1 (implementinterface-x any1 any2 s seen mode))
+;;                   s)))
+</span>
+
+
+(defthm state-no-change-lemma
+  (equal (mv-nth 1 (implementinterface-x any1 any2 s seen mode)) s))
+         
+
+
+<span class="comment">;; (defthm no-fatal-error?-implies-state-no-change
+;;   (implies (no-fatal-error? (mv-nth 1 (classImplementsInterface any1 any2 s)))
+;;            (equal (mv-nth 1 (classImplementsInterface any1 any2 s)) s)))
+</span>
+(<span class="keyword">defun</span> <span class="function-name">isAssignableTo</span> (fromClass toClass s)
+  (<span class="keyword">cond</span> ((equal fromClass toClass) (mv t s))
+        ((primitive-type? fromClass) (mv nil s))
+        <span class="comment">;;
+</span>        <span class="comment">;; Mon Oct 25 12:16:54 2004; 
+</span>        <span class="comment">;; 
+</span>        ((equal toClass  <span class="string">"java.lang.Object"</span>) (mv t s))
+        ((array-type? toClass) 
+         (<span class="keyword">cond</span> ((array-type? fromClass)
+                (<span class="keyword">cond</span> ((primitive-array? fromClass)
+                       (mv (equal (array-base-type fromClass) 
+                                  (array-base-type toClass))
+                           s))
+                      ((primitive-array? toClass) (mv nil s))
+                      (t (isAssignableTo (array-base-type fromClass)
+                                         (array-base-type toClass) 
+                                         s))))
+               (t (mv nil s))))
+        ((isInterface (class-by-name toClass (instance-class-table s)))
+         (<span class="keyword">cond</span> ((array-type? fromClass) <span class="comment">;; 
+</span>                (mv (mem toClass *array-implemented-interfaces*)
+                    s))
+               (t (classImplementsInterface fromClass toClass s))))
+        ((array-type? fromClass)  (mv nil s))
+        ((isInterface (class-by-name fromClass (instance-class-table s)))
+                      (mv nil s))
+        (t (isSuperClass fromClass toClass s))))
+
+(defthm state-no-change-isAssignable
+  (equal (mv-nth 1 (isAssignableTo any1 any2 s)) s))
+
+
+
+<span class="comment">;; (in-theory (enable fatalError))
+</span>
+
+
+<span class="comment">;; (defthm implementinterface-x-no-fatal-Error
+;;   (implies (no-fatal-error? (mv-nth 1 (implementinterface-x p interfaces s seen
+;;                                                             mode)))
+;;            (equal (mv-nth 1 (implementinterface-x p interfaces s seen mode))
+;;                   s)))
+</span>
+
+
+<span class="comment">;; (defthm  isImplementationof-changes-only-error-flag-lemma
+;;   (mv-let (assignable s1)
+;;           (implementInterface-x t1 t2 s0 seen mode)
+;;           (declare (ignore assignable))
+;;           (and    (equal (pc s1) (pc s0))
+;;                   (equal (current-thread s1) (current-thread s0))
+;;                   (equal (thread-table   s1) (thread-table s0))
+;;                   (equal (env            s1) (env s0))
+;;                   (equal (aux            s1) (aux s0))
+;;                   (equal (heap           s1) (heap s0))
+;;                   (equal (class-table    s1) (class-table s0))))
+;;   :hints (("Goal" :in-theory (disable aux))))
+</span>
+
+<span class="comment">;; (defthm  isImplementationof-changes-only-error-flag
+;;   (mv-let (assignable s1)
+;;           (implementInterface-x t1 t2 s0 seen mode)
+;;           (declare (ignore assignable))
+;;           (and    (equal (pc s1) (pc s0))
+;;                   (equal (current-thread s1) (current-thread s0))
+;;                   (equal (thread-table   s1) (thread-table s0))
+;;                   (equal (env            s1) (env s0))
+;;                   (equal (aux            s1) (aux s0))
+;;                   (equal (heap           s1) (heap s0))
+;;                   (equal (class-table    s1) (class-table s0))
+;;                   (equal (instance-class-table s1) 
+;;                          (instance-class-table s0))
+;;                   (equal (array-class-table s1)
+;;                          (array-class-table s0))))
+;;   :hints (("Goal" :in-theory (enable instance-class-table array-class-table))))
+</span>
+
+
+
+<span class="comment">;; (in-theory (disable fatalError))
+</span>
+<span class="comment">;; ;; (defthm  implementInterface-x-only-change-class-table-error-flag-heap
+;; ;;   (implies (or (equal mode 0)
+;; ;;                (equal mode 1)
+;; ;;                (equal mode 2))
+;; ;;            (and  (mv-let (assignable s1)
+;; ;;                          (implementInterface-x t1 t2 s0 seen mode)
+;; ;;                          (declare (ignore assignable))
+;; ;;                          (and    (equal (pc s1) (pc s0))
+;; ;;                                  (equal (current-thread s1) (current-thread s0))
+;; ;;                                  (equal (thread-table   s1) (thread-table s0))
+;; ;;                                  (equal (env            s1) (env s0)))))))
+</span>
+<span class="comment">;; (in-theory (disable implementInterface-x))
+</span>
+<span class="comment">;; (defthm isAssignableTo-no-fatal-Error
+;;   (implies (no-fatal-error? (mv-nth 1 (isAssignableTo any1 any2 s)))
+;;            (equal (mv-nth 1 (isAssignableTo any1 any2 s)) s)))
+</span>
+
+
+<span class="comment">;; (defthm  isAssignableTo-changes-only-error-flag-lemma
+;;   (mv-let (assignable s1)
+;;           (isAssignableTo any1 any2 s0)
+;;           (declare (ignore assignable))
+;;           (and    (equal (pc s1) (pc s0))
+;;                   (equal (current-thread s1) (current-thread s0))
+;;                   (equal (thread-table   s1) (thread-table s0))
+;;                   (equal (env            s1) (env s0))
+;;                   (equal (aux            s1) (aux s0))
+;;                   (equal (heap           s1) (heap s0))
+;;                   (equal (class-table    s1) (class-table s0))))
+;;   :hints (("Goal" :in-theory (e/d (isAssignableTo) (aux)))))
+</span>
+    
+
+<span class="comment">;; (defthm  isAssignableTo-changes-only-error-flag
+;;   (mv-let (assignable s1)
+;;           (isAssignableTo any1 any2 s0)
+;;           (declare (ignore assignable))
+;;           (and    (equal (pc s1) (pc s0))
+;;                   (equal (current-thread s1) (current-thread s0))
+;;                   (equal (thread-table   s1) (thread-table s0))
+;;                   (equal (env            s1) (env s0))
+;;                   (equal (aux            s1) (aux s0))
+;;                   (equal (heap           s1) (heap s0))
+;;                   (equal (class-table    s1) (class-table s0))
+;;                   (equal (instance-class-table s1) 
+;;                          (instance-class-table s0))
+;;                   (equal (array-class-table s1)
+;;                          (array-class-table s0))))
+;;   :hints (("Goal" :in-theory (enable instance-class-table array-class-table))))
+</span></pre>
+  </body>
+</html>

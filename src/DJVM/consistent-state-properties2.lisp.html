@@ -1,0 +1,130 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>consistent-state-properties2.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="consistent-state.lisp.html">"consistent-state"</a></span>)
+(include-book <span class="string"><a href="djvm-frame-manipulation-primitives.lisp.html">"djvm-frame-manipulation-primitives"</a></span>)
+
+(in-theory (disable <a href="consistent-state.lisp.html">consistent-state</a> consistent-thread-entry))
+
+(include-book <span class="string"><a href="INST/base-bind-free.lisp.html">"INST/base-bind-free"</a></span>)
+
+(defthm consistent-state-imlies-thread-by-id
+  (implies (<a href="consistent-state.lisp.html">consistent-state</a> s)
+           (thread-by-id (current-thread s) 
+                         (thread-table s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="consistent-state.lisp.html">consistent-state</a> thread-exists?))))
+
+
+
+(defthm consistent-state-implies-consistent-thread-entries
+  (implies (and (<a href="consistent-state.lisp.html">consistent-state</a> s)
+                (equal (instance-class-table s) cl)
+                (equal (heap s) hp))
+           (consistent-thread-entries (thread-table s) cl hp))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="consistent-state.lisp.html">consistent-state</a>))))
+
+
+
+(defthm consistent-thread-entries-implies-consistent-thread
+  (implies (and (thread-by-id id tt)
+                (consistent-thread-entries tt cl hp))
+           (consistent-thread-entry (thread-by-id id tt)
+                                    cl hp))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable thread-by-id))))
+
+
+
+(defthm consistent-thread-entry-implies-consp-thread-call-stack
+  (implies  (and (syntaxp (acl2::found-symbol2 's thread))
+                 (bind-free (acl2::default-bind-free 's 's (acl2::pkg-witness <span class="string">"DJVM"</span>)))
+                 (consistent-thread-entry thread 
+                                          (instance-class-table s)
+                                          (heap s)))
+            (consp (thread-call-stack thread)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable consistent-thread-entry))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;;(i-am-here) 
+</span>
+(encapsulate ()
+  (local (include-book <span class="string"><a href="consistent-state-properties.lisp.html">"consistent-state-properties"</a></span>))
+  (local 
+    (defthm consistent-state-topstack-consistent-value-x
+      (implies (and (topStack-guard-strong s)
+                    (<a href="consistent-state.lisp.html">consistent-state</a> s))
+               (consistent-value-x (safe-topStack s) 
+                                   (instance-class-table s)
+                                   (heap s)))
+      <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+ (defthm consistent-value-x-implies-wff-tagged-value
+   (implies (consistent-value-x v cl hp)
+            (wff-tagged-value v))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+ (local 
+  (defthm safe-topStack-is-topStack 
+    (equal (safe-topStack s)
+           (topStack s))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable safe-topStack topStack
+                                       current-frame)))))
+
+
+ (defthm consistent-state-topstack-consistent-value-x-2
+   (implies (and (topStack-guard-strong s)
+                 (<a href="consistent-state.lisp.html">consistent-state</a> s))
+            (consistent-value-x (topStack s)
+                                (instance-class-table s)
+                                (heap s)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable safe-topStack 
+                                       topStack  consistent-value-x)
+            <span class="builtin">:use</span> ((<span class="builtin">:instance</span> consistent-state-topstack-consistent-value-x))))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+(in-theory (disable topStack safe-topStack consistent-value-x 
+                    topStack-guard-strong))
+              
+     </pre>
+  </body>
+</html>

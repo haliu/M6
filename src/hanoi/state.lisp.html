@@ -1,0 +1,101 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>state.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"HANOI"</span>)
+(include-book <span class="string">"misc/records"</span> <span class="builtin">:dir</span> <span class="builtin">:system</span>)
+(include-book <span class="string"><a href="basic.lisp.html">"basic"</a></span>)
+(include-book <span class="string"><a href="stack.lisp.html">"stack"</a></span>)
+
+(acl2::set-verify-guards-eagerness 2)
+
+(defund new-state ()
+  (s 'A nil (s 'B nil (s 'C nil nil))))
+
+(defund statep (st)
+  (and (stackp (g 'A st))
+       (stackp (g 'B st))
+       (stackp (g 'C st))))
+
+(defund pegp (p)
+  (or (equal p 'A)
+      (equal p 'B)
+      (equal p 'C)))
+
+(<span class="keyword">defun</span> <span class="function-name">set-peg</span> (peg stk st)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (pegp peg)
+                              (statep st)
+                              (stackp stk))))
+  (s peg stk st))
+
+
+(<span class="keyword">defun</span> <span class="function-name">get-peg</span> (peg st)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (pegp peg)
+                              (statep st))))
+  (g peg st))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm new-state-statep
+  (statep (new-state))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable new-state statep))))
+
+
+(defthm statep-g-peg
+  (implies (and (statep st)
+                (pegp p))
+           (stackp (g p st)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable pegp stackp statep))))
+
+(defthm statep-s-peg-stackp
+  (implies (and (statep st)
+                (pegp p)
+                (stackp stk))
+           (statep (s p stk st)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable pegp stackp statep))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span></pre>
+  </body>
+</html>

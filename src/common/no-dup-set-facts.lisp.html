@@ -1,0 +1,314 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>no-dup-set-facts.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      .variable-name {
+        /* font-lock-variable-name-face */
+        color: #eedd82;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+<span class="comment">;;  ----- Basic Set Theory Stuff ----
+#|
+(certify-book <a href="no-dup-set-facts.lisp.html">"no-dup-set-facts"</a> 0)
+|#</span>
+<span class="comment">;; Sun Dec 21 22:06:19 2003
+;; 
+;; This books contains set of lemmas about set-differences. 
+;; 
+</span>
+
+(<span class="keyword">in-package</span> <span class="string">"ACL2"</span>)
+
+(<span class="keyword">defconst</span> <span class="variable-name">*no-dup-set-facts-basic-functions*</span> 
+  '(mem notMem subset del app set-diff set-equal nodup-set))
+
+<span class="comment">;; This set of functions are defined in ACL2 package. 
+;; some function are used in typechecker.lisp
+</span>
+<span class="comment">;----------------------------------------------------------
+</span>
+<span class="comment">;----------------------------------------------------
+</span>(acl2::set-verify-guards-eagerness 2)
+
+
+(<span class="keyword">defun</span> <span class="function-name">mem</span> (c cl)
+  (<span class="keyword">if</span> (not (consp cl))
+      nil
+    (or (equal (car cl) c)
+        (mem c (cdr cl)))))
+
+(<span class="keyword">defun</span> <span class="function-name">notMem</span> (c cl)
+  (not (mem c cl)))
+
+(<span class="keyword">defun</span> <span class="function-name">subset</span> (s1 s2)
+  (<span class="keyword">if</span> (not (consp s1))
+      t
+    (and (mem (car s1) s2)
+         (subset (cdr s1) s2))))
+
+(<span class="keyword">defun</span> <span class="function-name">del</span> (a y)
+  (<span class="keyword">if</span> (not (consp y))
+      nil
+    (<span class="keyword">if</span> (equal (car y) a)
+        (cdr y)
+      (cons (car y) (del a (cdr y))))))
+
+(<span class="keyword">defun</span> <span class="function-name">app</span> (a b)
+  (<span class="keyword">if</span> (not (consp a))
+      b
+    (cons (car a) (app (cdr a) b))))
+
+<span class="comment">;------------------------------------------------------
+</span>
+(acl2::set-verify-guards-eagerness 1)
+
+(<span class="keyword">defun</span> <span class="function-name">set-diff</span> (total seen) <span class="comment">;; *14* 
+</span>  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (true-listp total)
+                              (true-listp seen))))
+  (<span class="keyword">if</span> (endp total)
+      nil
+    (<span class="keyword">if</span> (mem (car total) seen)
+        (set-diff (cdr total) seen)
+      (cons (car total) (set-diff (cdr total) (cons (car total) seen))))))
+
+<span class="comment">;; *14* Note: 
+;;       Set-Diff returns a non-duplicated list that represent
+;;       the set
+</span>
+<span class="comment">;; some work  Set Theory stuff
+;; mainly about set-diff, nodup-set, the size of the nodup-set
+;;
+;; this is used for proving termination of class superclass resolution
+</span>
+<span class="comment">;; Originally. I did somework with permuation. 
+;; Later found out Set-equal + Non-Dup suffice.
+</span>
+
+
+(<span class="keyword">defun</span> <span class="function-name">set-equal</span> (a b)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (true-listp a)
+                              (true-listp b))))
+  (and (subset a b)
+       (subset b a)))
+
+
+
+<span class="comment">;(set-match-free-error nil)
+</span>
+
+(defthm subset-cons 
+  (implies (subset a b)
+           (subset a (cons x b))))
+
+(defthm subset-reflexive 
+  (subset x x))
+
+
+(defthm mem-subset
+   (implies (and (mem x a)
+                 (subset a b))
+            (mem x b)))
+
+(defthm subset-transitive 
+  (implies (and (subset a b)
+                (subset b c))
+           (subset a c)))
+
+
+(defthm set-equal-transitive
+  (implies (and (set-equal a b)
+                (set-equal b c))
+           (set-equal a c)))
+
+(defequiv set-equal)
+
+(defcong set-equal equal (mem x s) 2
+  <span class="builtin">:hints</span> ((<span class="string">"Subgoal *1/4"</span> <span class="builtin">:cases</span> ((mem x (cdr s))))
+          (<span class="string">"Subgoal *1/4.2"</span> 
+           <span class="builtin">:use</span> (<span class="builtin">:instance</span> mem-subset  (a acl2::s-equiv) (b s))
+           <span class="builtin">:in-theory</span> (disable mem-subset))))
+
+(defthm set-equal-cons
+  (implies (set-equal a b)
+           (set-equal (cons x a) (cons x b))))
+
+
+(defthm set-equal-mem-cons-2
+  (implies (mem x l)
+           (set-equal (cons x l) l)))
+                                             
+(in-theory (disable set-equal))
+
+
+(<span class="keyword">defun</span> <span class="function-name">set-diff-cong-induct</span> (s s-equiv total)
+  (<span class="keyword">if</span> (endp total)
+      (cons s s-equiv)
+    (<span class="keyword">if</span> (mem (car total) s)
+          (set-diff-cong-induct s s-equiv (cdr total))
+      (set-diff-cong-induct (cons (car total) s) (cons (car total) s-equiv) (cdr total)))))
+
+
+(defthm set-equal-cons-f
+  (implies (not (set-equal (cons x a) (cons x b)))
+           (not (set-equal a b)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable set-equal)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+(defcong set-equal equal (set-diff total acl2::seen) 2
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable set-equal-cons)
+           <span class="builtin">:induct</span> (set-diff-cong-induct acl2::seen acl2::seen-equiv total))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">subset-set-diff-induct</span> (total a b)
+  (<span class="keyword">if</span> (endp total)
+      (cons a b)
+    (subset-set-diff-induct (cdr total) (cons (car total) a) (cons (car total) b)))) 
+  
+
+(defthm subset-set-diff
+  (implies (subset a b) 
+           (subset (set-diff total b) (set-diff total a)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:induct</span> (subset-set-diff-induct total a b))))
+
+
+<span class="comment">;;-------------------------------------------------------------------- 
+</span>
+<span class="comment">; ---- nodup-set ----- 
+</span>
+(<span class="keyword">defun</span> <span class="function-name">nodup-set</span> (s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (true-listp s)))
+  (<span class="keyword">if</span> (endp s)
+      t
+    (and (not (mem (car s) (cdr s)))
+         (nodup-set (cdr s)))))
+
+
+(defthm mem-set-diff
+  (implies (mem a seen)
+           (not (mem a (set-diff total seen)))))
+
+
+(defthm set-diff-is-a-nodup-set
+  (nodup-set (set-diff total seen))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:type-prescription</span>)
+
+
+(<span class="keyword">defun</span> <span class="function-name">subset-nodup-set-size-induct</span> (s1 s2)
+  (<span class="keyword">if</span> (endp s1)
+      s2
+    (subset-nodup-set-size-induct (cdr s1) (del (car s1) s2))))
+
+(defthm del-set-len
+  (implies (mem x s)
+           (equal (len s)  (+ 1 (len (del x s))))))     
+
+(defthm mem-del 
+  (implies (not (equal a b))
+           (equal (mem a (del b x))
+                  (mem a x))))
+           
+(defthm del-nodups
+  (implies (nodup-set s)
+           (nodup-set (del x s))))
+
+
+(defthm del-nodup-set-subset
+  (implies (and (subset (cons x s1) s2)
+                (nodup-set (cons x s1)))
+           (subset s1 (del x s2))))
+
+<span class="comment">; --- to talk about termination, we talk about the number of unseen
+; --- classes decrease.
+</span>
+
+(defthm subset-nodup-set-size
+  (implies (and (subset s1 s2)
+                (nodup-set s1)
+                (nodup-set s2))
+           (&lt;= (len s1) (len s2)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:induct</span> (subset-nodup-set-size-induct s1 s2)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:linear</span>)
+
+
+(<span class="keyword">defun</span> <span class="function-name">len-set-equal-nodup-set-x-induct</span> (s1 s2)
+  (<span class="keyword">if</span> (endp s1)
+      s2
+    (len-set-equal-nodup-set-x-induct (cdr s1) (del (car s1) s2))))
+
+(defthm  len-set-equal-nodup-set-x
+  (implies (and (mem a s2)
+                (not (mem a s1))
+                (subset s1 s2)
+                (nodup-set s1)
+                (nodup-set s2))
+           (&lt; (len s1) (len s2)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:induct</span> (len-set-equal-nodup-set-x-induct s1 s2))))
+
+
+(defthm mem-set-diff-x
+  (implies (and (mem a total)
+                (not (mem a seen)))
+           (mem a (set-diff total seen))))
+
+(defthm len-set-diff-mem
+  (implies (and (not (mem a seen)) 
+                (mem a total))
+           (&lt; (len (set-diff total (cons a seen)))
+              (len (set-diff total seen))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not-induct</span> t
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span> len-set-equal-nodup-set-x
+                            (s1 (set-diff total (cons a seen)))
+                            (s2 (set-diff total seen))))))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:linear</span>)
+           
+<span class="comment">;; ----------- Above enough rules about set-diff -----------
+</span>
+
+
+
+
+
+
+</pre>
+  </body>
+</html>

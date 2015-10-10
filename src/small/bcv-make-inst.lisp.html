@@ -1,0 +1,104 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>bcv-make-inst.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"ACL2"</span>)
+(include-book <span class="string"><a href="bcv-model.lisp.html">"bcv-model"</a></span>)
+(include-book <span class="string"><a href="bcv-simple-model.lisp.html">"bcv-simple-model"</a></span>)
+
+
+(defthm extract-code-wff-code1-same
+  (implies (wff-code1 code pc)
+           (equal (extract-code (append code '(END_OF_CODE)))
+                  code)))
+
+
+(defthm <span class="string">|s-same-g-lemma|</span>
+  (IMPLIES (AND (EQUAL (G 'IS-INST INST) T)
+                (NOT (G 'IS-STACK-MAP INST)))
+           (EQUAL (S 'IS-INST
+                     T (S 'IS-STACK-MAP NIL INST))
+                  INST))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable s-same-g)
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span> S-SAME-G
+                            (a 'is-inst) 
+                            (R (s 'is-stack-map nil inst)))
+                 (<span class="builtin">:instance</span> S-SAME-G
+                            (a 'is-stack-map)
+                            (R inst))))))
+
+
+(defthm inst-implies-make-inst-same
+  (implies (inst? inst)
+           (equal (make-inst inst) inst))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable inst? make-inst))))
+
+
+(defthm extract-code-mergeStackMapAndCode
+  (implies (and (equal (car (last (mergeStackMapAndCode maps code method-name method-table)))
+                       'END_OF_CODE)
+                (wff-code1 code pc))
+           (equal (extract-code (mergeStackMapAndCode maps code method-name method-table))
+                  code))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable inst?))))
+
+(defthm not-inst-end-of-code
+  (not (inst? 'END_OF_CODE)))
+
+(defthm get-is-inst-make-inst
+  (g 'is-inst (make-inst inst))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable make-inst))))
+
+(defthm make-inst-inst
+  (implies (inst? inst)
+           (inst? (make-inst inst)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable make-inst inst?))))
+
+(defthm g-end-of-code
+  (not (g 'is-inst 'END_OF_CODE)))
+
+(defthm make-inst-never-end-of-code
+  (not (equal (make-inst inst) 'END_OF_CODE))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable make-inst
+                                      get-is-inst-make-inst
+                                      g-end-of-code)
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span> get-is-inst-make-inst)
+                 (<span class="builtin">:instance</span> g-end-of-code)))))
+
+
+</pre>
+  </body>
+</html>

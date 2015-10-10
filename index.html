@@ -1,0 +1,447 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>README</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: lightblue;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+
+<a name="TOP"></a>
+<!--
+<dl><dt> </dt><dd><a href="#DOWNLOAD">DOWNLOAD</a></dd>
+<dt> </dt><dd><a href="#DIRECTORY_STRUCTURE">DIRECTORY STRUCTURE</a></dd>
+<dt> </dt><dd><a href="#UNPACK_AND_REBUILD_ALL_ACL2_PROOFS">UNPACK AND REBUILD ALL ACL2 PROOFS </a></dd>
+<dt> </dt><dd><a href="#USING_ACL2_HANOI_TOWER_EXAMPLE">USING ACL2: HANOI TOWER EXAMPLE </a></dd>
+<dt> </dt><dd><dl><dt> </dt><dd><a href="#ACL2_as_a_programming_language_for_modeling">ACL2 as a programming language for modeling </a></dd>
+
+<dt> </dt><dd><dl><dt> </dt><dd><a href="#Primitives_data_structures">Primitives/data structures:</a></dd>
+<dt> </dt><dd><a href="#Interpreter_model">Interpreter model:  </a></dd>
+<dt> </dt><dd><a href="#The_move_planner">The move planner:</a></dd>
+<dt> </dt><dd></dd></dl>
+
+<a href="#ACL2_as_a_mathematical_logic_for_specification">ACL2 as a mathematical logic for specification</a></dd>
+
+<dt> </dt><dd><dl><dt> </dt><dd><a href="#Operational_specifiation">Operational specifiation:</a></dd>
+<dt> </dt><dd><a href="#Functional_specification">Functional specification:</a></dd>
+<dt> </dt><dd><a href="#Safety_specification">Safety specification:  </a></dd>
+<dt> </dt><dd></dd></dl>
+
+<a href="#ACL2_as_a_theorem_prover_for_computer_aided_verification">ACL2 as a theorem prover for computer-aided verification </a></dd>
+
+<dt> </dt><dd><dl><dt> </dt><dd><a href="#meet_the_functional_specification">meet the functional specification:</a></dd>
+<dt> </dt><dd><a href="#Meet_the_safety_specification">Meet the safety specification:</a></dd>
+<dt> </dt><dd></dd></dl>
+
+</dd></dl>
+
+<a href="#JVM_MODEL_M6">JVM MODEL: M6</a></dd>
+
+<dt> </dt><dd><dl><dt> </dt><dd><a href="#State_representation">State representation:</a></dd>
+<dt> </dt><dd><a href="#State_manipulation_primitives">State manipulation primitives:</a></dd>
+<dt> </dt><dd><a href="#State_transition_functions">State transition functions:</a></dd>
+<dt> </dt><dd><a href="#Top_level_interpreter_loop">Top level interpreter loop:</a></dd>
+
+<dt> </dt><dd><a href="#Class_initialization">Class initialization: </a></dd>
+<dt> </dt><dd><a href="#Dynamic_class_loading">Dynamic class loading:</a></dd>
+<dt> </dt><dd><a href="#RUNNING_M6_AS_A_JVM_SIMULATOR">RUNNING M6 AS A JVM SIMULATOR</a></dd>
+<dt> </dt><dd><a href="#JVM_PROPERTY_VERIFICATION_EXAMPLE_USING_M6">JVM PROPERTY VERIFICATION EXAMPLE USING M6</a></dd>
+<dt> </dt><dd><a href="#JAVA_PROGRAM_VERIFICATION_EXAMPLE_USING_M6">JAVA PROGRAM VERIFICATION EXAMPLE USING M6</a></dd>
+
+<dt> </dt><dd></dd></dl>
+
+<a href="#CLDC_BYTECODE_VERIFER">CLDC BYTECODE VERIFER</a></dd>
+<dt> </dt><dd><dl><dt> </dt><dd><a href="#RUNNING_CLDC_BYTECODE_VERIFER">RUNNING CLDC BYTECODE VERIFER</a></dd>
+<dt> </dt><dd><a href="#CLDC_BYTECODE_VERIFIER_SIMPLE_PROPERTY_VERIFIED">CLDC BYTECODE VERIFIER SIMPLE PROPERTY VERIFIED </a></dd>
+<dt> </dt><dd></dd></dl>
+
+<a href="#JVM_SAFETY_SPECIFICATION">JVM SAFETY SPECIFICATION</a></dd>
+<dt> </dt><dd><dl><dt> </dt><dd><a href="#The_defensive_JVM_DJVM">The defensive JVM (DJVM)</a></dd>
+<dt> </dt><dd><a href="#Global_Inductive_Invariant">Global Inductive Invariant</a></dd>
+<dt> </dt><dd><a href="#Guards_for_DJVM_operations">Guards for DJVM operations</a></dd>
+
+<dt> </dt><dd></dd></dl>
+
+<a href="#FRAMEWORK_AND_PROOFS">FRAMEWORK AND PROOFS </a></dd>
+<dt> </dt><dd><dl><dt> </dt><dd><a href="#Complete_proof_that_Small_machine_is_safe">Complete proof that Small machine is safe</a></dd>
+<dt> </dt><dd><dl><dt> </dt><dd><a href="#Models">Models:                       </a></dd>
+<dt> </dt><dd><a href="#Approach">Approach:                     </a></dd>
+
+<dt> </dt><dd></dd></dl>
+
+<a href="#Bootstrap_class_loader_Verified">Bootstrap class loader Verified</a></dd>
+<dt> </dt><dd><a href="#Reduction_theorem_for_CLDC_bytecode_verifier">Reduction theorem for CLDC bytecode verifier  </a></dd>
+<dt> </dt><dd><a href="#Leaf_level_lemma_and_supporting_libraries">Leaf-level lemma and supporting libraries </a></dd>
+<dt> </dt><dd><dl><dt> </dt><dd><a href="#Leaf_level_lemma_src_DJVM_INST_lt_INST_gt_lisp">Leaf-level lemma:          src/DJVM/INST/&lt;INST&gt;.lisp       </a></dd>
+
+<dt> </dt><dd> <a href="#Supporting_libraries_src_DJVM_INST_base_lisp">Supporting libraries:      src/DJVM/INST/base-*.lisp </a></dd>
+<dt> </dt><dd><a href="#Using_leaf_level_lemma_for_constructing_top_level_proof">Using leaf-level lemma for constructing top level proof:</a></dd>
+<dt> </dt><dd></dd></dl>
+
+</dd></dl>
+
+</dd></dl>
+-->
+
+
+<pre>
+<a name="DOWNLOAD"></a>DOWNLOAD
+--------
+<a href="http://www.cs.utexas.edu/~hbl/dissertation/dist.tgz">http://www.cs.utexas.edu/~hbl/dissertation/dist.tgz</a>
+
+
+<a name="DIRECTORY_STRUCTURE"></a>DIRECTORY STRUCTURE
+-------------------
+top-level-directory
+     |
+     |--- <a href="index.html">README</a>                -- this file
+     |
+     |--- <a href="src/">src/</a>                  -- ACL2 inputs 
+     |     |
+     |     |--- <a href="src/common/">common/</a>         -- supporting JVM related materials
+     |     |
+     |     |--- <a href="src/M6-DJVM-shared/">M6-DJVM-shared/</a> -- data structures/operations    (Chapter 4 &amp; 6)
+     |     |                       
+     |     |--- <a href="src/M6/">M6/</a>             -- JVM model in ACL2.                (Chapter 4)
+     |     |
+     |     |--- <a href="src/DJVM/">DJVM/</a>           -- Defensive JVM  in ACL2.           (Chapter 6)
+     |     |     |     
+     |     |     |---  <a href="src/DJVM/INST/">INST</a>      -- Leaf-level lemmas and libraries (Section 7.4)
+     |     |
+     |     |--- <a href="src/BCV/">BCV/</a>            -- CLDC bytecode verifier (JSR139)
+     |     |
+     |     |                                         (Chapter 5 and Section 7.3)
+     |     |
+     |     |--- <a href="src/main/"           -- Top level proof decomposition   (Section 7.2)  
+     |     |
+     |     |--- <a href="src/hanoi/">hanoi/</a>          -- Tower hanoi example               (Chapter 3) 
+     |     |
+     |     |--- <a href="src/small/">small/</a>          -- Small machine example           (Section 7.1)
+     |                             
+     |
+     |--- <a href="data/">data/</a>                 -- Java libraries to run M6 with
+     |
+     |--- <a href="bin/">bin/</a>                  -- misc. scripts  
+     |
+     |--- <a href="lib/">lib/</a>                  -- jvm2acl2 tool (in Java)
+     |  
+     |--- <a href="papers/">papers/</a>               
+     |     |
+           |--- <a href="papers/dissertation/">dissertation/</a>   -- the dissertation
+
+
+BACK TO <a href="#TOP">TOC</a>
+
+<a name="UNPACK_AND_REBUILD_ALL_ACL2_PROOFS"></a>UNPACK AND REBUILD ALL ACL2 PROOFS 
+----------------------------------
+
+cd src/
+make ACL2=&lt;your-acl2&gt; BASE=.. all
+
+
+BACK TO <a href="#TOP">TOC</a>
+
+<a name="USING_ACL2_HANOI_TOWER_EXAMPLE"></a>USING ACL2: HANOI TOWER EXAMPLE
+-------------------------------
+
+ACL2 as a programming language for modeling<a name="ACL2_as_a_programming_language_for_modeling"></a>                        (Section 3.1)
+
+  <a name="Primitives_data_structures"></a>Primitives/data structures:
+
+         <a href="src/hanoi/stack.lisp.html">src/hanoi/stack.lisp</a>
+         <a href="src/hanoi/state.lisp.html">src/hanoi/state.lisp</a>
+         <a href="src/hanoi/move.lisp.html">src/hanoi/move.lisp</a>
+
+  <a name="Interpreter_model"></a>Interpreter model:
+
+         <a href="src/hanoi/hanoi-model.lisp.html">src/hanoi/hanoi-model.lisp</a> 
+
+  <a name="The_move_planner"></a>The move planner:
+
+         <a href="src/hanoi/hanoi-solution.lisp.html">src/hanoi/hanoi-solution.lisp</a>  
+
+<a name="ACL2_as_a_mathematical_logic_for_specification"></a>ACL2 as a mathematical logic for specification                     (Section 3.2)
+
+  <a name="Operational_specifiation"></a>Operational specifiation:
+        
+         <a href="src/hanoi/hanoi-model.lisp.html">src/hanoi/hanoi-model.lisp</a> 
+
+  <a name="Functional_specification"></a>Functional specification: 
+
+         <a href="src/hanoi/hanoi-solution.lisp.html">src/hanoi/hanoi-solution.lisp</a>  
+
+  <a name="Safety_specification"></a>Safety specification: 
+
+         <a href="src/hanoi/hanoi-safety.lisp.html">src/hanoi/hanoi-safety.lisp</a>    
+
+
+<a name="ACL2_as_a_theorem_prover_for_computer_aided_verification"></a>ACL2 as a theorem prover for computer-aided verification           (Section 3.3)
+
+  <a href="#meet_the_functional_specification"></a>meet the functional specification: 
+
+         <a href="src/hanoi/hanoi-solution.lisp.html">src/hanoi/hanoi-solution.lisp</a>  
+
+  <a name="Meet_the_safety_specification"></a>Meet the safety specification: 
+
+         <a href="src/hanoi/hanoi-safety.lisp.html">src/hanoi/hanoi-safety.lisp</a>    
+
+BACK TO <a href="#TOP">TOC</a>
+
+<a name="JVM_MODEL_M6"></a>JVM MODEL: M6                                                        (Chapter 4)
+-------------
+
+See <a href="src/M6/m6-*.lisp.html">src/M6/m6-*.lisp</a> 
+    
+A good starting point is:
+
+    <a href="src/M6/m6-interpreter.lisp.html">src/M6/m6-interpreter.lisp</a>
+
+<a name="State_representation"></a>State representation:                                            (Section 4.2.1)
+
+    <a href="src/M6/m6-state.lisp.html">src/M6/m6-state.lisp</a>
+    <a href="src/M6/m6-thread.lisp.html">src/M6/m6-thread.lisp</a>
+    <a href="src/M6/m6-class-table.lisp.html">src/M6/m6-class-table.lisp</a>
+    ...
+
+<a name="State_manipulation_primitives"></a>State manipulation primitives:                                   (Section 4.2.2)
+
+    <a href="src/M6/m6-frame-manipulation-primitives.lisp.html">src/M6/m6-frame-manipulation-primitives.lisp</a>  
+    ... 
+
+<a name="State_transition_functions"></a>State transition functions:                                      (Section 4.2.3)
+
+    <a href="src/M6/m6-bytecode.lisp.html">src/M6/m6-bytecode.lisp</a>
+    ... 
+
+<a name="Top_level_interpreter_loop"></a>Top level interpreter loop:                                      (Section 4.3.1)
+
+    <a href="src/M6/m6-interpreter.lisp.html">src/M6/m6-interpreter.lisp</a>
+
+
+
+<a name="Class_initialization"></a>Class initialization:                                            (Section 4.3.2)
+
+    <a href="src/M6/m6-static-initializer.lisp.html">src/M6/m6-static-initializer.lisp</a>
+
+<a name="Dynamic_class_loading"></a>Dynamic class loading:                                           (Section 4.3.3)
+
+    <a href="src/M6/m6-loader.lisp.html">src/M6/m6-loader.lisp</a>
+    <a href="src/M6-DJVM-shared/jvm-loader.lisp.html">src/M6-DJVM-shared/jvm-loader.lisp</a> 
+
+BACK TO <a href="#TOP">TOC</a>
+
+<a name="RUNNING_M6_AS_A_JVM_SIMULATOR"></a>RUNNING M6 AS A JVM SIMULATOR
+-----------------------------
+
+Assuming <span class="string">"acl2"</span> is in your executable search path.
+
+1. See the rough example program: 
+
+   <a href="src/M6/example-*.lisp.html">src/M6/example-*.lisp</a>
+
+   including <a href="src/M6/example-parallel-factorial.lisp.html">src/M6/example-parallel-factorial.lisp</a>
+
+4. To run a new Java program: 
+     
+   a) compile your Java program 
+     
+   b) convert the .class file into format M6 can use.   
+      
+      i)   at the top level directory execute <span class="string">"source set-env"</span>
+
+      ii)  java jvm2acl2 output &lt;yourclassfiles.class&gt;
+
+      iii) edit <a href="src/M6-DJVM-shared/cldc-classtable.lisp.html">src/M6-DJVM-shared/cldc-classtable.lisp</a> and merge 
+           forms from output-classtable.lisp 
+
+   c) edit <a href="src/M6/example-template.lisp.html">src/M6/example-template.lisp</a> to set up an initial state
+      for executing the program 
+  
+   d) start ACL2 and load the edited <a href="src/M6/example-template.lisp.html">src/M6/example-template.lisp</a> 
+
+BACK TO <a href="#TOP">TOC</a>
+
+<a name="JVM_PROPERTY_VERIFICATION_EXAMPLE_USING_M6"></a>JVM PROPERTY VERIFICATION EXAMPLE USING M6                       (Section 4.4.1)
+------------------------------------------
+
+Dynamic class loading preserves invariant on JVM state. 
+
+See <a href="src/M6-DJVM-shared/jvm-loader-property.lisp.html">src/M6-DJVM-shared/jvm-loader-property.lisp</a>           
+
+Replay the proof: 
+
+   cd src 
+   make M6-DJVM-shared/jvm-loader-property.cert
+
+BACK TO <a href="#TOP">TOC</a>
+
+<a name="JAVA_PROGRAM_VERIFICATION_EXAMPLE_USING_M6"></a>JAVA PROGRAM VERIFICATION EXAMPLE USING M6                       (Section 4.4.2)
+------------------------------------------
+
+Replay the proof: 
+
+1) ADD1 program adds one: 
+
+   cd src 
+   make M6/ADD1-program-correct.improved.cert
+   
+2) Factorial program computes factorial: 
+   
+   cd src
+   make M6/factorial-program-correct.improved.cert
+
+BACK TO <a href="#TOP">TOC</a>
+
+<a name="CLDC_BYTECODE_VERIFER"></a>CLDC BYTECODE VERIFER                                                (Chapter 5)
+---------------------
+
+See <a href="src/BCV/typechecker.lisp.html">src/BCV/typechecker.lisp</a>                                       (Section 5.3)
+
+Compare with Prolog-rules
+
+    src/BCV/typechecker.pl                                         (Section 5.2)
+
+Our alternative type checker definition 
+  
+    <a href="src/BCV/typechecker-simple.lisp.html">src/BCV/typechecker-simple.lisp</a>                              (Section 7.3.2)
+
+BACK TO <a href="#TOP">TOC</a>
+<a name="RUNNING_CLDC_BYTECODE_VERIFER"></a>RUNNING CLDC BYTECODE VERIFER
+-----------------------------
+
+See <a href="src/BCV/typechecker-test-*.lisp.html">src/BCV/typechecker-test-*.lisp</a>
+
+BACK TO <a href="#TOP">TOC</a>
+
+
+<a name="CLDC_BYTECODE_VERIFIER_SIMPLE_PROPERTY_VERIFIED"></a>CLDC BYTECODE VERIFIER SIMPLE PROPERTY VERIFIED                    (Section 5.4)
+-----------------------------------------------
+
+See <a href="src/BCV/typechecker-property.lisp.html">src/BCV/typechecker-property.lisp</a>
+
+BACK TO <a href="#TOP">TOC</a>
+
+<a name="JVM_SAFETY_SPECIFICATION"></a>JVM SAFETY SPECIFICATION                                             (Chapter 6)
+------------------------
+
+<a name="The_defensive_JVM_DJVM"></a>The defensive JVM (DJVM)                                           (Section 6.2)    
+
+    <a href="src/DJVM/djvm-*.lisp.html">src/DJVM/djvm-*.lisp</a> 
+    <a href="src/DJVM/INST/&lt;INST&gt;.lisp.html">src/DJVM/INST/&lt;INST&gt;.lisp</a> 
+    <a href="src/M6-DJVM-shared/jvm-*.lisp.html">src/M6-DJVM-shared/jvm-*.lisp</a>
+
+<a name="Global_Inductive_Invariant"></a>Global Inductive Invariant                                         (Section 6.4)
+ 
+    <a href="src/DJVM/consistent-state.lisp.html">src/DJVM/consistent-state.lisp</a> 
+    <a href="src/DJVM/consistent-state-strong.lisp.html">src/DJVM/consistent-state-strong.lisp</a>
+    <a href="src/DJVM/consistent-state-bcv-on-track.lisp.html">src/DJVM/consistent-state-bcv-on-track.lisp</a>                    
+
+<a name="Guards_for_DJVM_operations"></a>Guards for DJVM operations                                         (Section 6.5) 
+
+    <a href="src/DJVM/djvm-*.lisp.html">src/DJVM/djvm-*.lisp</a> 
+    <a href="src/DJVM/INST/&lt;INST&gt;.lisp.html">src/DJVM/INST/&lt;INST&gt;.lisp</a> 
+    <a href="src/M6-DJVM-shared/jvm-*.lisp.html">src/M6-DJVM-shared/jvm-*.lisp</a>
+
+BACK TO <a href="#TOP">TOC</a>
+
+
+<a name="FRAMEWORK_AND_PROOFS"></a>FRAMEWORK AND PROOFS                                                 (Chapter 7)
+--------------------
+   
+   [
+      NOTE to replay a proof:
+ 
+      cd src/ 
+
+      make INHIBIT=<span class="string">""</span> ACL2=&lt;youracl2&gt; BASE=.. path/to/book.cert
+ 
+      ACL2 output is saved in path/to/book.out 
+   ] 
+
+<a name="Complete_proof_that_Small_machine_is_safe"></a>Complete proof that Small machine is safe                          (Section 7.1)
+
+    <a href="src/small/*.lisp.html">src/small/*.lisp</a>                       
+
+    <a name="Models"></a>Models:
+        
+      M6-like interpreter:        <a href="src/small/jvm-model.lisp.html">src/small/jvm-model.lisp</a>       (Section 7.1.1)
+
+      CLDC bytecode verifier:     <a href="src/small/bcv-model.lisp.html">src/small/bcv-model.lisp</a>  
+
+      DJVM-like interpreter:      <a href="src/small/djvm-model.lisp.html">src/small/djvm-model.lisp</a>      (Section 7.1.2)
+                                  <a href="src/small/djvm-&lt;INST&gt;.lisp.html">src/small/djvm-&lt;INST&gt;.lisp</a>
+
+      Intermediate bytecode verifier:                            
+                                  <a href="src/small/bcv-simple-model.lisp.html">src/small/bcv-simple-model.lisp</a> 
+
+    <a name="Approach"></a>Approach:                                                    (Section 7.1.3)  
+
+      Alternative bytecode verifier is effective               
+
+          Leaf level lemma: 
+                                 <a href="src/small/&lt;INST&gt;.lisp.html">src/small/&lt;INST&gt;.lisp</a>              
+                                
+          Supporting library for proving leaf level lemma:
+               
+                                 <a href="src/small/djvm-&lt;INST&gt;.lisp.html">src/small/djvm-&lt;INST&gt;.lisp</a>
+
+                   
+          Overall proof: 
+                                 <a href="src/small/djvm-is-safe.lisp.html">src/small/djvm-is-safe.lisp</a> 
+                                 <a href="src/small/bcv-is-effective.lisp.html">src/small/bcv-is-effective.lisp</a>
+                   
+     <span class="string">"Reduction theorem"</span>: 
+      original CLDC bytecode verifier is no-less effective         
+                               
+                                 <a href="src/small/bcv-succeed-implies-bcv-simple-succeed.lisp.html">bcv-succeed-implies-bcv-simple-succeed.lisp</a>
+       
+
+<a name="Bootstrap_class_loader_Verified"></a>Bootstrap class loader Verified                                    (Section 7.2)
+
+     See 
+        <a href="src/DJVM/INST/base-consistent-state-load-class.lisp.html">src/DJVM/INST/base-consistent-state-load-class.lisp</a> 
+        <a href="src/DJVM/INST/base-load-class-normalize.lisp.html">src/DJVM/INST/base-load-class-normalize.lisp</a>
+        <a href="src/M6-DJVM-shared/jvm-loader-guard-verification.lisp.html">src/M6-DJVM-shared/jvm-loader-guard-verification.lisp</a>
+
+
+<a name="Reduction_theorem_for_CLDC_bytecode_verifier"></a>Reduction theorem for CLDC bytecode verifier                       (Section 7.3)
+ 
+     See 
+        <a href="src/BCV/bcv-succeed-implies-bcv-simple-succeed.lisp.html">src/BCV/bcv-succeed-implies-bcv-simple-succeed.lisp</a>        
+
+ 
+<a name="Leaf_level_lemma_and_supporting_libraries"></a>Leaf-level lemma and supporting libraries                          (Section 7.4) 
+
+     <a name="Leaf_level_lemma_src_DJVM_INST_lt_INST_gt_lisp"></a>Leaf-level lemma:          <a href="src/DJVM/INST/&lt;INST&gt;.lisp.html">src/DJVM/INST/&lt;INST&gt;.lisp</a>        
+     
+     <a name="Supporting_libraries_src_DJVM_INST_base_lisp"></a>Supporting libraries:      <a href="src/DJVM/INST/">src/DJVM/INST/base-*.lisp</a>  
+
+     <a name="Using_leaf_level_lemma_for_constructing_top_level_proof"></a>Using leaf-level lemma for constructing top level proof: 
+
+                                <a href="src/main/djvm-is-safe.lisp.html">src/main/djvm-is-safe.lisp</a>
+                                <a href="src/main/bcv-is-effective.lisp.html">src/main/bcv-is-effective.lisp</a>      
+
+BACK TO <a href="#TOP">TOC</a>
+     </pre>
+  </body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-load-class-normalize-deref2.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="../../BCV/typechecker.lisp.html">"../../BCV/typechecker"</a></span>)
+(include-book <span class="string"><a href="../../BCV/bcv-functions.lisp.html">"../../BCV/bcv-functions"</a></span>)
+(include-book <span class="string"><a href="base.lisp.html">"base"</a></span>)
+(include-book <span class="string"><a href="base-consistent-state.lisp.html">"base-consistent-state"</a></span>)
+(include-book <span class="string"><a href="base-bind-free.lisp.html">"base-bind-free"</a></span>)
+
+
+(local (include-book <span class="string"><a href="base-load-class-normalize-deref2-support.lisp.html">"base-load-class-normalize-deref2-support"</a></span>))
+
+
+(defthm deref2-no-change-after-resolveClassReference
+   (implies (and (not (NULLp v))
+                 (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (REFp v (heap s)))
+            (equal (deref2 v (heap (resolveclassreference any s)))
+                   (deref2 v (heap s))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (resolveclassreference)
+                                   (REFp))
+            <span class="builtin">:do-not</span> '(generalize fertilize))))
+
+
+(defthm REFp-remains-REFp-resolveCalssReference
+   (implies (REFp v (heap s))
+            (REFp v (heap (resolveClassReference any s))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (resolveClassReference) (REFp)))))
+
+
+
+
+(defthm deref2-no-change-after-getArrayClass 
+  (implies (and (not (NULLp v))
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (REFp v (heap s)))
+           (equal (deref2 v (heap (getArrayClass any s)))
+                  (deref2 v (heap s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (resolveclassreference)
+                                  (REFp))
+           <span class="builtin">:do-not</span> '(generalize fertilize))))
+
+
+(defthm REFp-remains-REFp-getArrayClass
+   (implies (REFp v (heap s))
+            (REFp v (heap (getArrayClass any s))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (getArrayClass) (REFp)))))
+</pre>
+  </body>
+</html>

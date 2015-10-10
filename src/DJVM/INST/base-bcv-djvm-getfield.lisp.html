@@ -1,0 +1,372 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-bcv-djvm-getfield.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+
+(include-book <span class="string"><a href="base-bcv.lisp.html">"base-bcv"</a></span>)
+(in-theory (disable BCV::PREFIX-CLASS 
+                    BCV::FIELDNAMECP
+                    BCV::FIELDCLASSNAMECP
+                    BCV::FIELDTYPECP
+                    BCV::TRANSLATE-TYPE
+                    BCV::FIELDTYPECP
+                    BCV::NAME-OF
+                    bcv::isarraytype
+                    BCV::PASSESPROTECTEDFIELDCHECK
+                    BCV::ISPROTECTEDFIELD
+                    BCV::CLASSENVIRONMENT
+                    bcv::arg1 arg))
+
+
+(defthm type-size-either-2-or-1
+  (implies (NOT (EQUAL (TYPE-SIZE type) 1))
+           (equal (type-size type) 2))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable type-size))))
+
+
+
+(defthm car-opstack-sig-normalize
+  (Implies (canPopCategory1 (operand-stack (current-frame s)))
+           (equal (CAR (OPSTACK-SIG (OPERAND-STACK (CURRENT-FRAME S))
+                                    cl hp hp-init method-ptr))
+                  (value-sig (topStack s)
+                             cl hp hp-init method-ptr)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (opstack-sig topStack current-frame 
+                                               opstack-sig) (value-sig))
+           <span class="builtin">:cases</span> ((consp (operand-stack (current-frame s)))))
+          (<span class="string">"Subgoal 1"</span> <span class="builtin">:expand</span> (opstack-sig (OPERAND-STACK (CURRENT-FRAME S))
+                                            cl hp hp-init method-ptr))))
+
+
+
+
+(defthm isArrayType-bcv-isArrayType
+  (implies (and (ISARRAYTYPE (OBJ-TYPE (DEREF2 v hp)))
+                (not (deref2-init v hp-init))
+                (REFp v hp)
+                (not (NULLp v)))
+           (bcv::isarraytype (value-sig v cl hp hp-init method-ptr)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (isarraytype bcv::isarraytype tag-of 
+                                               fix-sig NULLp REFp wff-REFp
+                                               rREF deref isarraytype
+                                               deref2 
+                                               primitive-type? fix-sig
+                                               value-of wff-tagged-value 
+                                               value-sig)
+                                  (binding-rREF-normalize)))
+          (<span class="string">"Subgoal 3"</span> <span class="builtin">:expand</span> (FIX-SIG (OBJ-TYPE (BINDING (CDR V) HP))))
+          (<span class="string">"Subgoal 2"</span> <span class="builtin">:expand</span> (FIX-SIG (OBJ-TYPE (BINDING (CDR V) HP))))
+          (<span class="string">"Subgoal 1"</span> <span class="builtin">:expand</span> (FIX-SIG (OBJ-TYPE (BINDING (CDR V) HP))))))
+
+
+
+<span class="comment">;; (defthm type-size-either-2-or-1
+;;   (implies (NOT (EQUAL (TYPE-SIZE type) 1))
+;;            (equal (type-size type) 2))
+;;   :hints (("Goal" :in-theory (enable type-size))))
+</span>
+
+(defthm len-bcv-pushOperandStack-size-2-is
+  (implies (equal (type-size type) 2)
+           (equal (len (BCV::PUSHOPERANDSTACK
+                        (BCV::TRANSLATE-TYPE type)
+                        stack))
+                  (+ 2 (len stack))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable type-size
+                                     bcv::pushoperandstack))))
+
+
+(defthm bcv::fieldtypecp-normalize
+  (equal (fieldcp-fieldtype (arg <a href="inst.lisp.html">inst</a>))
+         (normalize-type-rep (BCV::FIELDTYPECP (BCV::ARG1 INST))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv::fieldtypecp
+                                     fieldcp-fieldtype
+                                     bcv::arg1 
+                                     arg))))
+
+
+(defthm len-bcv-popOperandStack-size-2-is
+  (implies (consp stack)
+           (equal (len (BCV::POPMATCHINGTYPE
+                        (BCV::PREFIX-CLASS any)
+                        stack))
+                  (- (len stack) 1)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv::sizeof
+                                     bcv::prefix-class
+                                     bcv::pop
+                                     bcv::popmatchingtype))))
+
+<span class="comment">;;; this is wrong need extra hyps!! 
+;;;
+;;; Making use of type of object in ACL2 to distinguish the 
+;;; well-formed of types!! 
+;;;
+</span>
+<span class="comment">;; (i-am-here)  ;; Thu Jun 16 22:11:19 2005
+</span>
+(include-book <span class="string"><a href="base-valid-type-s.lisp.html">"base-valid-type-s"</a></span>)
+
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-type-size-normalize-fix-type.lisp.html">"base-type-size-normalize-fix-type"</a></span>))
+  (defthm type-size-equal-specific
+    (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                  (valid-type-strong type (instance-class-table s)))
+             (equal (type-size (normalize-type-rep (fix-sig type)))
+                    (type-size type)))))
+
+
+<span class="comment">;; (defthm type-size-normal-type-rep
+;;   (implies (not (primitive-type? type))
+;;            (not (EQUAL (TYPE-SIZE (NORMALIZE-TYPE-REP type) 1))
+;;   :hints (("Goal" :in-theory (enable type-size primitive-type?))))
+;;          
+</span>
+
+(include-book <span class="string"><a href="base-bcv-fact-isMatchingType-isAssignableTo.lisp.html">"base-bcv-fact-isMatchingType-isAssignableTo"</a></span>)
+
+<span class="comment">;;; from this we have.
+</span>
+
+<span class="comment">;; (defthm isMatchingType-isAssignableTo
+;;   (implies 
+;;    (and (BCV::ISMATCHINGTYPE
+;;          (BCV::PREFIX-CLASS (BCV::FIELDCLASSNAMECP (BCV::ARG1 INST)))
+;;          (OPSTACK-SIG (OPERAND-STACK (CURRENT-FRAME S))
+;;                       (INSTANCE-CLASS-TABLE S)
+;;                       (HEAP S)
+;;                       (HEAP-INIT-MAP (AUX S))
+;;                       (METHOD-PTR (CURRENT-FRAME S)))
+;;          (ENV-SIG S))
+;;         (not (NULLp (topStack s)))
+;;         (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+;;         (no-fatal-error? s)
+;;         (isClassTerm (class-by-name (fieldcp-classname (arg <a href="inst.lisp.html">inst</a>))
+;;                                     (instance-class-table s))) 
+;;         (bcv::class-by-name (bcv::fieldclassnamecp (bcv::arg1 <a href="inst.lisp.html">inst</a>))
+;;                             (BCV::CLASSTABLEENVIRONMENT (ENV-SIG S)))
+;;         (not (bcv::classisinterface  (bcv::class-by-name (bcv::fieldclassnamecp (bcv::arg1 <a href="inst.lisp.html">inst</a>))
+;;                                                          (BCV::CLASSTABLEENVIRONMENT (ENV-SIG S))))))
+;;     (CAR (ISASSIGNABLETO (OBJ-TYPE (DEREF2 (TOPSTACK S) (HEAP S)))
+;;                          (FIELDCP-CLASSNAME (ARG INST))
+;;                          S))))
+</span>
+<span class="comment">;;
+;; (i-am-here) ;; Mon Jun 20 15:58:26 2005
+;;
+</span>
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-consistent-state-lookupfield-bcv.lisp.html">"base-consistent-state-lookupfield-bcv"</a></span>))
+  (defthm consistent-state-implies-if-found-field-then-not-interface
+    (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                  (LOOKUPFIELD (FIELDCP-TO-FIELD-PTR fieldcp)
+                               (RESOLVECLASSREFERENCE (FIELDCP-CLASSNAME fieldcp)
+                                                      S)))
+             (not (bcv::ClassIsInterface  (bcv::class-by-name 
+                                           (fieldcp-classname fieldcp)
+                                           (BCV::CLASSTABLEENVIRONMENT
+                                            (ENV-SIG S))))))))
+
+
+(encapsulate ()
+ (local (include-book <span class="string"><a href="base-consistent-state-lookupfield-bcv.lisp.html">"base-consistent-state-lookupfield-bcv"</a></span>))
+ (defthm consistent-state-implies-if-found-field-then-class-found
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (LOOKUPFIELD (FIELDCP-TO-FIELD-PTR fieldcp) 
+                              (resolveclassreference (fieldcp-classname fieldcp) s)))
+            (BCV::CLASS-BY-NAME (fieldcp-classname fieldcp)
+                                (BCV::CLASSTABLEENVIRONMENT (ENV-SIG S))))))
+
+
+
+(defthm consistent-heap-array-init-state1-implies-not-dere2-init
+  (implies (and (consistent-heap-array-init-state1 hp cl acl hp-init)
+                (isarraytype (obj-type (deref2 v hp))))
+           (not (deref2-init v hp-init)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (deref2 deref2-init rREF
+                                          isarraytype
+                                          common-info
+                                          obj-type
+                                          binding bound?) 
+                                  (binding-rREF-normalize)))))
+
+(defthm consistent-state-implies-consistent-heap-array-init1
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (consistent-heap-array-init-state1 (heap s) 
+                                              (instance-class-table s)
+                                              (array-class-table s)
+                                              (heap-init-map (aux s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a>))))
+                                     
+
+(defthm consistent-state-implies-array-type-never-uninitialized
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (isarraytype (obj-type (deref2 v (heap s)))))
+           (not (deref2-init v (heap-init-map (aux s)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> ((<span class="builtin">:instance</span>
+                         consistent-heap-array-init-state1-implies-not-dere2-init
+                         (hp (heap s))
+                         (cl (instance-class-table s))
+                         (acl (array-class-table s))
+                         (hp-init (heap-init-map (aux s))))))))
+
+
+(defthm type-size-wff-type-rep
+  (implies (wff-type-rep type)
+           (equal (type-size (normalize-type-rep type))
+                  (type-size type)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable wff-type-rep 
+                                     type-size
+                                     normalize-type-rep))))
+
+
+(defthm bcv-arg1-normalize
+  (equal (bcv::arg1 <a href="inst.lisp.html">inst</a>)
+         (arg <a href="inst.lisp.html">inst</a>))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv::arg1 arg))))
+
+
+(defthm bcv-fieldclassnamecp-normalize
+  (equal (bcv::fieldclassnamecp cp)
+         (fieldcp-classname cp))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv::fieldclassnamecp 
+                                     fieldcp-classname))))
+
+
+(defthm wff-fieldcp-implies-wff-type-rep
+  (implies (wff-fieldcp cp)
+           (wff-type-rep (bcv::fieldtypecp cp)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable wff-fieldcp bcv::fieldtypecp))))
+
+
+<span class="comment">;; (i-am-here) ;; Tue Jun 21 16:26:59 2005
+;;
+;; (i-am-here) ;; Thu Jun 23 16:15:01 2005
+;;;
+;;; I thought that we can avoid proving that fieldcp-classname is already
+;;; loaded, however it can not be done! 
+;;;
+;;; The following reasoning is a bit twisted!!  if lookupfield succeeds and the
+;;; obj is assignable to the field
+;;;
+;;; then we know the class is already loaded!!
+;;; 
+;;; and we know the class is not an interface. 
+</span>
+<span class="comment">;;; from base-bcv-fact-isMatchingType-isAssignableTo.lisp 
+;;; we have: 
+</span>
+
+(local 
+ (encapsulate ()
+  (local (include-book <span class="string"><a href="base-consistent-state-lookupfield-bcv.lisp.html">"base-consistent-state-lookupfield-bcv"</a></span>))
+  (defthm consistent-state-implies-if-found-field-then-not-interface-lemma
+    (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                  (isInterface (class-by-name (field-ptr-classname field-ptr)
+                                              (instance-class-table s))))
+             (not  (LOOKUPFIELD field-ptr s))))))
+
+
+(defthm consistent-state-implies-interface-class-no-field
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (isInterface (class-by-name (fieldcp-classname fieldcp) (instance-class-table s))))
+           (not (lookupfield 
+                 (FIELDCP-TO-FIELD-PTR fieldcp) s))))
+
+
+
+
+
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-bcv-fact-array-type-assignable.lisp.html">"base-bcv-fact-array-type-assignable"</a></span>))
+  (defthm isMatchingType-to-Array-Type-not-isInterface-then-class-table
+   (implies (and (BCV::ISMATCHINGTYPE (BCV::PREFIX-CLASS (FIELDCP-CLASSNAME fieldcp))
+                                      (OPSTACK-SIG (OPERAND-STACK (CURRENT-FRAME S))
+                                                   (INSTANCE-CLASS-TABLE S)
+                                                   (HEAP S)
+                                                   (HEAP-INIT-MAP (AUX S))
+                                                   (METHOD-PTR (CURRENT-FRAME S)))
+                                      (ENV-SIG S))
+                 (isarraytype (obj-type (deref2 (topstack s) (heap s))))
+                 (isClassTerm (class-by-name (fieldcp-classname fieldcp)
+                                             (instance-class-table s)))
+                 <span class="comment">;;; Mon Jul 11 17:45:13 2005
+</span>                 (canPopCategory1 (operand-stack (current-frame s)))
+                 (not (isInterface (class-by-name (fieldcp-classname fieldcp)
+                                                  (instance-class-table s))))
+                (not (NULLp (topStack s))) <span class="comment">;; new hyps
+</span>                (REFp (topStack s) (heap s)) <span class="comment">;;  
+</span>                (not (deref2-init (topStack s) <span class="comment">;; new hyps  ;; Mon Jul 11 20:50:23 2005
+</span>                                  (heap-init-map (aux s))))
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+            (equal (fieldcp-classname fieldcp) <span class="string">"java.lang.Object"</span>))))
+
+
+(in-theory (disable isClassTerm))
+
+(local 
+ (encapsulate () 
+  (local (include-book <span class="string"><a href="base-consistent-state-lookupfield-bcv.lisp.html">"base-consistent-state-lookupfield-bcv"</a></span>))
+  (defthm consistent-state-implies-if-class-not-found-not-nil
+    (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                  (not (class-by-name (field-ptr-classname field-ptr) 
+                                      (instance-class-table s))))
+             (not  (LOOKUPFIELD field-ptr s))))))
+
+
+
+(defthm consistent-state-lookupfield-implies-loaded
+  (implies (and (lookupfield (fieldcp-to-field-ptr fieldcp) s)
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+           (isClassTerm (class-by-name (fieldcp-classname fieldcp) 
+                                       (instance-class-table s)))))
+
+
+(encapsulate ()
+ (local (include-book <span class="string"><a href="base-valid-object-type-assignable-to-java-lang-Object.lisp.html">"base-valid-object-type-assignable-to-java-lang-Object"</a></span>))
+ (defthm consistent-state-implies-obj-type-assignable-java-lang-Object
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (ISARRAYTYPE (OBJ-TYPE (DEREF2 v  (heap s)))))
+            (CAR (ISASSIGNABLETO (OBJ-TYPE (DEREF2 v (HEAP S)))
+                                 <span class="string">"java.lang.Object"</span> S)))))
+
+</pre>
+  </body>
+</html>

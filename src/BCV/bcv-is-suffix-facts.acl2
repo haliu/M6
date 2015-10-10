@@ -1,0 +1,2 @@
+(ld "../BCV/bcv.pkg")
+(certify-book "bcv-is-suffix-facts" 5 t :skip-proofs-okp t)

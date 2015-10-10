@@ -1,0 +1,791 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-bcv-frame-sig-expansion.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="../../BCV/typechecker.lisp.html">"../../BCV/typechecker"</a></span>)
+(include-book <span class="string"><a href="../../BCV/bcv-functions.lisp.html">"../../BCV/bcv-functions"</a></span>)
+
+(include-book <span class="string"><a href="base.lisp.html">"base"</a></span>)
+(include-book <span class="string"><a href="base-consistent-state.lisp.html">"base-consistent-state"</a></span>)
+(include-book <span class="string"><a href="base-bind-free.lisp.html">"base-bind-free"</a></span>)
+
+
+(in-theory (disable bcv::frameStack bcv::frameLocals bcv::frameFlags
+                   locals operand-stack bcv::nth1OperandStackIs  
+                   bcv::pushOperandStack popStack
+                   nullp BCV::isMatchingType
+                   CODE-STACKMAPS ENV-SIG HEAP-INIT-MAP 
+                   MAKEENVIRONMENT BCV::ARRAYELEMENTTYPE
+                   BCV::POP frame-sig BCV::SIZEOF
+                   bcv::classtableEnvironment
+                   REFp
+                   BCV::popmatchingtype
+                   BCV::MAXSTACKENVIRONMENT
+                   deref2-init
+                   bcv::make-sig-frame
+                   value-sig
+                   make-sig-frame))
+
+
+(in-theory (disable frame-push-value-sig
+                    frame-pop-opstack 
+                    frame-top-opstack))
+
+<span class="comment">;;; bcv::excute-* expands into bcv::TypeTransition which expands into
+;;; bcv::make-sig-frame
+;;; 
+;;; We just chose the make-sig-frame to be the normal form to write our other
+;;; rewrite rules!! 
+</span>
+(defthm bcv-make-sig-frame-normalize
+   (equal (bcv::make-sig-frame l s f)
+          (make-sig-frame l s f))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable make-sig-frame bcv::make-sig-frame))))
+
+
+(defthm bcv-make-sig-frame-accessor
+  (and (equal (bcv::frameStack  (make-sig-frame l s f)) s)
+       (equal (bcv::frameLocals (make-sig-frame l s f)) l)
+       (equal (bcv::frameFlags  (make-sig-frame l s f)) f))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable make-sig-frame
+                                     bcv::frameFlags bcv::frameLocals
+                                     bcv::frameStack))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;;; We are interested in the relation between (frame-sig (djvm::step s)) ...
+;;; We will show (bcv::step (frame-sig s ...) ...) 
+</span>
+<span class="comment">;;;
+;;; The strategy is to rewrite all reference to stack of a sig-frame,
+;;; into reference to opstack-sig of a concrete state. 
+;;; 
+;;; 
+</span>
+(defthm bcv-frame-Stack-frame-sig-is-opstack-sig
+  (equal (bcv::frameStack (frame-sig frame cl hp hp-init))
+         (opstack-sig (operand-stack frame) cl hp hp-init (method-ptr frame)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable frame-sig))))
+
+
+(defthm bcv-frame-Locals-frame-sig-is-locals-sig
+  (equal (bcv::frameLocals (frame-sig frame cl hp hp-init))
+         (locals-sig (locals frame) cl hp hp-init (method-ptr frame)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable frame-sig))))
+
+
+
+
+(defthm bcv-frame-Flags-frame-sig-is-genflags-sig
+   (equal (bcv::frameFlags (frame-sig frame cl hp hp-init))
+          (gen-frame-flags frame hp-init))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable frame-sig))))
+
+
+<span class="comment">;;; Sun Jul 31 12:50:02 2005. fixed. see notes on flags!! 
+;;;
+;; (defthm bcv-frame-Flags-frame-sig-is-genflags-sig
+;;    (equal (bcv::frameFlags (frame-sig frame cl hp hp-init))
+;;           (gen-frame-flags (locals-sig (locals frame) cl hp hp-init
+;;                                        (method-ptr frame))
+;;                            (opstack-sig (operand-stack frame) cl hp hp-init
+;;                                         (method-ptr frame))))
+;;    :hints (("Goal" :in-theory (enable frame-sig)))
+</span>
+ 
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;;; these should appear in <a href="base-consistent-state.lisp.html">base-consistent-state</a>
+;;; and always enabled!! 
+</span>
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-consistent-state-more.lisp.html">"base-consistent-state-more"</a></span>))
+  (defthm locals-no-change-pushStack
+    (equal (locals (current-frame (pushstack v s)))
+           (locals (current-frame s))))
+  
+  (defthm locals-no-change-popStack
+    (equal (locals (current-frame (popStack s)))
+           (locals (current-frame s))))
+
+  (defthm gen-frame-flags-popStack-no-change
+    (equal (gen-frame-flags (current-frame (popStack s)) hp-init)
+           (gen-frame-flags (current-frame s) hp-init))))
+
+
+<span class="comment">; If we were using record book. proof of this may be automatic!
+;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;;;
+;;; rewrite typeTransition style state into frame-sig style state
+;;;
+</span>
+(defthm make-sig-frame-bcv-push-operandstack-normalize
+  (implies (and (equal (bcv::frameLocals (frame-sig frame cl hp hp-init)) locals)
+                (equal (bcv::frameFlags (frame-sig frame cl hp hp-init)) flags)
+                (equal (bcv::sizeof resulttype) 1)
+                (not (equal resulttype 'void))
+                (equal (method-ptr frame) method-ptr))
+           (equal (MAKE-SIG-FRAME
+                   locals
+                   (BCV::PUSHOPERANDSTACK RESULTTYPE (opstack-sig
+                                                      (operand-stack frame)
+                                                      cl hp hp-init method-ptr))
+                   flags)
+                  (frame-push-value-sig resulttype (frame-sig frame cl hp hp-init))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv::pushoperandstack
+                                     frame-push-value-sig))))
+
+<span class="comment">;;; how popmatchingtype in BCV::typetransition maps to opstack-sig ....
+;;;
+;;; note the following is skip-proved (in base-bcv-support. need clean up
+;;; there!!)
+</span>
+(encapsulate ()
+   (local (include-book <span class="string"><a href="base-bcv-support.lisp.html">"base-bcv-support"</a></span>))
+   (defthm isMatchingType-popMatchingType-form1
+     (implies (and (bcv::ismatchingtype type (opstack-sig (operand-stack (current-frame s))
+                                                          cl hp hp-init
+                                                          method-ptr) (env-sig
+                                                          s))
+                   type
+                   (not (equal type 'topx))
+                   (equal (bcv::sizeof type) 1)
+                   (not   (equal type 'void))
+                   (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                   (equal (instance-class-table s) cl)
+                   (equal (heap s) hp)
+                   (equal (heap-init-map (aux s)) hp-init)
+                   (equal (method-ptr (current-frame s)) method-ptr))
+              (equal (BCV::POPMATCHINGTYPE type
+                                           (OPSTACK-SIG (OPERAND-STACK (CURRENT-FRAME S))
+                                                        cl hp hp-init method-ptr))
+                     (opstack-sig (operand-stack (current-frame (popStack s)))
+                                  cl hp hp-init method-ptr)))
+     <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () 
+                                     ())))))
+  
+
+
+
+(defthm car-opstack-sig-normalize
+  (Implies (canPopCategory1 (operand-stack (current-frame s)))
+           (equal (CAR (OPSTACK-SIG (OPERAND-STACK (CURRENT-FRAME S))
+                                    cl hp hp-init method-ptr))
+                  (value-sig (topStack s)
+                             cl hp hp-init method-ptr)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (opstack-sig topStack current-frame 
+                                               opstack-sig) (value-sig))
+           <span class="builtin">:cases</span> ((consp (operand-stack (current-frame s)))))
+          (<span class="string">"Subgoal 1"</span> <span class="builtin">:expand</span> (opstack-sig (OPERAND-STACK (CURRENT-FRAME S))
+                                            cl hp hp-init method-ptr))))
+
+<span class="comment">;;;
+;;; reduce (car (opstack-sig ...)) into value-sig of (topStack ..))
+;;;
+</span>
+(include-book <span class="string"><a href="base-bcv-fact-nth-opstack-specific-env-sig.lisp.html">"base-bcv-fact-nth-opstack-specific-env-sig"</a></span>)
+
+<span class="comment">;;; expand nth1operandstackis into a CAR of something. 
+;;; together with our rule for isMatchingType-popMatchingType-form1
+;;; and car-opstack-sig-normalize
+;;;
+</span>
+(include-book <span class="string"><a href="base-bcv-fact-isMatchingType-canPopCategory1.lisp.html">"base-bcv-fact-isMatchingType-canPopCategory1"</a></span>)
+
+<span class="comment">;;;
+;;; necessary for car-opstack-sig-normalize to work!! 
+;;;
+</span>
+<span class="comment">;;; Next we need to reduce value-sig which is a more complicated concept
+;;; that deal with whether an object is initialized or not
+;;; whether it is primitive type value. 
+;;;
+;;; We want to reduce it to the intuitive fix-sig. 
+;;; 
+;;; Basically, REFp and initialized, we will want to reduce it to fix-sig
+;;; 
+</span>
+(encapsulate ()
+ (local (include-book <span class="string"><a href="base-bcv-djvm-assignable.lisp.html">"base-bcv-djvm-assignable"</a></span>))
+ (defthm value-sig-being-fix-sig
+   (implies (and (REFp v hp)
+                 (not (NULLp v))
+                 (not (consp (deref2-init v hp-init))))
+            (equal (value-sig v cl hp hp-init method-ptr)
+                   (fix-sig (obj-type (deref2 v hp)))))))
+
+<span class="comment">;;;
+;;; this are proved before!! in efforts to expand frame-sig ...
+;;; This helps in getting value-sig is not uninitializedThis 
+;;; 
+</span>
+(defthm nullp-implies 
+  (implies (and (not (nullp v))
+                (REFp v hp))
+           (not (EQUAL (VALUE-OF v)  -1)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable nullp REFp))))
+
+
+<span class="comment">;;; Note: the decision to only export isMatchingType implies 
+;;; (not (consp ...))
+;;; etc. 
+</span>
+
+<span class="comment">;; (encapsulate () 
+;;  (local (include-book <a href="base-bcv-support.lisp.html">"base-bcv-support"</a>))
+;;  ;; The problem we want to avoid all reference to isAssignable
+;;  ;; part of strategy!! 
+;;  (local 
+;;   (defthm isAssignable-to-array-class-java-lang-Object-implies-not-deref2-init-specific
+;;    (implies (and (bcv::isAssignable (value-sig (topStack s)
+;;                                                (instance-class-table s)
+;;                                                (heap s)
+;;                                                (heap-init-map (aux s))
+;;                                                (method-ptr (current-frame s)))
+;;                                     '(array (class "java.lang.Object"))
+;;                                     (env-sig s))
+;;                  (not (nullp (topStack s)))
+;;                  (consistent-value-x (topStack s) (instance-class-table s)
+;;                                      (heap s))
+;;                  (equal (heap-init-map (aux s)) hp-init))
+;;             (not (consp (deref2-init (topStack s) hp-init))))))
+</span>
+<span class="comment">;;  (local (include-book <a href="base-bcv-fact-isMatchingType-isAssignable.lisp.html">"base-bcv-fact-isMatchingType-isAssignable"</a>))
+</span> 
+<span class="comment">;;  (local 
+;;   (defthm bcv-isMatchingType-bcv-isAssignable-specific
+;;    (implies (and (bcv::isMatchingType typ (opstack-sig 
+;;                                            (operand-stack (current-frame s))
+;;                                            cl hp hp-init method-ptr) env)
+;;                  (canPopCategory1 (operand-stack (current-frame s)))
+;;                  (equal (bcv::sizeof typ) 1))
+;;             (bcv::isAssignable (value-sig (topStack s)
+;;                                           cl hp hp-init method-ptr) typ env))))
+</span>
+<span class="comment">;;  (defthm isMatchingType-to-array-class-java-lang-Object-implies-not-deref2-init-specific
+;;    (implies (and (bcv::isMatchingType '(array (class "java.lang.Object"))
+;;                                       (opstack-sig (operand-stack (current-frame s))
+;;                                                    (instance-class-table s)
+;;                                                    (heap s)
+;;                                                    (heap-init-map (aux s))
+;;                                                    (method-ptr (current-frame s)))
+;;                                     (env-sig s))
+;;                  (not (nullp (topStack s)))
+;;                  (consistent-value-x (topStack s) (instance-class-table s)
+;;                                      (heap s))
+;;                  (equal (heap-init-map (aux s)) hp-init))
+;;             (not (consp (deref2-init (topStack s) hp-init))))
+;;    :hints (("Goal" :in-theory (disable consistent-value-x)))))
+</span>
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-bcv-fact-isMatchingType-value-initialized.lisp.html">"base-bcv-fact-isMatchingType-value-initialized"</a></span>))
+  (defthm isMatchingType-to-array-class-java-lang-Object-implies-not-deref2-init-specific
+    (implies (and (bcv::isMatchingType '(array (class <span class="string">"java.lang.Object"</span>))
+                                       (opstack-sig (operand-stack (current-frame s))
+                                                    (instance-class-table s)
+                                                    (heap s)
+                                                    (heap-init-map (aux s))
+                                                    (method-ptr (current-frame s)))
+                                       (env-sig s))
+                  (not (nullp (topStack s)))
+                  (consistent-value-x (topStack s) (instance-class-table s)
+                                      (heap s))
+                  (equal (heap-init-map (aux s)) hp-init))
+             (not (consp (deref2-init (topStack s) hp-init))))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable consistent-value-x)))))
+  
+
+
+(in-theory (enable bcv::nth1OperandStackIs))
+
+<span class="comment">;; we will rely on rules in 
+;;   (include-book <a href="base-bcv-fact-nth-opstack-specific-env-sig.lisp.html">"base-bcv-fact-nth-opstack-specific-env-sig"</a>)
+;; to expand (nth i ...)
+;;
+</span>
+(defthm car-operand-stack-current-frame
+  (equal (car (operand-stack (current-frame s)))
+         (topStack s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable topStack current-frame))))
+
+
+(defthm element-type-of-fix-sig-is-fix-sig-of-element-type
+  (implies (isArrayType type)
+           (equal (bcv::arrayelementtype (fix-sig type))
+                  (FIX-SIG (array-component-type type))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable fix-sig component-type 
+                                     bcv::arrayelementtype
+                                     primitive-type? isArrayType
+                                     array-component-type))))
+
+
+(in-theory (disable fix-sig))
+
+(encapsulate ()
+    (local (include-book <span class="string"><a href="base-bcv-support.lisp.html">"base-bcv-support"</a></span>))
+              
+    (local (defthm isAssignable-to-array-class-java-lang-Object-not-primitive-type
+      (implies (and (bcv::isAssignable (value-sig v  (instance-class-table s)
+                                                  (heap s)
+                                                  (heap-init-map (aux s))
+                                                  (method-ptr (current-frame s)))
+                                       '(array (class <span class="string">"java.lang.Object"</span>))
+                                       (env-sig s))
+                    (not (nullp v))
+                    (consistent-value-x v (instance-class-table s) (heap s)))
+               (not (primitive-type? (array-component-type 
+                                      (obj-type (deref2 v (heap s)))))))))
+
+    (local (include-book <span class="string"><a href="base-bcv-fact-isMatchingType-isAssignable.lisp.html">"base-bcv-fact-isMatchingType-isAssignable"</a></span>))
+    (local (defthm bcv-isMatchingType-bcv-isAssignable-specific
+             (implies (and (bcv::isMatchingType typ (opstack-sig 
+                                                     (operand-stack (current-frame s))
+                                                     cl hp hp-init method-ptr) env)
+                           (canPopCategory1 (operand-stack (current-frame s)))
+                           (equal (bcv::sizeof typ) 1))
+                      (bcv::isAssignable (value-sig (topStack s)
+                                                    cl hp hp-init method-ptr) typ env))))
+
+    (defthm isMatchingType-to-array-class-java-lang-Object-not-primitive-type
+      (implies (and (bcv::ismatchingtype '(array (class <span class="string">"java.lang.Object"</span>))
+                                         (opstack-sig (operand-stack (current-frame s))
+                                                      (instance-class-table s)
+                                                      (heap s)
+                                                      (heap-init-map (aux s))
+                                                      (method-ptr (current-frame s)))
+                                         (env-sig s))
+                    (REFp (topStack s) (heap s))
+                    (not (nullp (topStack s)))
+                    (equal (heap s) hp)
+                    (consistent-value-x (topStack s) (instance-class-table s) (heap s)))
+               (not (primitive-type? (array-component-type 
+                                      (obj-type (deref2 (topStack s) hp))))))
+      <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable bcv::isAssignable)))))
+
+
+(encapsulate () 
+   (local (include-book <span class="string"><a href="base-bcv-support.lisp.html">"base-bcv-support"</a></span>))
+   (local (defthm isAssignable-to-AARRAY-implies-array-type
+            (implies (and (bcv::isAssignable 
+                           (value-sig v (instance-class-table s)
+                                      (heap s)
+                                      (heap-init-map (aux s))
+                                      (method-ptr (current-frame s)))
+                           '(array (class <span class="string">"java.lang.Object"</span>))
+                           (env-sig s))
+                          (not (nullp v))
+                          (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                          (REFp v (heap s)))
+                     (isArrayType (obj-type (deref2 v (heap s)))))))
+
+    (local (include-book <span class="string"><a href="base-bcv-fact-isMatchingType-isAssignable.lisp.html">"base-bcv-fact-isMatchingType-isAssignable"</a></span>))
+    (local (defthm bcv-isMatchingType-bcv-isAssignable-specific
+             (implies (and (bcv::isMatchingType typ (opstack-sig 
+                                                     (operand-stack (current-frame s))
+                                                     cl hp hp-init method-ptr) env)
+                           (canPopCategory1 (operand-stack (current-frame s)))
+                           (equal (bcv::sizeof typ) 1))
+                      (bcv::isAssignable (value-sig (topStack s)
+                                                    cl hp hp-init method-ptr) typ env))))
+
+   (defthm isMatchingTypee-to-AARRAY-implies-array-type
+     (implies (and (bcv::ismatchingtype '(array (class <span class="string">"java.lang.Object"</span>))
+                                        (opstack-sig (operand-stack (current-frame
+                                                                     s))
+                                                     (instance-class-table s)
+                                                     (heap s)
+                                                     (heap-init-map (aux s))
+                                                     (method-ptr (current-frame s)))
+                                        (env-sig s))
+                   (not (nullp (topStack s)))
+                   (equal (heap s) hp)
+                   (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                   (REFp (topStack s) (heap s)))
+              (isArrayType (obj-type (deref2 (topStack s) hp))))))
+
+
+
+<span class="comment">;; we need isArrayType?? 
+;;
+;; Because we need element-type-of-fix-sig-is-fix-sig-of-element-type
+;; fix-sig (array-component-type ...
+;; being the same as 
+;;         (array-component-type (fix-sig...))
+;;
+</span>
+(defthm fix-sig-is-1-if-not-type
+  (implies (not (primitive-type? type))
+           (equal (bcv::sizeof (fix-sig type)) 1))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable fix-sig bcv::sizeof primitive-type?))))
+
+
+(defthm fix-sig-never-void
+  (not (equal (fix-sig any) 'void))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable fix-sig primitive-type?))))
+
+
+(defthm fix-sig-never-uninitialized
+  (not (equal (fix-sig any) 'uninitializedThis))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable fix-sig primitive-type?))))
+
+
+
+
+<span class="comment">;; (defthm primitive-type-value-sig-reduce
+;;   (implies (and (primitive-type? (tag-of v))
+;;                 (not (NULLp v)))
+;;            (equal (value-sig v cl hp hp-init method-ptr)
+;;                   (tag-of v)))
+;;   :hints (("Goal" :in-theory (enable value-sig fix-sig REFp wff-REFp))))
+</span>
+
+<span class="comment">;;;
+;;; we are almost there!! ;; Sun May 15 23:32:14 2005
+;;; 
+</span>
+
+<span class="comment">;; (skip-proofs 
+;;  (defthm not-consp-operand-stack-operand-stack-pop-is-nil
+;;    (implies (not (consp (operand-stack (current-frame s))))
+;;             (equal (operand-stack (current-frame (popStack s))) nil))))
+</span>
+
+
+<span class="comment">;;; Sun Jul 31 15:33:39 2005
+;;; (include-book "base-bcv-fact-isMatchingType-gen-flags")
+;;;
+;;; not needed!!! Sun Jul 31 15:33:46 2005
+</span>
+
+(defthm frame-push-value-sig-locals
+  (equal (bcv::frameLocals (frame-push-value-sig v frame))
+         (bcv::frameLocals frame))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable frame-push-value-sig))))
+
+
+(defthm frame-push-value-sig-flags
+  (equal (bcv::frameFlags (frame-push-value-sig v frame))
+         (bcv::frameFlags frame))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable frame-push-value-sig))))
+
+
+(in-theory (disable frame-push-value-sig bcv::isMatchingType))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;;(i-am-here) ;; Tue May 17 23:33:28 2005
+</span>
+<span class="comment">;; (i-am-here) ;; Sun Jul 31 15:38:36 2005
+</span>
+<span class="comment">;;; modified the following as a result of the changing gen-frame-flags's
+;;; definition!! 
+</span>
+(defthm make-sig-frame-normalize
+  (implies (and (equal (locals (current-frame s)) locals)
+                (equal (operand-stack (current-frame s)) stk)
+                (equal (method-ptr (current-frame s)) method-ptr)
+                (equal (gen-frame-flags (current-frame s) hp-init)
+                       flags))
+           (equal (equal (MAKE-SIG-FRAME
+                          (LOCALS-SIG locals  cl hp hp-init method-ptr)
+                          (OPSTACK-SIG stk cl hp hp-init method-ptr)
+                          flags)
+                         (FRAME-SIG (current-frame s)
+                                    cl hp hp-init))
+                  t))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable frame-sig gen-frame-flags)
+           <span class="builtin">:expand</span>       (FRAME-SIG (current-frame s)
+                                    cl hp hp-init))))
+
+<span class="comment">;; I seem to need this. 
+</span>(defthm push-void-no-change
+  (equal (BCV::PUSHOPERANDSTACK 'void any) any)
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv::pushoperandstack))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(in-theory (disable bcv::isAssignable bcv::arg1 arg))
+
+
+(defthm bcv-arg1-normalize-to-djvm-arg
+  (equal (BCV::ARG1 INST)
+         (djvm::arg <a href="inst.lisp.html">inst</a>))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv::arg1 djvm::arg))))
+
+
+(defthm isAssignable-size-equal-specific-local
+  (implies (and (bind-free (acl2::default-bind-free 's 's (acl2::pkg-witness
+                                                           <span class="string">"DJVM"</span>))
+                           (s))
+                (bcv::isAssignable y 'reference (env-sig s)))
+           (equal (bcv::sizeof y) 1))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv::isAssignable bcv::sizeof))))
+
+
+<span class="comment">;; (defthm not-isAssignable-any-void
+;;   (implies (not (equal x 'void))
+;;            (not (isAssignable x 'VOID env)))
+;;   :hints (("Goal" :expand (isAssignable x 'void env))))
+</span>
+(local 
+ (defthm not-isAssignable-void-any
+   (implies (not (equal x 'void))
+            (not (bcv::isAssignable 'VOID x env)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:expand</span> (bcv::isAssignable 'void x env)))))
+
+
+(defthm isAssignable-reference-not-void
+  (implies (and (bind-free (acl2::default-bind-free 's 's (acl2::pkg-witness
+                                                           <span class="string">"DJVM"</span>))
+                           (s))
+                (bcv::isAssignable y 'reference (env-sig s)))
+           (not (equal y 'void))))
+
+
+<span class="comment">;; (i-am-here) ;; Wed Jul 27 00:30:08 2005
+</span>
+
+(local 
+ (defthm equal-minus-one-minus-one-plus-negative-two
+   (equal (+ -1 -1 i)
+          (+ -2 i))))
+
+
+
+(local 
+ (defthm nth-i-specific-cons
+   (implies (and (&lt; 0 i)
+                 (integerp i))
+            (equal (nth i (cons x locals))
+                   (nth (- i 1) locals)))))
+
+
+(local 
+ (defthm nth-i-specific-2-cons
+   (implies (and (&lt; 1 i)
+                 (integerp i))
+            (equal (nth i (list*  x y locals))
+                   (nth (- i 2) locals)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> 
+            <span class="builtin">:in-theory</span> (disable nth-i-specific-cons)
+            <span class="builtin">:use</span> ((<span class="builtin">:instance</span> nth-i-specific-cons
+                             (i (- i 1))
+                             (locals (cdr locals)))
+                  (<span class="builtin">:instance</span> nth-i-specific-cons))
+            <span class="builtin">:do-not-induct</span> t))))
+
+(local 
+ (defthm valid-local-index-implies-i-positive
+   (implies (VALID-LOCAL-INDEX (+ -2 I) any)
+            (&lt; 1 i))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+
+(defthm valid-local-index-implies-nth-i-local-sig-reduce
+  (implies (and (valid-local-index i locals)
+                (integerp i))
+           (equal (nth i (locals-sig locals cl hp hp-init method-ptr))
+                  (value-sig (nth i locals) cl hp hp-init method-ptr)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable value-sig)
+           <span class="builtin">:do-not</span> '(generalize))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm bcv-size-of-array-1
+  (equal (bcv::sizeof (cons 'array any)) 1)
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv::sizeof))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;; (i-am-here) ;; Sat Jul 23 17:18:59 2005
+</span>
+(in-theory (disable bcv::passesprotectedfieldcheck))
+(in-theory (disable JVM::MEM-BASE-TYPES-IMPLIES-NOT-EQUAL))
+(in-theory (disable fieldcp-classname
+                    fieldcp-fieldname
+                    fieldcp-fieldtype
+                    field-classname
+                    BCV::FIELDCLASSNAMECP
+                    bcv::fieldnamecp
+                    bcv::fieldtypecp
+                    bcv::translate-type
+                    arg))
+
+
+
+
+(defthm bcv-size-of-prefix-class-is-1
+  (equal (BCV::SIZEOF (bcv::prefix-class any)) 1)
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv::prefix-class bcv::sizeof))))
+
+
+
+(defthm equal-size-translate-type
+  (equal (BCV::SIZEOF (BCV::TRANSLATE-TYPE type))
+         (bcv::sizeof type))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv::sizeof bcv::translate-type))))
+
+
+(defthm equal-size-djvm-translate-type
+  (equal (BCV::SIZEOF (djvm-translate-int-type type))
+         (bcv::sizeof type))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv::sizeof djvm-translate-int-type))))
+
+(defthm translate-type-not-void
+  (implies (not (equal type 'void))
+           (NOT (EQUAL (BCV::TRANSLATE-TYPE type) 'VOID)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv::translate-type))))
+
+
+(defthm wff-type-rep-implies-not-void-type
+  (implies (WFF-FIELDCP fieldcp)
+           (not (equal (bcv::fieldtypecp fieldcp) 'void)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable wff-fieldcp bcv::fieldtypecp))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;;; some thing like this.
+;;; 
+;;; 
+</span>
+(defthm bcv-translate-type-reduce-to-djvm-translate
+  (equal (djvm-translate-int-type type)
+         (bcv::translate-type type))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv::translate-type djvm-translate-int-type))))
+
+
+(defthm type-size-fieldcp-type-implies-bcv-sizeof-1
+  (implies (and (equal (type-size (fieldcp-fieldtype fieldcp)) 1)
+                (wff-fieldcp fieldcp))
+           (equal (bcv::sizeof (bcv::fieldtypecp fieldcp)) 1))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable type-size bcv::sizeof fieldcp-fieldtype
+                                     wff-fieldcp bcv::fieldtypecp
+                                     normalize-type-rep))))
+
+
+
+(defthm type-size-fieldcp-type-implies-bcv-sizeof-2
+  (implies (and (equal (type-size (fieldcp-fieldtype fieldcp)) 2)
+                (wff-fieldcp fieldcp))
+           (equal (bcv::sizeof (bcv::fieldtypecp fieldcp)) 2))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable type-size bcv::sizeof fieldcp-fieldtype
+                                     wff-fieldcp wff-type-rep
+                                     bcv::fieldtypecp 
+                                     normalize-type-rep)
+           <span class="builtin">:expand</span> (WFF-TYPE-REP (NTH 3 FIELDCP)))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">; the following is a bit not trivial
+</span>
+(encapsulate () 
+    (local (include-book <span class="string"><a href="base-bcv-fact-isMatchingType-value-initialized.lisp.html">"base-bcv-fact-isMatchingType-value-initialized"</a></span>))
+    (defthm isMatchingType-to-class-type-implies-not-deref2-init-specific
+    (implies (and (bcv::isMatchingType (bcv::prefix-class any)
+                                       (opstack-sig (operand-stack (current-frame s))
+                                                    (instance-class-table s)
+                                                    (heap s)
+                                                    (heap-init-map (aux s))
+                                                    (method-ptr (current-frame
+                                                                 s)))
+                                       (env-sig s))
+                  (not (nullp (topStack s)))
+                  (consistent-value-x (topStack s) (instance-class-table s)
+                                      (heap s))
+                  (equal (heap-init-map (aux s)) hp-init))
+             (not (consp (deref2-init (topStack s) hp-init))))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable consistent-value-x)))))
+  
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm make-sig-frame-bcv-push-operandstack-normalize-size-2
+  (implies (and (equal (bcv::frameLocals (frame-sig frame cl hp hp-init)) locals)
+                (equal (bcv::frameFlags (frame-sig frame cl hp hp-init)) flags)
+                (equal (bcv::sizeof resulttype) 2)
+                (equal (method-ptr frame) method-ptr))
+           (equal (MAKE-SIG-FRAME
+                   locals
+                   (BCV::PUSHOPERANDSTACK RESULTTYPE (opstack-sig
+                                                      (operand-stack frame)
+                                                      cl hp hp-init method-ptr))
+                   flags)
+                  (MAKE-SIG-FRAME 
+                   locals
+                   (cons 'topx (cons resulttype (opstack-sig
+                                                      (operand-stack frame)
+                                                      cl hp hp-init method-ptr)))
+                   flags)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv::pushoperandstack
+                                     frame-push-value-sig))))
+
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(in-theory (disable gen-frame-flags frame-aux))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;; (i-am-here) ;; Sun Jul 31 17:15:11 2005
+</span>
+(defthm consp-opstack-implies-consp-opstack-sig
+  (implies (and (consistent-opstack stack cl hp)
+                (consp stack))
+           (consp (opstack-sig stack cl hp hp-init method-ptr))))
+
+
+</pre>
+  </body>
+</html>

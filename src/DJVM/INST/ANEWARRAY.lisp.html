@@ -1,0 +1,406 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>ANEWARRAY.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+
+(include-book <span class="string"><a href="base.lisp.html">"base"</a></span>)
+(include-book <span class="string"><a href="base-consistent-state.lisp.html">"base-consistent-state"</a></span>)
+(include-book <span class="string"><a href="base-extra.lisp.html">"base-extra"</a></span>)
+
+(acl2::set-verify-guards-eagerness 2)
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">wff-anewarray</span> (<a href="inst.lisp.html">inst</a>)
+  (and (wff-one-arg <a href="inst.lisp.html">inst</a>)
+       (wff-type-rep (arg <a href="inst.lisp.html">inst</a>))
+       (not (primitive-type? (normalize-type-rep (arg <a href="inst.lisp.html">inst</a>))))))
+
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+
+(<span class="keyword">defun</span> <span class="function-name">ANEWARRAY-guard</span> (<a href="inst.lisp.html">inst</a> s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard-hints</span> ((<span class="string">"Goal"</span> 
+             <span class="builtin">:in-theory</span> (enable INT32p topStack-guard-strong
+                                category1 max-stack-guard
+                                topStack
+                                topStack-guard)))))
+  (and (wff-anewarray <a href="inst.lisp.html">inst</a>)
+       (<a href="../consistent-state-strong.lisp.html">consistent-state-strong</a> s)
+       (not (mem '*native* (method-accessflags (current-method s))))
+       (&lt;= (len (operand-stack (current-frame s)))
+           (max-stack s)) 
+       <span class="comment">;;
+</span>       <span class="comment">;; Mon Oct 18 09:51:48 2004. in order to talk about max-stack
+</span>       <span class="comment">;; we assert that current method is not *native* method.
+</span>       <span class="comment">;;
+</span>       (topStack-guard-strong s)
+       (INT32p (value-of (topStack s)))))
+
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">dnew-array-guard</span> (length s)
+  (and (build-a-java-visible-instance-guard <span class="string">"java.lang.Object"</span> s)
+       (integerp length)
+       (&gt;= length 0)
+       (wff-state s)
+       (wff-heap (heap s))
+       (wff-thread-table (thread-table s))
+       (current-frame-guard s)
+       (wff-call-frame (current-frame s))))
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">dnew-array</span> (element-type length S)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (dnew-array-guard length s)))
+    (mv-let (the-object new-s)
+            (build-an-array-instance element-type length S)
+            (<span class="keyword">let*</span> ((old-heap (heap new-s))
+                   (addr     (alloc old-heap))
+                   (new-heap (bind addr the-object old-heap)))
+              (pushStack (tag-REF addr) (update-trace addr (state-set-heap new-heap new-s))))))
+
+<span class="comment">;; (i-am-here) ;; Tue May 24 23:49:48 2005
+</span>
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-skip-proofs.lisp.html">"base-skip-proofs"</a></span>))
+   (defthm raise-exception-consistent-state-strong
+     (implies (<a href="../consistent-state-strong.lisp.html">consistent-state-strong</a> s)
+              (<a href="../consistent-state-strong.lisp.html">consistent-state-strong</a> (raise-exception any s)))))
+
+
+<span class="comment">;; (i-am-here) ;; Wed Jun  8 14:39:05 2005
+</span>
+(include-book <span class="string"><a href="base-consistent-state-load-class.lisp.html">"base-consistent-state-load-class"</a></span>)
+(include-book <span class="string"><a href="base-load-class-normalize.lisp.html">"base-load-class-normalize"</a></span>)
+
+
+(<span class="keyword">defun</span> <span class="function-name">execute-ANEWARRAY</span> (<a href="inst.lisp.html">inst</a> s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (ANEWARRAY-guard <a href="inst.lisp.html">inst</a> s)))
+  (mylet* ((basetype (normalize-type-rep (arg <a href="inst.lisp.html">inst</a>)))
+           (new-s    (resolveClassReference basetype s))
+           (new-s2   (getArrayClass basetype new-s)))
+          (<span class="keyword">if</span> (not (no-fatal-error? new-s))
+              new-s
+            (<span class="keyword">if</span> (pending-exception new-s)  <span class="comment">;; this check looks an efficiency issues
+</span>                <span class="comment">;; however if we have imperative language. this check isn't there. 
+</span>                (raise-exception (pending-exception new-s) new-s)
+              (<span class="keyword">if</span> (not (no-fatal-error? new-s2))
+                  new-s2
+                (<span class="keyword">if</span> (&lt; (value-of (topStack s)) 0)
+                    (raise-exception <span class="string">"java.lang.NegativeArraySizeException"</span> new-s2)
+                  <span class="comment">;; check possible exception. 
+</span>                  <span class="comment">;; access permission is checked at resolution time. 
+</span>                  (ADVANCE-PC (dnew-array basetype (value-of (topStack s))
+                                          (popStack new-s2)))))))))
+
+
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>           
+(<span class="keyword">defun</span> <span class="function-name">check-ANEWARRAY</span> (<a href="inst.lisp.html">inst</a> s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (<a href="../consistent-state.lisp.html">consistent-state</a> s)))
+  (mylet* ((cframe (current-frame s))
+           (opstack (operand-stack cframe))
+           (basetype (normalize-type-rep  (arg <a href="inst.lisp.html">inst</a>)))
+           (bound  (topStack s)))
+          (and (wff-ANEWARRAY <a href="inst.lisp.html">inst</a>)
+               (topStack-guard-strong s)
+               (equal (djvm-translate-int-type (tag-of bound)) 'INT))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;; (i-am-here) ;; Sun Jun  5 15:46:30 2005
+</span>
+(include-book <span class="string"><a href="base-consistent-state-update-trace.lisp.html">"base-consistent-state-update-trace"</a></span>)
+(include-book <span class="string"><a href="base-consistent-state-state-set-heap.lisp.html">"base-consistent-state-state-set-heap"</a></span>)
+(include-book <span class="string"><a href="base-build-an-array-instance-creates-consistent-object.lisp.html">"base-build-an-array-instance-creates-consistent-object"</a></span>)
+
+<span class="comment">;;(i-am-here)
+</span>
+(defthm ANEWARRAY-guard-implies-execute-ANEWARRAY-perserve-consistency
+  (implies (ANEWARRAY-guard <a href="inst.lisp.html">inst</a> s)
+           (<a href="../consistent-state-strong.lisp.html">consistent-state-strong</a> (execute-ANEWARRAY <a href="inst.lisp.html">inst</a> s))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm check-ANEWARRAY-implies-guard-succeeds
+  (implies (and (<a href="../consistent-state-strong.lisp.html">consistent-state-strong</a> s)
+               (check-ANEWARRAY <a href="inst.lisp.html">inst</a> s))
+          (ANEWARRAY-guard <a href="inst.lisp.html">inst</a> s)))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;-- BCV::check-ANEWARRAY implies DJVM::check-ANEWARRAY on a corresponding state -----
+</span>
+<span class="comment">;;; Fri Jul 22 16:14:32 2005
+;;; we modifid value-sig to do the mapping from Byte to INT which may
+;;; complicate the things!! 
+</span>
+<span class="comment">;;;
+;;; for example, djvm::check-ANEWARRAY should be more generous on what is
+;;; considered as an INT type! 
+;;;
+</span>
+<span class="comment">;;; (i-am-here) ;; Fri Jul 22 16:26:52 2005 
+</span>
+(encapsulate ()
+  (local (include-book <span class="string"><a href="base-bcv.lisp.html">"base-bcv"</a></span>))
+  (defthm bcv-check-ANEWARRAY-ensures-djvm-check-ANEWARRAY
+    (implies (and (bcv::check-ANEWARRAY <a href="inst.lisp.html">inst</a> (env-sig s) 
+                                     (frame-sig  (current-frame s)
+                                                 (instance-class-table s)
+                                                 (heap s)
+                                                 (heap-init-map (aux s))))
+                  (wff-anewarray <a href="inst.lisp.html">inst</a>)
+                  (not (mem '*native* (method-accessflags (current-method s))))
+                  (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+             (djvm::check-ANEWARRAY <a href="inst.lisp.html">inst</a> s))))
+
+
+
+<span class="comment">;-- BCV::check-ANEWARRAY monotonic   -------------------------------------
+</span>
+(encapsulate ()
+    (local (include-book <span class="string"><a href="base-bcv-check-monotonic.lisp.html">"base-bcv-check-monotonic"</a></span>))
+    (defthm sig-check-ANEWARRAY-on-more-general-implies-more-specific
+      (implies (and (bcv::good-icl icl)
+                    (bcv::good-scl (bcv::classtableEnvironment env1))
+                    (bcv::sig-frame-more-general gframe sframe env1)
+                    (bcv::consistent-sig-stack (bcv::frameStack gframe) icl)
+                    (bcv::consistent-sig-stack (bcv::frameStack sframe) icl)
+                    (bcv::check-ANEWARRAY <a href="inst.lisp.html">inst</a> env1 gframe)
+                    (bcv::icl-scl-compatible icl (bcv::classtableEnvironment env1)))
+               (bcv::check-ANEWARRAY <a href="inst.lisp.html">inst</a> env1 sframe))))
+
+
+<span class="comment">;-- BCV::execute-ANEWARRAY next step  monotonic ---------------------------
+</span>
+(encapsulate () 
+     (local (include-book <span class="string"><a href="base-bcv-step-monotonic.lisp.html">"base-bcv-step-monotonic"</a></span>))
+     (defthm ANEWARRAY-monotonicity
+       (implies (and (bcv::sig-frame-more-general gframe sframe env1)
+                     (bcv::check-ANEWARRAY <a href="inst.lisp.html">inst</a> env1 gframe) 
+                     (bcv::check-ANEWARRAY <a href="inst.lisp.html">inst</a> env1 sframe) 
+                     (bcv::consistent-sig-stack (bcv::frameStack gframe) icl)
+                     (bcv::consistent-sig-stack (bcv::frameStack sframe) icl)
+                     (bcv::good-icl icl)
+                     (bcv::good-scl (bcv::classtableEnvironment env1))
+                     (bcv::icl-scl-compatible icl (bcv::classtableEnvironment env1)))
+                (bcv::sig-frame-more-general 
+                 (bcv::normal-frame (bcv::execute-ANEWARRAY <a href="inst.lisp.html">inst</a> env gframe))
+                 (bcv::normal-frame (bcv::execute-ANEWARRAY <a href="inst.lisp.html">inst</a> env sframe))
+                 env1))))
+
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;-- DJVM::next-state more specific than BCV  ---------------------------
+</span>
+<span class="comment">;;(i-am-here) ;; Sun Aug  7 22:46:10 2005
+</span>
+(encapsulate ()
+    (local (include-book <span class="string"><a href="base-frame-sig-expansion.lisp.html">"base-frame-sig-expansion"</a></span>))
+    (defthm execute-ANEWARRAY-frame-sig-is
+      (mylet* ((ns (execute-ANEWARRAY <a href="inst.lisp.html">inst</a> s)))
+              (implies 
+               (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                    (not (&lt; (value-of (topStack s)) 0))
+                    (not (pending-exception (resolveClassReference 
+                                             (normalize-type-rep (arg <a href="inst.lisp.html">inst</a>))
+                                             S)))
+                    (no-fatal-error? ns) 
+                    <span class="comment">;;; we really only need to assert
+</span>                    <span class="comment">;;; no fatal-error after class loading. 
+</span>                    <span class="comment">;;; Sun Jun  5 20:30:41 2005
+</span>                    (check-ANEWARRAY <a href="inst.lisp.html">inst</a> s))
+               (equal (frame-sig (current-frame ns)
+                                 (instance-class-table ns)
+                                 (heap ns)
+                                 (heap-init-map (aux ns)))
+                      (frame-push-value-sig (list 'ARRAY (arg <a href="inst.lisp.html">inst</a>))
+                                            (frame-sig (current-frame (popStack s))
+                                                       (instance-class-table s)
+                                                       (heap s)
+                                                       (heap-init-map (aux
+                                                                       s)))))))))
+
+
+<span class="comment">;; (i-am-here) ;; Sun Jun  5 20:20:37 2005
+</span>
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-bcv-frame-sig-expansion.lisp.html">"base-bcv-frame-sig-expansion"</a></span>))
+  (defthm bcv-execute-ANEWARRAY-is
+    (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                  (check-ANEWARRAY <a href="inst.lisp.html">inst</a> s)
+                  (bcv::check-ANEWARRAY <a href="inst.lisp.html">inst</a> (env-sig s) 
+                                        (frame-sig (current-frame s)
+                                                   (instance-class-table s)
+                                                   (heap s)
+                                                   (heap-init-map (aux s)))))
+             (equal (mv-nth 0 (bcv::execute-ANEWARRAY
+                               <a href="inst.lisp.html">inst</a> (env-sig s) 
+                               (frame-sig (current-frame s)
+                                          (instance-class-table s)
+                                          (heap s)
+                                          (heap-init-map (aux s)))))
+                    (frame-push-value-sig (list 'array (bcv::arg1 <a href="inst.lisp.html">inst</a>))
+                                          (frame-sig (current-frame (popStack s))
+                                                     (instance-class-table s)
+                                                     (heap s)
+                                                     (heap-init-map (aux s))))))))
+  
+
+
+
+
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-next-state-more-specific.lisp.html">"base-next-state-more-specific"</a></span>))
+  (defthm next-state-no-more-general-anewarray
+    (mylet* ((oframe (frame-sig (current-frame s)
+                                (instance-class-table s)
+                           (heap s)
+                           (heap-init-map (aux s))))
+           (ns   (execute-ANEWARRAy <a href="inst.lisp.html">inst</a> s))
+           (nframe (frame-sig (current-frame ns)
+                              (instance-class-table ns)
+                              (heap ns)
+                              (heap-init-map (aux ns)))))
+    (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                  (not (&lt; (value-of (topStack s)) 0))
+                  (no-fatal-error? ns)
+                  (not (pending-exception (resolveClassReference 
+                                           (normalize-type-rep (arg <a href="inst.lisp.html">inst</a>)) S)))
+                  (bcv::check-ANEWARRAY <a href="inst.lisp.html">inst</a> (env-sig s) oframe)
+                  (check-ANEWARRAY <a href="inst.lisp.html">inst</a> s))
+             (bcv::sig-frame-more-general 
+              (mv-nth 0 (bcv::execute-ANEWARRAY
+                         <a href="inst.lisp.html">inst</a> 
+                         (env-sig s)
+                         oframe))
+              nframe
+              (env-sig s))))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable execute-ANEWARRAY bcv::execute-ANEWARRAY)))))
+
+<span class="comment">;;;
+;;; Sun Jun  5 20:27:13 2005
+;;;
+;;;
+</span>
+
+  
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(include-book <span class="string"><a href="../../M6/m6-bytecode.lisp.html">"../../M6/m6-bytecode"</a></span>)
+(include-book <span class="string"><a href="../consistent-state-to-untag-state.lisp.html">"../../DJVM/consistent-state-to-untag-state"</a></span>)
+
+<span class="comment">;;(i-am-here) ;; Tue Aug  2 16:15:14 2005
+</span>
+<span class="comment">;;
+;; (encapsulate ()
+;;    (local (include-book "base-untag-state"))
+;;    (defthm equal-ANEWARRY-when-guard-succeeds
+;;      (implies (ANEWARRAY-guard <a href="inst.lisp.html">inst</a> s)
+;;               (equal (untag-state (djvm::execute-ANEWARRAY <a href="inst.lisp.html">inst</a> s))
+;;                      (m6::execute-ANEWARRAY <a href="inst.lisp.html">inst</a> (untag-state s))))))
+;;
+</span>
+
+(encapsulate ()
+   (local (include-book <span class="string"><a href="base-state-equiv.lisp.html">"base-state-equiv"</a></span>))
+   (defthm equal-ANEWARRAY-when-guard-succeeds  <span class="comment">;; fix the name 
+</span>      (implies (and (state-equiv M6::m6-s DJVM::djvm-s)
+                    (ANEWARRAY-guard <a href="inst.lisp.html">inst</a> DJVM::djvm-s))
+               (state-equiv (m6::execute-ANEWARRAY <a href="inst.lisp.html">inst</a> M6::m6-s)
+                            (djvm::execute-ANEWARRAY <a href="inst.lisp.html">inst</a> DJVM::djvm-s)))
+      <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize fertilize)
+               <span class="builtin">:in-theory</span> (disable state-equiv)))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">; Mon Aug 15 21:41:54 2005
+</span>
+<span class="comment">;; (i-am-here) ;; Mon Aug 15 21:42:15 2005
+</span>
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-method-ptr-no-change.lisp.html">"base-method-ptr-no-change"</a></span>))
+  (defthm execute-ANEWARRAY-change-no-method-ptr
+    (equal (method-ptr (current-frame (djvm::execute-ANEWARRAY <a href="inst.lisp.html">inst</a> s)))
+           (method-ptr (current-frame s)))))
+
+<span class="comment">;;;
+;;; we have enough rules that says the current-frame is not changed by class
+;;; loading!! 
+;;;
+</span>
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-method-no-change.lisp.html">"base-method-no-change"</a></span>))
+  (defthm deref-method-no-change-if-already-loaded-ANEWARRAY
+    (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+             (equal (deref-method (method-ptr (current-frame s))
+                                  (instance-class-table 
+                                   (djvm::execute-ANEWARRAY <a href="inst.lisp.html">inst</a> s)))
+                    (deref-method (method-ptr (current-frame s))
+                                  (instance-class-table s))))))
+
+
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>(in-theory (disable check-ANEWARRAY ANEWARRAY-guard execute-ANEWARRAY wff-ANEWARRAY)) </pre>
+  </body>
+</html>

@@ -1,0 +1,92 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-consistent-state-step-definition.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="../consistent-state.lisp.html">"../../DJVM/consistent-state"</a></span>)
+(include-book <span class="string"><a href="../consistent-state-properties.lisp.html">"../../DJVM/consistent-state-properties"</a></span>)
+(include-book <span class="string"><a href="../../M6-DJVM-shared/jvm-loader-guard-verification.lisp.html">"../../M6-DJVM-shared/jvm-loader-guard-verification"</a></span>)
+
+(<span class="keyword">defun</span> <span class="function-name">consistent-state-step</span> (s)
+  (and
+   (wff-state s)
+   (wff-env (env s))
+   (wff-aux (aux s))
+   (alistp (heap-init-map (aux s)))
+   (wff-heap-init-map-strong (heap-init-map (aux s)))
+   (wff-class-table (class-table s))
+   (wff-instance-class-table-strong (instance-class-table s))
+   (wff-array-class-table (array-class-table s))
+   (wff-static-class-table-strong (external-class-table s))
+   (wff-methods-instance-class-table-strong
+    (instance-class-table s))
+   (consistent-class-hierachy (instance-class-table s))
+   (consistent-heap (heap s)
+                    (instance-class-table s)
+                    (array-class-table s))
+   (consistent-heap-init-state (heap s)
+                               (instance-class-table s)
+                               (heap-init-map (aux s)))
+   (consistent-heap-array-init-state (heap s)
+                                     (instance-class-table s)
+                                     (array-class-table s)
+                                     (heap-init-map (aux s)))
+   (consistent-class-table (instance-class-table s)
+                           (external-class-table s)
+                           (heap s))
+   (consistent-thread-table (thread-table s)
+                            (instance-class-table s)
+                            (heap s))
+   (unique-id-thread-table (thread-table s))
+   (thread-exists? (current-thread s)
+                   (thread-table s))
+   (instance-class-table-inv s)
+   (array-class-table-inv s)
+   (boot-strap-class-okp s)
+   (equal (bcv::scl-bcv2jvm
+           (bcv::scl-jvm2bcv (external-class-table s)))
+          (external-class-table s)) 
+   (bcv::good-scl (bcv::scl-jvm2bcv (external-class-table s)))))
+
+<span class="comment">;; Fri Jul 15 21:05:31 2005
+</span>
+</pre>
+  </body>
+</html>

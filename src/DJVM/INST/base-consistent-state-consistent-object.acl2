@@ -1,0 +1,2 @@
+(ld "../../DJVM/djvm.pkg")
+(certify-book "base-consistent-state-consistent-object" 6 t :skip-proofs-okp t)

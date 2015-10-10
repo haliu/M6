@@ -1,0 +1,468 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-judgement-after-load-class-no-change.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="../consistent-state.lisp.html">"../../DJVM/consistent-state"</a></span>)
+(include-book <span class="string"><a href="../consistent-state-properties.lisp.html">"../../DJVM/consistent-state-properties"</a></span>)
+
+
+(local 
+ (encapsulate ()
+   (local (include-book <span class="string"><a href="base-load-class-normalize-deref2.lisp.html">"base-load-class-normalize-deref2"</a></span>))
+
+   (defthm deref2-no-change-after-resolveClassReference
+      (implies (and (not (NULLp v))
+                    (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                    (REFp v (heap s)))
+               (equal (deref2 v (heap (resolveclassreference any s)))
+                      (deref2 v (heap s)))))
+
+   (defthm REFp-remains-REFp-resolveCalssReference
+      (implies (REFp v (heap s))
+               (REFp v (heap (resolveClassReference any s))))
+      <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (resolveClassReference) (REFp)))))))
+   
+
+(local 
+ (encapsulate ()
+   (local (include-book <span class="string"><a href="base-load-class-normalize-assignmentcompatible.lisp.html">"base-load-class-normalize-assignmentcompatible"</a></span>))
+   (defthm assignmentCompatible-remain-assignmentCompatible-after-loading
+     (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                   (assignmentCompatible from to (instance-class-table s)))
+              (assignmentCompatible from to 
+                                    (instance-class-table 
+                                     (resolveClassreference any s)))))))
+
+<span class="comment">;;;;
+;;;; Note: 
+;;;;
+;;;; we proved resolveClassreference preserves <a href="../consistent-state.lisp.html">consistent-state</a> 
+;;;; However this is different from proving above lemma. 
+;;;; 
+;;;; We follow a different approach We proved the <a href="../consistent-state.lisp.html">consistent-state</a> is preserved
+;;;; by load_class2 load_class_x ...  We keep the big properties and decompose
+;;;; the operation.
+;;;;
+;;;; here we want to prove small properties of big operations
+;;;; 
+;;;; We could have proved resolveClassreference preserve consistency this way!!
+</span>
+
+
+(defthm
+   consistent-value-remain-consistent-value-after-resolveClassReference
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (consistent-value v type (instance-class-table s) (heap s)))
+            (consistent-value v type
+                              (instance-class-table 
+                               (resolveClassReference any s))
+                             (heap (resolveClassReference any s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () 
+                                  (resolveClassReference 
+                                   obj-type
+                                   assignmentcompatible
+                                   REFp NULLp primitive-type?
+                                   <a href="../consistent-state.lisp.html">consistent-state</a>
+                                   REFp)))))
+
+
+
+(defthm
+  consistent-value-x-remain-consistent-value-x-after-resolveClassReference
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (consistent-value-x v (instance-class-table s) (heap s)))
+           (consistent-value-x v 
+                               (instance-class-table 
+                                (resolveClassReference any s))
+                               (heap (resolveClassReference any s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (resolveClassReference)))))
+
+
+
+
+
+
+(local 
+ (encapsulate ()
+   (local (include-book <span class="string"><a href="base-load-class-normalize-class-by-name.lisp.html">"base-load-class-normalize-class-by-name"</a></span>))
+   (defthm class-by-name-no-change-after-resolveClassReference
+   (implies (isClassTerm (class-by-name name (instance-class-table s)))
+            (equal (class-by-name name (instance-class-table
+                                        (resolveclassreference any s)))
+                   (class-by-name name (instance-class-table s)))))))
+
+(local (in-theory (disable classname super obj-type isClassTerm resolveClassReference)))                                               
+
+
+(local 
+ (defthm consistent-field-remain-consistent-field-resolveClassReference
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (consistent-field field field-decl (instance-class-table s) (heap s))
+                 (equal (heap (resolveClassReference any s)) hp))
+            (consistent-field field field-decl
+                            (instance-class-table 
+                             (resolveClassReference any s))
+                             hp))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d ()
+                                   (resolveClassReference
+                                    assignmentcompatible
+                                    isClassTerm
+                                    <a href="../consistent-state.lisp.html">consistent-state</a>))))))
+
+
+
+
+
+
+(local 
+ (defthm consistent-fields-remain-consistent-fields-resolveClassReference
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (consistent-fields fields field-decls (instance-class-table s) (heap s))
+                 (equal (heap (resolveClassReference any s)) hp))
+            (consistent-fields fields field-decls
+                            (instance-class-table 
+                             (resolveClassReference any s))
+                             hp))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d ()
+                                   (resolveClassReference
+                                    consistent-field
+                                    isClassTerm
+                                    <a href="../consistent-state.lisp.html">consistent-state</a>))))))
+
+
+
+
+
+(local 
+ (defthm consistent-immedidate-instance-remain-consistent-immedidate-instance-resolveClassReference
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (consistent-immedidate-instance type instance (instance-class-table s) (heap s))
+                 (equal (heap (resolveClassReference any s)) hp))
+            (consistent-immedidate-instance type instance
+                            (instance-class-table 
+                             (resolveClassReference any s))
+                             hp))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d ()
+                                   (resolveClassReference
+                                    consistent-field
+                                    isClassTerm
+                                    <a href="../consistent-state.lisp.html">consistent-state</a>))))))
+
+
+
+(local
+ (defthm consistent-immedidate-instance-implies-bounded?
+   (implies (consistent-immedidate-instance type instance 
+                                            (instance-class-table s)
+                                            (heap s))
+            (isClassTerm (class-by-name type (instance-class-table s))))))
+
+                                                           
+
+
+(local 
+ (defthm loaded-remain-loaded
+   (implies (and (isClassTerm (class-by-name name (instance-class-table s)))
+                 (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+            (isClassTerm 
+             (class-by-name name 
+                            (instance-class-table
+                             (resolveClassReference any s)))))))
+
+
+
+
+
+(local 
+ (defthm consistent-jvp-remain-consistent-jvp-resolveClassReference
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (consistent-jvp type obj (instance-class-table s) (heap s))
+                 (equal (heap (resolveClassReference any s)) hp))
+            (consistent-jvp type  obj
+                            (instance-class-table 
+                             (resolveClassReference any s))
+                             hp))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d ()
+                                   (resolveClassReference
+                                    isClassTerm
+                                    consistent-immedidate-instance
+                                    <a href="../consistent-state.lisp.html">consistent-state</a>))
+            <span class="builtin">:do-not</span> '(generalize)))))
+
+
+
+(defthm consistent-object-remain-consistent-object-resolveClassReference
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (consistent-object obj (heap s) (instance-class-table s))
+                (equal (heap (resolveClassReference any s)) hp))
+           (consistent-object obj
+                              hp
+                              (instance-class-table 
+                               (resolveClassReference any s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (consistent-object)
+                                  (resolveClassReference
+                                   consistent-jvp
+                                   isClassTerm
+                                   obj-type
+                                   <a href="../consistent-state.lisp.html">consistent-state</a>)))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+
+
+(local 
+ (encapsulate ()
+   (local (include-book <span class="string"><a href="base-load-class-normalize-deref2.lisp.html">"base-load-class-normalize-deref2"</a></span>))
+
+
+   (defthm deref2-no-change-after-getArrayClass 
+     (implies (and (not (NULLp v))
+                   (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                   (REFp v (heap s)))
+              (equal (deref2 v (heap (getArrayClass any s)))
+                     (deref2 v (heap s)))))
+
+   (defthm REFp-remains-REFp-getArrayClass
+      (implies (REFp v (heap s))
+               (REFp v (heap (getArrayClass any s)))))))
+   
+
+(local 
+ (encapsulate ()
+   (local (include-book <span class="string"><a href="base-load-class-normalize-assignmentcompatible.lisp.html">"base-load-class-normalize-assignmentcompatible"</a></span>))
+   (defthm assignmentCompatible-remain-assignmentCompatible-after-loading-2
+     (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                   (assignmentCompatible from to (instance-class-table s)))
+              (assignmentCompatible from to 
+                                    (instance-class-table 
+                                     (getArrayClass any s)))))))
+
+<span class="comment">;;;;
+;;;; Note: 
+;;;;
+;;;; we proved resolveClassreference preserves <a href="../consistent-state.lisp.html">consistent-state</a> 
+;;;; However this is different from proving above lemma. 
+;;;; 
+;;;; We follow a different approach We proved the <a href="../consistent-state.lisp.html">consistent-state</a> is preserved
+;;;; by load_class2 load_class_x ...  We keep the big properties and decompose
+;;;; the operation.
+;;;;
+;;;; here we want to prove small properties of big operations
+;;;; 
+;;;; We could have proved resolveClassreference preserve consistency this way!!
+</span>
+
+
+(defthm
+   consistent-value-remain-consistent-value-after-getArrayClass
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (consistent-value v type (instance-class-table s) (heap s)))
+            (consistent-value v type
+                              (instance-class-table 
+                               (getArrayClass any s))
+                             (heap (getArrayClass any s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () 
+                                  (getArrayClass 
+                                   obj-type
+                                   assignmentcompatible
+                                   REFp NULLp primitive-type?
+                                   <a href="../consistent-state.lisp.html">consistent-state</a>
+                                   REFp)))))
+
+
+
+(defthm
+  consistent-value-x-remain-consistent-value-x-after-getArrayClass
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (consistent-value-x v (instance-class-table s) (heap s)))
+           (consistent-value-x v 
+                               (instance-class-table 
+                                (getArrayClass any s))
+                               (heap (getArrayClass any s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (getArrayClass)))))
+
+
+
+
+
+
+(local 
+ (encapsulate ()
+   (local (include-book <span class="string"><a href="base-load-class-normalize-class-by-name.lisp.html">"base-load-class-normalize-class-by-name"</a></span>))
+   (defthm class-by-name-no-change-after-getArrayClass
+   (implies (isClassTerm (class-by-name name (instance-class-table s)))
+            (equal (class-by-name name (instance-class-table
+                                        (getArrayClass any s)))
+                   (class-by-name name (instance-class-table s)))))))
+
+(local (in-theory (disable classname super obj-type isClassTerm getArrayClass)))                                               
+
+
+(local 
+ (defthm consistent-field-remain-consistent-field-getArrayClass
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (consistent-field field field-decl (instance-class-table s) (heap s))
+                 (equal (heap (getArrayClass any s)) hp))
+            (consistent-field field field-decl
+                            (instance-class-table 
+                             (getArrayClass any s))
+                             hp))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d ()
+                                   (getArrayClass
+                                    assignmentcompatible
+                                    isClassTerm
+                                    <a href="../consistent-state.lisp.html">consistent-state</a>))))))
+
+
+(local 
+ (defthm consistent-fields-remain-consistent-fields-getArrayClass
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (consistent-fields fields field-decls (instance-class-table s) (heap s))
+                 (equal (heap (getArrayClass any s)) hp))
+            (consistent-fields fields field-decls
+                            (instance-class-table 
+                             (getArrayClass any s))
+                             hp))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d ()
+                                   (getArrayClass
+                                    consistent-field
+                                    isClassTerm
+                                    <a href="../consistent-state.lisp.html">consistent-state</a>))))))
+
+
+
+
+
+(local 
+ (defthm consistent-immedidate-instance-remain-consistent-immedidate-instance-getArrayClass
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (consistent-immedidate-instance type instance (instance-class-table s) (heap s))
+                 (equal (heap (getArrayClass any s)) hp))
+            (consistent-immedidate-instance type instance
+                            (instance-class-table 
+                             (getArrayClass any s))
+                             hp))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d ()
+                                   (getArrayClass
+                                    consistent-field
+                                    isClassTerm
+                                    <a href="../consistent-state.lisp.html">consistent-state</a>))))))
+
+
+
+<span class="comment">;; (local
+;;  (defthm consistent-immedidate-instance-implies-bounded?
+;;    (implies (consistent-immedidate-instance type instance 
+;;                                             (instance-class-table s)
+;;                                             (heap s))
+;;             (isClassTerm (class-by-name type (instance-class-table s))))))
+</span>
+
+(local 
+ (defthm loaded-remain-loaded-2
+   (implies (and (isClassTerm (class-by-name name (instance-class-table s)))
+                 (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+            (isClassTerm 
+             (class-by-name name 
+                            (instance-class-table
+                             (getArrayClass any s)))))))
+
+
+
+
+
+(local 
+ (defthm consistent-jvp-remain-consistent-jvp-getArrayClass
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (consistent-jvp type obj (instance-class-table s) (heap s))
+                 (equal (heap (getArrayClass any s)) hp))
+            (consistent-jvp type  obj
+                            (instance-class-table 
+                             (getArrayClass any s))
+                             hp))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d ()
+                                   (getArrayClass
+                                    isClassTerm
+                                    consistent-immedidate-instance
+                                    <a href="../consistent-state.lisp.html">consistent-state</a>))
+            <span class="builtin">:do-not</span> '(generalize)))))
+
+
+
+
+
+
+(defthm consistent-object-remain-consistent-object-getArrayClass
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (consistent-object obj (heap s) (instance-class-table s))
+                (equal (heap (getArrayClass any s)) hp))
+           (consistent-object obj
+                              hp
+                              (instance-class-table 
+                               (getArrayClass any s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (consistent-object)
+                                  (getArrayClass
+                                   consistent-jvp
+                                   isClassTerm
+                                   obj-type
+                                   <a href="../consistent-state.lisp.html">consistent-state</a>)))))
+
+
+(include-book <span class="string"><a href="base-valid-type-s.lisp.html">"base-valid-type-s"</a></span>)
+(include-book <span class="string"><a href="../../M6-DJVM-shared/jvm-object-type-hierachy.lisp.html">"../../M6-DJVM-shared/jvm-object-type-hierachy"</a></span>)
+
+
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-load-class-normalize-isAssignableTo.lisp.html">"base-load-class-normalize-isAssignableTo"</a></span>))
+  (defthm isAssignableTo-isAssignableTo-resolveClassReference
+    (implies (and (car (isAssignableTo typ1 typ2 s))
+                  (valid-type-strong typ1 (instance-class-table s))
+                  (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                  (no-fatal-error? (resolveClassReference any s)))
+             (car (isAssignableTo typ1 typ2 (resolveClassReference any s))))))
+
+                               
+
+
+</pre>
+  </body>
+</html>

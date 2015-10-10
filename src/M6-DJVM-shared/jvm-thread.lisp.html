@@ -1,0 +1,716 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>jvm-thread.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"JVM"</span>)
+(include-book <span class="string"><a href="jvm-type-value.lisp.html">"../M6-DJVM-shared/jvm-type-value"</a></span>)
+(include-book <span class="string"><a href="jvm-state.lisp.html">"../M6-DJVM-shared/jvm-state"</a></span>)
+(include-book <span class="string"><a href="jvm-obj.lisp.html">"../M6-DJVM-shared/jvm-obj"</a></span>)
+(include-book <span class="string"><a href="jvm-internal-primitives.lisp.html">"../M6-DJVM-shared/jvm-internal-primitives"</a></span>)
+
+<span class="comment">;; 08/27/03 The only difference between defensive machine and non-defensive
+;; machine is that we want OP stack and Locals has tagged value.
+;;
+;; We will define a function to untag the top frame of the current thread to
+;; relate the BCV results. How do we deal with scheduling issue??
+;; 
+;; No scheduling? or finite scheduling?
+;;
+;; How to relate to BCV result with a multi-threaded JVM
+</span>
+
+(acl2::set-verify-guards-eagerness 2)
+
+(<span class="keyword">defun</span> <span class="function-name">make-thread-table</span> (threads) 
+  (cons 'thread-table threads))
+
+<span class="comment">;(defun threads (thread-table)
+;  (cdr thread-table))
+</span>
+<span class="comment">;; threads are a list of (id . thread) pair
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">make-thread</span> (id pc call-stack s m-ref mdepth thread-ref)
+  (list 'thread id 
+     (cons 'saved-pc pc)
+     (cons 'call-stack call-stack)
+     (cons 'status s)         <span class="comment">;; 
+</span>     (cons 'monitor  m-ref)
+     (cons 'mdepth   mdepth)
+     (cons 'thread-obj thread-ref)))
+
+<span class="comment">;; status is a list of 
+;; flags 
+;; thread_just_born thread_active thread_suspended thread_dead
+;; thread_monitor_wait thread_convar_wait 
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">wff-thread</span> (thread) 
+  (and (true-listp thread)
+       (equal (len thread) 8)
+       (equal (car thread) 'thread)
+       (consp (nth 2 thread))
+       (consp (nth 3 thread))
+       (consp (nth 4 thread))
+       (consp (nth 5 thread))
+       (consp (nth 6 thread))
+       (consp (nth 7 thread))))
+
+(<span class="keyword">defun</span> <span class="function-name">thread-id</span> (thread)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-thread thread)))
+  (nth 1 thread))
+  
+
+(<span class="keyword">defun</span> <span class="function-name">thread-saved-pc</span>    (thread) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-thread thread)))
+  (cdr (nth 2 thread)))
+
+(<span class="keyword">defun</span> <span class="function-name">thread-call-stack</span>  (thread) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-thread thread)))
+  (cdr (nth 3 thread)))
+
+(<span class="keyword">defun</span> <span class="function-name">thread-state</span>       (thread) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-thread thread)))
+  (cdr (nth 4 thread))) <span class="comment">;; thread-state is a list
+</span>
+(<span class="keyword">defun</span> <span class="function-name">thread-mref</span>       (thread)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-thread thread)))
+  (cdr (nth 5 thread)))
+
+(<span class="keyword">defun</span> <span class="function-name">thread-mdepth</span>     (thread) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-thread thread)))
+  (cdr (nth 6 thread)))
+
+(<span class="keyword">defun</span> <span class="function-name">thread-ref</span>         (thread) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-thread thread)))
+  (cdr (nth 7 thread)))
+
+
+<span class="comment">;; (defun make-thread (id pc call-stack s m-ref mdepth thread-ref)
+;;   (list 'thread id 
+;;      (cons 'saved-pc pc)
+;;      (cons 'call-stack call-stack)
+;;      (cons 'status s)         ;; 
+;;      (cons 'monitor  m-ref) ;; the monitor its currently holding or just holded.
+;;      (cons 'mdepth   mdepth)
+;;      (cons 'thread-obj thread-ref)))
+</span>
+<span class="comment">;; ;; 
+;; ;; Status is a set of combinations flags 
+;; ;; 
+;; ;;   thread_just_born 
+;; ;;   thread_active 
+;; ;;   thread_suspended 
+;; ;;   thread_dead
+;; ;;   thread_monitor_wait 
+;; ;;   thread_convar_wait
+;; ;;
+</span>
+<span class="comment">;; (defun thread-id          (thread)   (nth 1 thread))
+;; (defun thread-saved-pc    (thread)   (cdr (nth 2 thread)))
+;; (defun thread-call-stack  (thread)   (cdr (nth 3 thread)))
+;; (defun thread-state       (thread)   (cdr (nth 4 thread)))  ;; thread-state is a list
+;; (defun thread-mref        (thread)    (cdr (nth 5 thread))) ;; the monitor being hold
+;; (defun thread-mdepth      (thread)    (cdr (nth 6 thread)))
+;; (defun thread-ref         (thread)   (cdr (nth 7 thread)))  ;; thread-obj
+</span>
+(defthm thread-accessor-is
+  (<span class="keyword">let</span> ((thread (make-thread id pc cs s m-ref mdepth thread-ref)))
+  (and (equal (thread-id thread) id)
+       (equal (thread-saved-pc thread) pc)
+       (equal (thread-call-stack thread) cs)
+       (equal (thread-state thread) s)
+       (equal (thread-mref thread) m-ref)
+       (equal (thread-mdepth thread) mdepth)
+       (equal (thread-ref thread) thread-ref))))
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">thread-set-id</span>  (id thread)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-thread thread)))
+  (make-thread id
+               (thread-saved-pc thread)
+               (thread-call-stack thread)
+               (thread-state      thread)
+               (thread-mref       thread)
+               (thread-mdepth     thread)
+               (thread-ref        thread)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">thread-set-saved-pc</span>  (pc thread)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-thread thread)))
+  (make-thread (thread-id       thread)
+               pc
+               (thread-call-stack thread)
+               (thread-state      thread)
+               (thread-mref       thread)
+               (thread-mdepth     thread)
+               (thread-ref        thread)))
+
+(<span class="keyword">defun</span> <span class="function-name">thread-set-call-stack</span>  (cs thread)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-thread thread)))
+  (make-thread (thread-id       thread)
+               (thread-saved-pc thread)
+               cs
+               (thread-state      thread)
+               (thread-mref       thread)
+               (thread-mdepth     thread)
+               (thread-ref        thread)))
+
+(<span class="keyword">defun</span> <span class="function-name">thread-set-state</span>  (st  thread)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-thread thread)))
+  (make-thread (thread-id       thread)
+               (thread-saved-pc thread)
+               (thread-call-stack thread)
+               st
+               (thread-mref       thread)
+               (thread-mdepth     thread)
+               (thread-ref        thread)))
+
+(<span class="keyword">defun</span> <span class="function-name">thread-set-mref</span> (mref thread)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-thread thread)))
+  (make-thread (thread-id       thread)
+               (thread-saved-pc thread)
+               (thread-call-stack thread)
+               (thread-state      thread)
+               mref
+               (thread-mdepth     thread)
+               (thread-ref        thread)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">thread-set-mdepth</span>  (mdepth thread)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-thread thread)))
+  (make-thread (thread-id       thread)
+               (thread-saved-pc thread)
+               (thread-call-stack thread)
+               (thread-state      thread)
+               (thread-mref       thread)
+               mdepth
+               (thread-ref        thread)))
+
+(<span class="keyword">defun</span> <span class="function-name">thread-set-ref</span>  (ref thread)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-thread thread)))
+  (make-thread (thread-id       thread)
+               (thread-saved-pc thread)
+               (thread-call-stack thread)
+               (thread-state      thread)
+               (thread-mref       thread)
+               (thread-mdepth     thread)
+               ref))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">make-method-ptr</span> (classname methodname args-type return-type)
+   (list 'method-ptr classname methodname args-type return-type))
+
+(<span class="keyword">defun</span> <span class="function-name">wff-method-ptr</span> (method-ptr)
+  (and (true-listp method-ptr)
+       (equal (len method-ptr) 5)
+<span class="comment">;;     (consp (nth 3 method-ptr)) this is not necessary. in conflict with
+;; functions with no parameter. FIXED 10/28/03
+</span>       (true-listp (nth 3 method-ptr))))
+       
+
+
+(<span class="keyword">defun</span> <span class="function-name">method-ptr-classname</span>   (method-ptr) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-method-ptr method-ptr)))
+  (nth 1 method-ptr))
+
+(<span class="keyword">defun</span> <span class="function-name">method-ptr-methodname</span>  (method-ptr)  
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-method-ptr method-ptr)))
+  (nth 2 method-ptr))
+
+(<span class="keyword">defun</span> <span class="function-name">method-ptr-args-type</span>   (method-ptr) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-method-ptr method-ptr)))
+  (nth 3 method-ptr))
+
+(<span class="keyword">defun</span> <span class="function-name">method-ptr-returntype</span>  (method-ptr)  
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-method-ptr method-ptr)))
+  (nth 4 method-ptr))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">make-frame</span> (return-pc operant-stack locals method-ptr sync-obj-ref
+                             resume-pc aux)
+  (list 'frame 
+        (cons 'return_pc return-pc)
+        (cons 'operand-stack operant-stack)
+        (cons 'locals locals)
+        method-ptr
+        (cons 'sync-obj-ref sync-obj-ref)
+        (cons 'resume-pc resume-pc)
+        (cons 'aux aux)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">wff-call-frame</span> (frame)
+  (and (true-listp frame)
+       (equal (len frame) 8)
+       (equal (car frame) 'frame)
+       (consp (nth 1 frame))
+       (consp (nth 2 frame))
+       (true-listp (nth 2 frame))
+       (consp (nth 3 frame))
+       (true-listp (nth 3 frame))
+       (wff-method-ptr (nth 4 frame))
+       (consp (nth 5 frame))
+       (consp (nth 6 frame))
+       (consp (nth 7 frame))))
+
+(<span class="keyword">defun</span> <span class="function-name">return-pc</span>     (frame)    
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-call-frame frame)))
+  (cdr (nth 1 frame)))
+
+(<span class="keyword">defun</span> <span class="function-name">operand-stack</span> (frame)  
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-call-frame frame)))
+  (cdr (nth 2 frame)))
+
+(<span class="keyword">defun</span> <span class="function-name">locals</span>        (frame)   
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-call-frame frame)))
+  (cdr (nth 3 frame)))
+
+(<span class="keyword">defun</span> <span class="function-name">method-ptr</span>    (frame)  
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-call-frame frame)))
+  (nth 4 frame))
+
+(<span class="keyword">defun</span> <span class="function-name">sync-obj-ref</span>  (frame) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-call-frame frame)))
+  (cdr (nth 5 frame)))
+
+(<span class="keyword">defun</span> <span class="function-name">resume-pc</span>  (frame) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-call-frame frame)))
+  (cdr (nth 6 frame)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">frame-aux</span>  (frame) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-call-frame frame)))
+  (cdr (nth 7 frame)))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">frame-set-return-pc</span>     (pc frame)    
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-call-frame frame)))
+      (make-frame pc 
+                  (operand-stack frame)
+                  (locals        frame)
+                  (method-ptr    frame)
+                  (sync-obj-ref  frame)
+                  (resume-pc     frame)
+                  (frame-aux     frame)))
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">frame-set-operand-stack</span>  (op-stack frame) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-call-frame frame)))   
+      (make-frame (return-pc frame)
+                  op-stack
+                  (locals        frame)
+                  (method-ptr    frame)
+                  (sync-obj-ref  frame)
+                  (resume-pc     frame)
+                  (frame-aux     frame)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">frame-set-locals</span>     (locals frame)    
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-call-frame frame)))
+      (make-frame (return-pc frame)
+                  (operand-stack frame)
+                  locals
+                  (method-ptr    frame)
+                  (sync-obj-ref  frame)
+                  (resume-pc     frame)
+                  (frame-aux     frame)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">frame-set-method-ptr</span>  (ptr frame)    
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-call-frame frame)))
+      (make-frame (return-pc frame)
+                  (operand-stack frame)
+                  (locals        frame)
+                  ptr
+                  (sync-obj-ref  frame)
+                  (resume-pc     frame)
+                  (frame-aux     frame)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">frame-set-sync-obj-ref</span>  (ref frame)    
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-call-frame frame)))
+      (make-frame (return-pc frame)
+                  (operand-stack frame)
+                  (locals        frame)
+                  (method-ptr    frame)
+                  ref
+                  (resume-pc     frame)
+                  (frame-aux     frame)))
+
+
+<span class="comment">;;; Sat Mar 19 13:04:15 2005. 
+;;;
+;;; In order to talk about safety condition for executing RETURN instruction,
+;;; we need to add a new field to the call frame to character the condition. 
+;;; 
+;;; (Or we could collect a trace and talk about safety condition on the trace?
+;;;
+</span>
+(<span class="keyword">defun</span> <span class="function-name">frame-set-resume-pc</span>  (resume-pc frame)    
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-call-frame frame)))
+      (make-frame (return-pc frame)
+                  (operand-stack frame)
+                  (locals        frame)
+                  (method-ptr    frame)
+                  (sync-obj-ref  frame)
+                  resume-pc
+                  (frame-aux     frame)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">frame-set-aux</span>  (aux frame)    
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-call-frame frame)))
+      (make-frame (return-pc frame)
+                  (operand-stack frame)
+                  (locals        frame)
+                  (method-ptr    frame)
+                  (sync-obj-ref  frame)
+                  (resume-pc     frame)
+                  aux))
+
+<span class="comment">;;; (i-am-here) ;; Sat Mar 19 13:04:12 2005
+</span>
+<span class="comment">;; It is possible for us to represent method-ptr as an pointer 
+;; but since we don't care efficiency, we leave it as a symbolic reference
+;; how to use the method-ptr to find the code to execute will be defined.
+;; 
+;; In KVM, after symbolic reference is resolved for once, it is replaced with a
+;; pointer to the heap obj that represent the method.
+;; 
+</span>
+<span class="comment">;; there are several uses of the method-ptr. 
+;;
+;;   1. Used in the instructions such as new, putstatic, invokevirtual to refer
+;;      to a method, to be resolved, may cause the loading of new classes
+;;
+;;   2. Used in the call frame to indicate the current method being executed, 
+;;      assumed to be resolved, will not cause loading of new classes
+;;
+</span>
+<span class="comment">;;
+;; operand-stack are a list of values, as in <a href="jvm-type-value.lisp.html">jvm-type-value</a>
+;; locals are a list of values, 
+;;    note: storing long and double locals will
+;;   occupy two slots.
+;;
+</span>
+<span class="comment">;; THREAD-STATE ... several state ... defined by KVM thread.h
+</span>
+<span class="comment">;; enum { 
+;;    THREAD_JUST_BORN = 1,     /* Not "start"ed yet */
+;;    THREAD_ACTIVE = 2,        /* Currently running, or on Run queue */
+;;    THREAD_SUSPENDED = 4,     /* Waiting for monitor or alarm */
+;;    THREAD_DEAD = 8,          /* Thread has quit */
+;;    THREAD_MONITOR_WAIT = 16,
+;;    THREAD_CONVAR_WAIT = 32,
+;;    THREAD_DBG_SUSPENDED = 64
+;; } state;
+</span>
+<span class="comment">;; we may only use some of them. 
+</span>
+<span class="comment">;; THREAD-REF is the reference to the java-visible representation of the
+;; Thread.  A number into the &lt;JavaHeap&gt;
+</span>
+
+<span class="comment">;; The following functions are for manipulating the thread-table and threads.
+</span>
+
+
+<span class="comment">; ** from jvm-thread.lisp **
+</span> (<span class="keyword">defun</span> <span class="function-name">wff-thread-table</span> (thread-table)
+  (<span class="keyword">if</span> (not (consp thread-table)) t
+    (and (wff-thread (car thread-table))
+         (wff-thread-table (cdr thread-table)))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">thread-by-id</span> (id thread-table)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-thread-table thread-table)))
+  (<span class="keyword">if</span> (not (consp thread-table))
+      nil
+    (<span class="keyword">if</span> (equal (thread-id (car thread-table)) id)
+        (car thread-table)
+      (thread-by-id id (cdr thread-table)))))
+
+<span class="comment">;; it is easy to go from thread-id to thread-ref, it is hard to go from
+;; thread-ref to thread-id, since in the thread-obj itself, there is no field
+;; to record which VM thread is associated with it.
+</span>
+<span class="comment">;; we could add a field in specific info field of a thread-obj.
+;; currently we chose to search the thread-table for the right thread with thread-ref.
+</span>
+<span class="comment">;; in real jvm, thread id is THE reference itself.
+</span>
+(<span class="keyword">defun</span> <span class="function-name">thread-id-by-ref</span> (thread-ref threads)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-thread-table threads)))
+  (<span class="keyword">if</span> (not (consp threads))
+      -1
+    (<span class="keyword">if</span> (equal (thread-ref (car threads)) thread-ref)
+        (thread-id (car threads))
+      (thread-id-by-ref thread-ref (cdr threads)))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">replace-thread-table-entry</span> (old-thread new-thread old-thread-table)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-thread old-thread)
+                              (wff-thread new-thread)
+                              (wff-thread-table old-thread-table)
+                              (equal (thread-by-id (thread-id old-thread)
+                                                   old-thread-table)
+                                     old-thread)
+                              (equal (thread-id old-thread) 
+                                     (thread-id new-thread)))))
+  (<span class="keyword">if</span> (not (consp old-thread-table))
+      old-thread-table
+    (<span class="keyword">if</span> (equal (car old-thread-table) old-thread)
+        (cons new-thread (cdr old-thread-table))
+      (cons (car old-thread-table) 
+            (replace-thread-table-entry old-thread new-thread (cdr old-thread-table))))))
+
+<span class="comment">;********************
+</span>(<span class="keyword">defun</span> <span class="function-name">add-thread-entry</span> (new-thread tt)
+  (cons new-thread tt))
+
+(<span class="keyword">defun</span> <span class="function-name">make-init-operand-stack</span> () 
+  nil)
+
+(<span class="keyword">defun</span> <span class="function-name">new-thread-id</span> (tt)
+  (len tt))
+
+<span class="comment">;************************
+</span>(<span class="keyword">defun</span> <span class="function-name">add-no-dup</span> (flag fl)
+  (<span class="keyword">if</span> (mem flag fl)
+      fl
+    (cons flag fl)))
+
+(<span class="keyword">defun</span> <span class="function-name">set-thread-state-flag</span> (flag thread)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-thread thread)))
+  (<span class="keyword">let*</span> ((state (thread-state thread))
+         (new-state (add-no-dup flag state)))
+    (thread-set-state new-state thread)))
+
+(<span class="keyword">defun</span> <span class="function-name">remove-all</span> (flag fl)
+  (<span class="keyword">if</span> (not (consp fl))
+      nil
+    (<span class="keyword">if</span> (equal (car fl) flag)
+        (remove-all flag (cdr fl))
+      (cons (car fl) (remove-all flag (cdr fl))))))
+
+(<span class="keyword">defun</span> <span class="function-name">remove-thread-state-flag</span> (flag thread)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-thread thread)))
+  (<span class="keyword">let*</span> ((state (thread-state thread))
+         (new-state (remove-all flag state)))
+    (thread-set-state new-state thread)))
+    
+
+<span class="comment">;**********************
+</span>(<span class="keyword">defun</span> <span class="function-name">set-thread-state-by-id</span> (tid status s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-state s)
+                              (wff-thread-table s))))
+  (<span class="keyword">let*</span> ((old-thread-table (thread-table s))
+         (old-thread (thread-by-id tid old-thread-table))
+         (new-thread (thread-set-state (list status) old-thread))
+         (new-thread-table (replace-thread-table-entry old-thread new-thread
+                                                       old-thread-table)))
+    (state-set-thread-table new-thread-table s)))
+
+
+
+<span class="comment">;**********************
+</span>(<span class="keyword">defun</span> <span class="function-name">buildThread</span> (thread-ref s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-state s)))
+  (<span class="keyword">let*</span> ((tt  (thread-table s))
+         (nid (new-thread-id tt))
+         (new-thread (make-thread nid
+                                  0   <span class="comment">;; saved pc ;; first to be executed instruction
+</span>                                  nil
+                                  '(thread_just_born)
+                                  -1  <span class="comment">;; indicate waiting no monitor 
+</span>                                  0   <span class="comment">;; monitor depth 0
+</span>                                  thread-ref))
+         (new-tt (add-thread-entry new-thread tt)))
+    (mv nid (state-set-thread-table new-tt s))))
+
+
+<span class="comment">;************************
+</span>(<span class="keyword">defun</span> <span class="function-name">getVMthread</span> (thread-ref s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-state s)
+                              (wff-thread-table (thread-table s)))))
+  (<span class="keyword">let</span> ((tid (thread-id-by-ref thread-ref (thread-table s))))
+    (<span class="keyword">if</span> (equal tid -1) 
+        (buildThread thread-ref s)
+      (mv tid s))))
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">thread-exists?</span> (x tt)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-thread-table tt)))
+  (thread-by-id x tt))
+
+(<span class="keyword">defun</span> <span class="function-name">current-thread-exists?</span> (s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-state s)
+                              (wff-thread-table (thread-table s)))))
+   (thread-exists? (current-thread s) (thread-table s)))
+
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;; (in-theory (enable make-frame return-pc operand-stack locals method-ptr
+;;                   sync-obj-ref wff-call-frame))
+</span>
+
+(defthm frame-accessor
+  (<span class="keyword">let</span> ((s1 (make-frame rpc os lc mp sf mpc aux)))
+    (and (equal (return-pc s1) rpc)
+         (equal (operand-stack s1) os)
+         (equal (locals s1)     lc)
+         (equal (method-ptr s1) mp)
+         (equal (resume-pc s1) mpc)
+         (equal (sync-obj-ref s1) sf)
+         (equal (frame-aux s1) aux))))
+
+
+<span class="comment">;; (defthm wff-call-frame-make-frame
+;;   (wff-call-frame (make-frame rpc os lc mp sf)))
+</span>
+<span class="comment">;----------------------------------------------------------------------
+</span>(acl2::set-verify-guards-eagerness 2)
+
+(<span class="keyword">defun</span> <span class="function-name">collect-thread-id</span> (tt)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-thread-table tt)))
+  (<span class="keyword">if</span> (not (consp tt))
+      nil
+    (cons (thread-id (car tt))
+          (collect-thread-id (cdr tt)))))
+
+<span class="comment">;; (i-am-here)
+</span>(<span class="keyword">defun</span> <span class="function-name">unique-id-thread-table</span> (tt)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-thread-table tt)))
+  (nodup-set (collect-thread-id tt)))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">; Wed Jan  7 23:25:42 2004 new addition
+;; (in-theory (disable make-thread thread-id thread-saved-pc thread-call-stack
+;;                     thread-mdepth thread-mref thread-ref thread-state))
+;; 
+;; This break jvm-frame-manipulation-primitives.lisp
+</span>
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">; Thu Jan  8 15:55:30 2004
+;
+; Move some properties of replace-thread-table-entry here??
+; or into a separate file? 
+;
+</span>
+
+(acl2::set-verify-guards-eagerness 2)
+
+(<span class="keyword">defun</span> <span class="function-name">method-stackMap</span> (Method)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-method-decl method)
+                              (wff-code (method-code method)))))
+  (code-stackmaps (method-code method)))
+
+(<span class="keyword">defun</span> <span class="function-name">method-maxStack</span> (Method)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-method-decl method)
+                              (wff-code (method-code method)))))
+   (code-max-Stack (method-code method)))
+
+(<span class="keyword">defun</span> <span class="function-name">method-maxLocals</span> (Method)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-method-decl method)
+                              (wff-code (method-code method)))))
+   (code-max-local (method-code method)))
+
+(<span class="keyword">defun</span> <span class="function-name">method-handlers</span> (Method)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-method-decl method)
+                              (wff-code (method-code method)))))
+   (code-handlers (method-code method)))
+
+(acl2::set-verify-guards-eagerness 0)
+
+<span class="comment">;; Mon Oct 25 16:39:49 2004
+</span>
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;; (defun isThreadAlive (thread)
+;;   (declare (xargs :guard (wff-thread thread)))
+;;   (or (mem 'thread_suspended (thread-state thread))
+;;       (mem 'thread_active    (thread-state thread))))
+</span>
+<span class="comment">;; (defun areAliveThreads1 (threads)
+;;   (declare (xargs :guard (wff-thread-table threads)))
+;;   (if (not (consp threads))
+;;       nil
+;;     (or (isThreadAlive (car threads))
+;;         (areAliveThreads1 (cdr threads)))))
+</span>
+<span class="comment">;; ;; it is possible to have suspended thread, but no active thread.
+</span>
+<span class="comment">;; (defun areAliveThreads (s)
+;;   (declare (xargs :guard (and (wff-state s)
+;;                               (wff-thread-table (thread-table s)))))
+;;   (let ((tt (thread-table s)))
+;;     (areAliveThreads1 tt)))
+</span>
+
+<span class="comment">;; ;; tmp implementation: reschedule 
+;; (defun reschedule (s) 
+;;   (declare (xargs :guard t))
+;;   s)
+</span>
+<span class="comment">;; ;; tmp implementation: terminate 
+;; (defun terminate (s) 
+;;   (declare (xargs :guard t))
+;;   s)
+</span>
+<span class="comment">;; First leave these in both m6-bytecode.lisp and djvm-bytecode.lisp!! 
+</span>
+<span class="comment">;----------------------------------------------------------------------
+</span></pre>
+  </body>
+</html>

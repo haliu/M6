@@ -1,0 +1,143 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>bcv-functions-basic.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"BCV"</span>)
+(include-book <span class="string"><a href="typechecker.lisp.html">"../BCV/typechecker"</a></span>)
+
+(acl2::set-verify-guards-eagerness 0)
+
+
+<span class="comment">;; Wed Jul 13 14:25:51 2005
+</span>
+(<span class="keyword">defun</span> <span class="function-name">make-static-class-decl</span> (cn super cp fs ms is as)
+  (LIST 'CLASS cn super
+        (CONS 'CONSTANT_POOL CP)
+        (CONS 'FIELDS fs)
+        (CONS 'METHODS ms)
+        (CONS 'INTERFACES is)
+        (CONS 'ACCESSFLAGS as)))
+
+
+
+<span class="comment">;; (defun make-static-class-decl (cn super cp fs ms is as ats)
+;;   (LIST 'CLASS cn super
+;;         (CONS 'CONSTANT_POOL CP)
+;;         (CONS 'FIELDS fs)
+;;         (CONS 'METHODS ms)
+;;         (CONS 'INTERFACES is)
+;;         (CONS 'ACCESSFLAGS as)
+;;         (CONS 'ATTRIBUTES ats)))
+</span>
+
+
+(<span class="keyword">defun</span> <span class="function-name">wff-scl-decl-guard-weak</span> (scl-decl)
+  (and (true-listp scl-decl)
+       (equal (len scl-decl) 8)
+       (consp (nth 4 scl-decl))
+       (consp (nth 5 scl-decl))
+       (consp (nth 6 scl-decl))
+       (consp (nth 7 scl-decl))))
+
+
+<span class="comment">;; (defun wff-scl-decl-guard-weak (scl-decl)
+;;   (and (true-listp scl-decl)
+;;        (equal (len scl-decl) 9)
+;;        (consp (nth 4 scl-decl))
+;;        (consp (nth 5 scl-decl))
+;;        (consp (nth 6 scl-decl))
+;;        (consp (nth 7 scl-decl))
+;;        (consp (nth 8 scl-decl))))
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">scl-decl-bcv2jvm</span> (scl-decl)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-scl-decl-guard-weak scl-decl)))
+  (make-static-class-decl 
+    (classClassName scl-decl)
+    (classSuperClassName scl-decl)
+    (classConstantPool scl-decl)
+    (classFields scl-decl)
+    (classMethods scl-decl)
+    (classInterfaces scl-decl)
+    (classAccessFlags scl-decl)))
+
+<span class="comment">;; (defun scl-decl-bcv2jvm (scl-decl)
+;;   (declare (xargs :guard (wff-scl-decl-guard-weak scl-decl)))
+;;   (make-static-class-decl 
+;;     (classClassName scl-decl)
+;;     (classSuperClassName scl-decl)
+;;     (classConstantPool scl-decl)
+;;     (classFields scl-decl)
+;;     (classMethods scl-decl)
+;;     (classInterfaces scl-decl)
+;;     (classAccessFlags scl-decl)
+;;     (classAttributes scl-decl)))
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">scl-bcv2jvm</span> (scl)
+  (<span class="keyword">if</span> (endp scl) nil
+    (cons (scl-decl-bcv2jvm (car scl))
+          (scl-bcv2jvm (cdr scl)))))
+
+(<span class="keyword">defun</span> <span class="function-name">scl-jvm2bcv</span> (raw-scl)
+  (<span class="keyword">if</span> (endp raw-scl) nil
+    (cons (make-class-def (car raw-scl))
+          (scl-jvm2bcv (cdr raw-scl)))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">good-scl</span> (scl)
+  (and (not (isClassTerm 
+             (class-by-name 
+              (classSuperClassName 
+               (class-by-name <span class="string">"java.lang.Object"</span> scl))
+              scl)))
+       (not (isClassTerm (class-by-name nil scl)))
+       (equal (scl-jvm2bcv (scl-bcv2jvm scl)) scl)))
+
+
+
+<span class="comment">;;Fri Jul 15 18:17:33 2005
+</span></pre>
+  </body>
+</html>

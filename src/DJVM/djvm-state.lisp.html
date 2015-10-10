@@ -1,0 +1,97 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>djvm-state.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="../M6-DJVM-shared/jvm-state.lisp.html">"../M6-DJVM-shared/jvm-state"</a></span>)
+(include-book <span class="string"><a href="../M6-DJVM-shared/jvm-thread.lisp.html">"../M6-DJVM-shared/jvm-thread"</a></span>) <span class="comment">;; for wff-thread
+</span>(include-book <span class="string"><a href="../M6-DJVM-shared/jvm-frame-manipulation-primitives.lisp.html">"../M6-DJVM-shared/jvm-frame-manipulation-primitives"</a></span>) <span class="comment">;; for wff-call-stack
+</span>(include-book <span class="string"><a href="../M6-DJVM-shared/jvm-linker.lisp.html">"../M6-DJVM-shared/jvm-linker"</a></span>) <span class="comment">;; deref-mehtod
+</span>(include-book <span class="string"><a href="djvm-thread.lisp.html">"../DJVM/djvm-thread"</a></span>) <span class="comment">;; 
+</span>
+<span class="comment">;; basically copied from consistent-state.lisp
+;; ??
+</span>
+(acl2::set-verify-guards-eagerness 2)
+
+(<span class="keyword">defun</span> <span class="function-name">max-stack-guard</span> (s)
+  (mylet* ((th (thread-by-id (current-thread s)
+                             (thread-table s)))
+           (frame (top (thread-call-stack th)))
+           (method-ptr (method-ptr frame))
+           (method     (deref-method method-ptr (instance-class-table s))))
+  (and (wff-state s)
+       (wff-thread-table (thread-table s))
+       (wff-thread th)
+       (wff-call-stack (thread-call-stack th))
+       (wff-call-frame (top (thread-call-stack th)))
+       (wff-class-table (class-table s))
+       (wff-instance-class-table (instance-class-table s))
+       (wff-method-ptr method-ptr)
+       (wff-method-decl method)
+       (wff-code (method-code method)))))
+
+(<span class="keyword">defun</span> <span class="function-name">max-stack</span> (s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (max-stack-guard s)))
+  (mylet* ((th (thread-by-id (current-thread s)
+                             (thread-table s)))
+           (frame (top (thread-call-stack th)))
+           (method-ptr (method-ptr frame))
+           (method     (deref-method method-ptr (instance-class-table s))))
+       (method-maxstack method)))
+
+<span class="comment">;; (in-theory (enable wff-call-stack))
+</span>
+(<span class="keyword">defun</span> <span class="function-name">max-local</span> (s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (max-stack-guard s)))
+  (mylet* ((th (thread-by-id (current-thread s)
+                             (thread-table s)))
+           (frame (top (thread-call-stack th)))
+           (method-ptr (method-ptr frame))
+           (method     (deref-method method-ptr (instance-class-table s))))
+       (method-maxlocals method)))
+
+</pre>
+  </body>
+</html>

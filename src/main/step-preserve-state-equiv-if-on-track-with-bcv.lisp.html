@@ -1,0 +1,430 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>step-preserve-state-equiv-if-on-track-with-bcv.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="djvm-simple.lisp.html">"../main/djvm-simple"</a></span>)
+(include-book <span class="string"><a href="m6-simple.lisp.html">"../main/m6-simple"</a></span>)
+(include-book <span class="string"><a href="../DJVM/consistent-state-bcv-on-track.lisp.html">"../DJVM/consistent-state-bcv-on-track"</a></span>)
+(include-book <span class="string"><a href="../BCV/typechecker-simple.lisp.html">"../BCV/typechecker-simple"</a></span>)
+
+<span class="comment">;;; the way of introducing make it is not easy to use
+;;; 
+;;; Instead we should have asserted suitable properties on the scl
+;;; 
+</span>
+<span class="comment">;; (encapsulate ()
+;;     (local (include-book <a href="../DJVM/INST/base-bcv-check-monotonic.lisp.html">"base-bcv-check-monotonic"</a>))
+;;     (defthm sig-check-AALOAD-on-more-general-implies-more-specific
+;;       (implies (and (bcv::good-icl icl)
+;;                     (bcv::good-scl (bcv::classtableEnvironment env1))
+;;                     (bcv::sig-frame-more-general gframe sframe env1)
+;;                     (bcv::consistent-sig-stack (bcv::frameStack gframe) icl)
+;;                     (bcv::consistent-sig-stack (bcv::frameStack sframe) icl)
+;;                     (not (equal (bcv::nth1OperandStackIs 2 sframe) 'NULL)) ;; added
+;;                     (not (equal (bcv::nth1OperandStackIs 2 gframe) 'NULL))
+;;                     (bcv::check-AALOAD <a href="../DJVM/INST/inst.lisp.html">inst</a> env1 gframe)
+;;                     (bcv::icl-scl-compatible icl (bcv::classtableEnvironment env1)))
+;;                (bcv::check-AALOAD <a href="../DJVM/INST/inst.lisp.html">inst</a> env1 sframe))))
+;;
+;;  How to use the above lemma!!! we need to come up with an ICL that
+;;  consistent-sig-stack can be established!! 
+;;
+;;
+;;  not easily to be monotonic.... ?? Sat Jan  7 00:01:44 2006
+;;  
+;;  when it is not monotonic, it throws an exception...
+;;  
+;;  if the specific is of NULL type BCV::check-AALOAD may fail, even though
+;;  BCV::check-AALOAD succeed on the general type, however, we know that during
+;;  execution, such cases will be caught by runtime checking. 
+;;
+;;  So even the type::checking is not purely monotonic, that is OK!! 
+;;
+;;  
+;; (encapsulate ()
+;;   (local (include-book <a href="../DJVM/INST/base-bcv.lisp.html">"base-bcv"</a>))
+;;   (defthm bcv-check-aaload-ensures-djvm-check-aaload
+;;     (implies (and (bcv::check-AALOAD <a href="../DJVM/INST/inst.lisp.html">inst</a> (env-sig s) 
+;;                                      (frame-sig  (current-frame s)
+;;                                                  (instance-class-table s)
+;;                                                  (heap s)
+;;                                                  (heap-init-map (aux s))))
+;;                   (wff-<a href="../DJVM/INST/inst.lisp.html">inst</a> <a href="../DJVM/INST/inst.lisp.html">inst</a>)
+;;                   (not (mem '*native* (method-accessflags (current-method s))))
+;;                   (<a href="../DJVM/consistent-state.lisp.html">consistent-state</a> s))
+;;              (djvm::check-AALOAD <a href="../DJVM/INST/inst.lisp.html">inst</a> s))))
+</span>
+
+<span class="comment">;; (defthm check-AALOAD-implies-guard-succeeds
+;;   (implies (and (<a href="../DJVM/consistent-state-strong.lisp.html">consistent-state-strong</a> s)
+;;                 (check-AALOAD <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+;;           (AALOAD-guard <a href="../DJVM/INST/inst.lisp.html">inst</a> s)))
+</span>
+<span class="comment">;; (encapsulate ()
+;;    (local (include-book <a href="../DJVM/INST/base-state-equiv.lisp.html">"base-state-equiv"</a>))
+;;     (defthm equal-AALOAD-when-guard-succeeds
+;;       (implies (and (AALOAD-guard <a href="../DJVM/INST/inst.lisp.html">inst</a> djvm::djvm-s)
+;;                     (state-equiv m6::m6-s djvm::djvm-s))
+;;                (state-equiv (m6::execute-AALOAD <a href="../DJVM/INST/inst.lisp.html">inst</a> m6::m6-s)
+;;                             (djvm::execute-AALOAD <a href="../DJVM/INST/inst.lisp.html">inst</a> djvm::djvm-s)))))
+</span>
+
+
+(defthm consistent-state-bcv-on-track-implies-bcv-good-scl-strong
+  (implies (<a href="../DJVM/consistent-state-bcv-on-track.lisp.html">consistent-state-bcv-on-track</a> s)
+           (bcv::good-scl-strong (env-class-table (env s)))))
+
+
+
+(defthm consistent-state-bcv-on-track-implies-good-icl
+  (implies (<a href="../DJVM/consistent-state-bcv-on-track.lisp.html">consistent-state-bcv-on-track</a> s)
+           (bcv::good-icl (bcv::icl-witness-x (env-class-table (env s)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable bcv::good-icl
+                                      <a href="../DJVM/consistent-state-bcv-on-track.lisp.html">consistent-state-bcv-on-track</a>))))
+
+
+(defthm consistent-state-bcv-on-track-implies-icl-scl-compatible
+  (implies (<a href="../DJVM/consistent-state-bcv-on-track.lisp.html">consistent-state-bcv-on-track</a> s)
+           (bcv::icl-scl-compatible 
+            (bcv::icl-witness-x (env-class-table (env s)))
+            (bcv::classtableEnvironment (env-sig s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable bcv::good-icl
+                                      bcv::icl-scl-compatible
+                                      <a href="../DJVM/consistent-state-bcv-on-track.lisp.html">consistent-state-bcv-on-track</a>))))
+
+<span class="comment">;
+; intuitively icl-witness-x will be the instance class table that has
+; everything loaded!!! 
+;
+</span>
+<span class="comment">;
+; in the process of the making use of 
+;
+;   sig-check-AALOAD-on-more-general-implies-more-specific
+;
+; we will relieve the hypothesis that uses icl!! 
+;
+</span>
+
+(skip-proofs 
+ (defthm consistent-state-bcv-on-track-implies-instructionIsTypeSafe
+   (implies (<a href="../DJVM/consistent-state-bcv-on-track.lisp.html">consistent-state-bcv-on-track</a> djvm::djvm-s)
+            (bcv::instructionIsTypeSafe (next-inst djvm::djvm-s)
+                                        (env-sig djvm::djvm-s)
+                                        (bcv::searchStackFrame 
+                                         (pc djvm::djvm-s)
+                                         (bcv::stack-map-wrap 
+                                          (stack-maps-witness (method-ptr
+                                                               (current-frame s)) 
+                                                              (env-class-table (env s)))))))))
+
+
+
+(skip-proofs 
+ (defthm consistent-state-bcv-on-track-consistent-state-strong-sig-frame-more-general
+   (implies (and (<a href="../DJVM/consistent-state-bcv-on-track.lisp.html">consistent-state-bcv-on-track</a> s)
+                 (<a href="../DJVM/consistent-state-strong.lisp.html">consistent-state-strong</a> s))
+            (bcv::sig-frame-more-general 
+             (bcv::searchStackFrame 
+              (pc s)
+              (bcv::stack-map-wrap 
+               (stack-maps-witness (method-ptr
+                                    (current-frame s)) 
+                                   (env-class-table (env s)))))
+             (frame-sig  (current-frame s)
+                         (instance-class-table s)
+                         (heap s)
+                         (heap-init-map (aux s)))
+             (env-sig s)))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(skip-proofs 
+ (defthm consistent-state-strong-implies-consistent-sig-operand-stack
+   (implies (and (<a href="../DJVM/consistent-state-strong.lisp.html">consistent-state-strong</a> s)
+                 (<a href="../DJVM/consistent-state-bcv-on-track.lisp.html">consistent-state-bcv-on-track</a> s))
+            (bcv::consistent-sig-stack 
+             (bcv::frameStack (frame-sig
+                               (current-frame s)
+                               (instance-class-table s)
+                               (heap s)
+                               (heap-init-map (aux s))))
+             (bcv::icl-witness-x (env-class-table (env s)))))))
+
+
+(skip-proofs 
+ (defthm consistent-state-strong-implies-consistent-sig-operand-stack-recorded-frame
+   (implies (and (<a href="../DJVM/consistent-state-strong.lisp.html">consistent-state-strong</a> s)
+                 (<a href="../DJVM/consistent-state-bcv-on-track.lisp.html">consistent-state-bcv-on-track</a> s))
+            (bcv::consistent-sig-stack 
+             (bcv::framestack 
+              (bcv::searchStackFrame 
+               (pc djvm::djvm-s)
+               (bcv::stack-map-wrap 
+                (stack-maps-witness (method-ptr
+                                     (current-frame s)) 
+                                    (env-class-table (env s))))))
+             (bcv::icl-witness-x (env-class-table (env s)))))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;; still need to do a case split on when frame-sig is null
+;; 
+</span>
+
+(skip-proofs 
+ (defthm not-nullp-not-sig-value-NULL
+   (implies (case-split (not (nullp (topStack (popstack s)))))
+            (not (equal (bcv::nth1OperandStackIs 2 
+                                                 (frame-sig (current-frame s)
+                                                            (instance-class-table s)
+                                                            (heap s)
+                                                            (heap-init-map (aux s))))
+                        'NULL)))))
+
+
+
+
+
+(skip-proofs 
+ (defthm sig-frame-more-general-not-null-not-null
+   (implies (and  (not (equal (bcv::nth1OperandStackIs 2 
+                                                       (frame-sig (current-frame s)
+                                                                  (instance-class-table s)
+                                                                  (heap s)
+                                                                  (heap-init-map (aux s))))
+                              'NULL))
+                  (bcv::sig-frame-more-general 
+                      gframe
+                      (frame-sig (current-frame s)
+                                 (instance-class-table s)
+                                 (heap s)
+                                 (heap-init-map (aux s)))
+                      (env-sig s)))
+            (not (equal (bcv::nth1OperandStackIs 2 gframe) 'NULL)))))
+
+<span class="comment">; now we can make use of the leaf lemmas! 
+</span>
+
+(defthm sig-frame-more-general-not-null-not-null-specific
+  (implies (and  (not (equal (bcv::nth1OperandStackIs 2 
+                                                      (frame-sig (current-frame s)
+                                                                 (instance-class-table s)
+                                                                 (heap s)
+                                                                 (heap-init-map (aux s))))
+                             'NULL))
+                 (bcv::sig-frame-more-general 
+                  (bcv::searchStackFrame (pc s)
+                                         (bcv::stack-map-wrap 
+                                          (stack-maps-witness (method-ptr
+                                                               (current-frame s)) 
+                                                              (env-class-table (env s)))))                                    
+                  (frame-sig (current-frame s)
+                                 (instance-class-table s)
+                                 (heap s)
+                                 (heap-init-map (aux s)))
+                  (env-sig s)))
+           (not (equal (bcv::nth1OperandStackIs 2 
+                                                (bcv::searchStackFrame (pc s)                                                
+                                                                       (bcv::stack-map-wrap 
+                                                                        (stack-maps-witness (method-ptr
+                                                                                             (current-frame s)) 
+                                                                                            (env-class-table
+                                                                                             (env
+                                                                                              s))))))
+                       'NULL)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> ((<span class="builtin">:instance</span> sig-frame-more-general-not-null-not-null
+                                   (gframe (bcv::searchStackFrame (pc s)
+                                                                  (bcv::stack-map-wrap 
+                                                                   (stack-maps-witness (method-ptr
+                                                                                        (current-frame s)) 
+                                                                                       (env-class-table (env s)))))))))))
+
+(local (in-theory (disable sig-frame-more-general-not-null-not-null)))
+
+
+
+
+
+
+(skip-proofs 
+ (defthm consistent-state-strong-implies-good-scl
+   (implies (<a href="../DJVM/consistent-state-strong.lisp.html">consistent-state-strong</a> s)
+            (bcv::good-scl (bcv::classtableEnvironment (env-sig s))))))
+
+
+(encapsulate () 
+  (local (include-book <span class="string"><a href="on-track-with-bcv-implies-next-inst-in-range.lisp.html">"on-track-with-bcv-implies-next-inst-in-range"</a></span>))
+  (defthm consistent-state-strong-implies-wff-inst-next-inst
+    (IMPLIES (and (CONSISTENT-STATE-STRONG djvm-S)
+                  (<a href="../DJVM/consistent-state-bcv-on-track.lisp.html">consistent-state-bcv-on-track</a> djvm-s))
+             (WFF-INST (NEXT-INST djvm-S)))))
+
+(skip-proofs
+ (defthm consistent-state-strong-implies-not-native-code
+   (implies (<a href="../DJVM/consistent-state-strong.lisp.html">consistent-state-strong</a> djvm-s)
+            (NOT (MEM '*NATIVE* (METHOD-ACCESSFLAGS (CURRENT-METHOD DJVM-S)))))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+;----------------------------------------------------------------------
+</span>
+(local (in-theory (disable <a href="../DJVM/consistent-state-bcv-on-track.lisp.html">consistent-state-bcv-on-track</a>
+                           state-equiv
+                           next-inst
+                           frame-sig
+                           env-sig
+                           <a href="../DJVM/consistent-state-strong.lisp.html">consistent-state-strong</a>
+                           bcv::classtableEnvironment
+                           bcv::sig-frame-more-general
+                           bcv::good-icl
+                           bcv::nth1OperandStackIs
+                           (bcv::nth1OperandStackIs)
+                           bcv::good-scl
+                           bcv::op-code
+                           env-class-table 
+                           bcv::framestack
+                           bcv::searchStackFrame
+                           stack-maps-witness
+                           bcv::icl-scl-compatible
+                           m6::execute-AALOAD
+                           djvm::execute-AALOAD
+                           djvm::check-AALOAD
+                           bcv::check-AALOAD
+                           code-instrs
+                           AALOAD-guard)))
+
+
+
+<span class="comment">;;     (defthm sig-check-AALOAD-on-more-general-implies-more-specific
+;;       (implies (and (bcv::good-icl icl)
+;;                     (bcv::good-scl (bcv::classtableEnvironment env1))
+;;                     (bcv::sig-frame-more-general gframe sframe env1)
+;;                     (bcv::consistent-sig-stack (bcv::frameStack gframe) icl)
+;;                     (bcv::consistent-sig-stack (bcv::frameStack sframe) icl)
+;;                     (not (equal (bcv::nth1OperandStackIs 2 sframe) 'NULL)) ;; added
+;;                     (not (equal (bcv::nth1OperandStackIs 2 gframe) 'NULL))
+;;                     (bcv::check-AALOAD <a href="../DJVM/INST/inst.lisp.html">inst</a> env1 gframe)
+;;                     (bcv::icl-scl-compatible icl (bcv::classtableEnvironment env1)))
+;;                (bcv::check-AALOAD <a href="../DJVM/INST/inst.lisp.html">inst</a> env1 sframe))))
+</span>
+
+
+(defthm instructionIsTypeSafe-and-is-inst-aaload-check-aaload
+  (implies (and (bcv::<a href="../DJVM/INST/inst.lisp.html">inst</a>ructionIsTypeSafe <a href="../DJVM/INST/inst.lisp.html">inst</a> env cur)
+                (equal (bcv::op-code <a href="../DJVM/INST/inst.lisp.html">inst</a>) '<a href="../DJVM/INST/AALOAD.lisp.html">AALOAD</a>))
+           (bcv::check-AALOAD <a href="../DJVM/INST/inst.lisp.html">inst</a> env cur)))
+
+
+(skip-proofs 
+  (defthm if-nullp-reduce-aaload
+    (implies (and (nullp (topStack (popstack s)))
+                  (equal (bcv::op-code <a href="../DJVM/INST/inst.lisp.html">inst</a>) '<a href="../DJVM/INST/AALOAD.lisp.html">AALOAD</a>))
+             (equal (execute-aaload <a href="../DJVM/INST/inst.lisp.html">inst</a> s)
+                    (raise-exception <span class="string">"java.lang.NullPointerException"</span> s)))))
+
+
+
+(skip-proofs 
+  (defthm if-nullp-reduce-aaload-m6
+    (implies (and (equal (topStack (popstack s)) -1)
+                  (equal (bcv::op-code <a href="../DJVM/INST/inst.lisp.html">inst</a>) '<a href="../DJVM/INST/AALOAD.lisp.html">AALOAD</a>))
+             (equal (m6::execute-aaload <a href="../DJVM/INST/inst.lisp.html">inst</a> s)
+                    (m6::raise-exception <span class="string">"java.lang.NullPointerException"</span> s)))))
+
+
+(skip-proofs 
+  (defthm nullp-implies-value-1
+    (implies (and (state-equiv m6::m6-s djvm::djvm-s)
+                  (nullp (topStack (popstack djvm::djvm-s))))
+             (equal (topStack (popstack m6::m6-s)) -1))))
+
+(skip-proofs 
+ (defthm state-equiv-raise-exception
+   (implies (state-equiv m6::m6-s djvm::djvm-s)
+            (state-equiv (jvm::raise-exception any m6::m6-s)
+                         (djvm::raise-exception any djvm::djvm-s)))))
+
+
+(defthm on-track-with-BCV-implies-step-AALOAD 
+  (implies (and (<a href="../DJVM/consistent-state-strong.lisp.html">consistent-state-strong</a> djvm::djvm-s)
+                (<a href="../DJVM/consistent-state-bcv-on-track.lisp.html">consistent-state-bcv-on-track</a> djvm::djvm-s)
+                (equal (next-<a href="../DJVM/INST/inst.lisp.html">inst</a> djvm::djvm-s) <a href="../DJVM/INST/inst.lisp.html">inst</a>)
+                (equal (bcv::op-code <a href="../DJVM/INST/inst.lisp.html">inst</a>) '<a href="../DJVM/INST/AALOAD.lisp.html">AALOAD</a>)
+                (state-equiv m6::m6-s djvm::djvm-s))
+       (state-equiv (m6::execute-AALOAD <a href="../DJVM/INST/inst.lisp.html">inst</a> m6::m6-s)
+                    (djvm::execute-AALOAD <a href="../DJVM/INST/inst.lisp.html">inst</a> djvm::djvm-s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:cases</span> ((nullp (topStack (popstack djvm::djvm-s))))
+           <span class="builtin">:restrict</span>
+           ((sig-check-AALOAD-on-more-general-implies-more-specific
+             ((icl (bcv::icl-witness-x (env-class-table (env djvm::djvm-s))))
+              (gframe (bcv::searchStackFrame 
+                       (pc djvm::djvm-s)
+                       (bcv::stack-map-wrap 
+                        (stack-maps-witness (method-ptr
+                                             (current-frame djvm::djvm-s))
+                                            (env-class-table (env
+                                            djvm::djvm-s))))))))))))
+           
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(skip-proofs 
+ (defthm step-preserve-state-equiv
+   (implies (and (<a href="../DJVM/consistent-state-strong.lisp.html">consistent-state-strong</a> djvm-s)
+                 (<a href="../DJVM/consistent-state-bcv-on-track.lisp.html">consistent-state-bcv-on-track</a> djvm-s)
+                 (state-equiv m6::m6-s djvm::djvm-s)
+                 (bcv::verifyAll (external-class-table djvm-s)
+                                 (external-class-table djvm-s))
+                 (equal (next-<a href="../DJVM/INST/inst.lisp.html">inst</a> djvm::djvm-s) <a href="../DJVM/INST/inst.lisp.html">inst</a>))
+   (state-equiv (m6::m6-step <a href="../DJVM/INST/inst.lisp.html">inst</a> m6::m6-s)
+                (djvm::djvm-step <a href="../DJVM/INST/inst.lisp.html">inst</a> djvm::djvm-s)))))
+
+
+
+
+
+
+</pre>
+  </body>
+</html>

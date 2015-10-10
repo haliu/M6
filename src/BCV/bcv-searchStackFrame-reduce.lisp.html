@@ -1,0 +1,123 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>bcv-searchStackFrame-reduce.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"BCV"</span>)
+(include-book <span class="string"><a href="typechecker.lisp.html">"typechecker"</a></span>)
+(include-book <span class="string"><a href="typechecker-ext.lisp.html">"typechecker-ext"</a></span>)
+(include-book <span class="string"><a href="typechecker-simple.lisp.html">"typechecker-simple"</a></span>)
+(include-book <span class="string"><a href="bcv-base.lisp.html">"bcv-base"</a></span>)
+
+
+(encapsulate () 
+  (local (include-book <span class="string"><a href="bcv-searchStackFrame-reduce-support.lisp.html">"bcv-searchStackFrame-reduce-support"</a></span>))
+  (defthm searchStackFrame-is-if-stack-map
+  (implies (and (isStackMap (car mergedcode))
+                (equal (forward-to-next-inst mergedcode) 
+                       (forward-to-next-inst x))
+                (is-suffix mergedcode all-merged-code)
+                (PC-WFF-MERGEDCODE1 PC ALL-MERGED-CODE)
+                (mergedcodeistypesafe env all-merged-code init-frame))
+           (EQUAL
+            (SEARCHSTACKFRAME
+             (INSTROFFSET (CAR (FORWARD-TO-NEXT-INST x)))
+             (STACK-MAP-WRAP (COLLECT-SIG-FRAME-VECTOR ENV all-merged-code
+                                                       INIT-FRAME)))
+            (NEXT-STACKFRAME mergedcode)))))
+
+
+
+<span class="comment">;; (skip-proofs 
+;; (defthm searchStackFrame-is-if-stack-map-specific
+;;    (implies (and (is-suffix (list* mergedcode3 mergedcode5 mergedcode6)
+;;                             all-merged-code)
+;;                  (isStackMap mergedcode3)
+;;                  (isInstruction mergedcode6)
+;;                  (PC-WFF-MERGEDCODE1 PC ALL-MERGED-CODE)
+;;                  (mergedcodeistypesafe env all-merged-code init-frame))
+;;             (EQUAL
+;;              (SEARCHSTACKFRAME
+;;               (INSTROFFSET mergedcode5)
+;;               (STACK-MAP-WRAP (COLLECT-SIG-FRAME-VECTOR ENV all-merged-code
+;;                                                         INIT-FRAME)))
+;;              (mapFrame (getMap mergedcode3))))))
+</span>
+
+(encapsulate () 
+  (local (include-book <span class="string"><a href="bcv-searchStackFrame-reduce-support-2.lisp.html">"bcv-searchStackFrame-reduce-support-2"</a></span>))
+  (defthm mergecodeIsTypeSafe-implies-collect-sig-vector-compatible-1
+    (implies (and (mergedcodeIsTypeSafe env mergecode stackframe)
+                  (member <a href="../DJVM/INST/inst.lisp.html">inst</a> mergecode)
+                  (isInstruction <a href="../DJVM/INST/inst.lisp.html">inst</a>)
+                  (isInstruction (next-<a href="../DJVM/INST/inst.lisp.html">inst</a> <a href="../DJVM/INST/inst.lisp.html">inst</a> mergecode))
+                  (pc-wff-mergedcode1 (next-pc mergecode) mergecode))
+             (equal (car (sig-do-<a href="../DJVM/INST/inst.lisp.html">inst</a> <a href="../DJVM/INST/inst.lisp.html">inst</a>
+                                      env
+                                      (searchStackFrame (<a href="../DJVM/INST/inst.lisp.html">inst</a>roffset <a href="../DJVM/INST/inst.lisp.html">inst</a>)
+                                                        (stack-map-wrap
+                                                         (collect-sig-frame-vector
+                                                          env mergecode
+                                                          stackframe)))))
+                    (searchStackFrame (<a href="../DJVM/INST/inst.lisp.html">inst</a>roffset (next-<a href="../DJVM/INST/inst.lisp.html">inst</a> <a href="../DJVM/INST/inst.lisp.html">inst</a> mergecode))
+                                      (stack-map-wrap (collect-sig-frame-vector
+                                                       env mergecode
+                                                       stackframe)))))))
+
+
+
+
+
+ 
+
+<span class="comment">;; (encapsulate () 
+;;   (local (include-book <a href="bcv-searchStackFrame-reduce-support-2.lisp.html">"bcv-searchStackFrame-reduce-support-2"</a>))
+;;   (defthm mergecodeIsTypeSafe-implies-collect-sig-vector-compatible-2
+;;    (implies (and (mergedcodeIsTypeSafe env mergecode stackframe)
+;;                  (member <a href="../DJVM/INST/inst.lisp.html">inst</a> mergecode)
+;;                  (member (next-<a href="../DJVM/INST/inst.lisp.html">inst</a> <a href="../DJVM/INST/inst.lisp.html">inst</a> mergecode) mergecode)
+;;                  (isInstruction <a href="../DJVM/INST/inst.lisp.html">inst</a>)
+;;                  (isStackMap (next-<a href="../DJVM/INST/inst.lisp.html">inst</a> <a href="../DJVM/INST/inst.lisp.html">inst</a> mergecode))
+;;                  (pc-wff-mergedcode1 pc mergecode))
+;;             (equal (car (sig-do-<a href="../DJVM/INST/inst.lisp.html">inst</a> <a href="../DJVM/INST/inst.lisp.html">inst</a>
+;;                                      env
+;;                                      (searchStackFrame (<a href="../DJVM/INST/inst.lisp.html">inst</a>roffset <a href="../DJVM/INST/inst.lisp.html">inst</a>)
+;;                                                        (stack-map-wrap(collect-sig-frame-vector
+;;                                                                        env mergecode
+;;                                                                        stackframe)))))
+</span>
+</pre>
+  </body>
+</html>

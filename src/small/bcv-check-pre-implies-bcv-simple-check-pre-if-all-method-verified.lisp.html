@@ -1,0 +1,56 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>bcv-check-pre-implies-bcv-simple-check-pre-if-all-method-verified.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"ACL2"</span>)
+(include-book <span class="string"><a href="bcv-model.lisp.html">"bcv-model"</a></span>)
+(include-book <span class="string"><a href="bcv-simple-model.lisp.html">"bcv-simple-model"</a></span>)
+(include-book <span class="string"><a href="generic.lisp.html">"generic"</a></span>)
+
+(defthm bcv-check-step-pre-implies-bcv-simple-check-step-INVOKE
+  (implies (and (bcv-check-INVOKE inst sig-frame)
+                (bcv-verified-method-table (g 'method-table sig-frame)))
+           (bcv-simple-check-INVOKE (g 'inst inst) sig-frame)))
+
+(defthm bcv-check-step-pre-implies-bcv-simple-check-step
+  (implies (and (bcv-check-step-pre inst sig-frame)
+                (bcv-verified-method-table (g 'method-table sig-frame)))
+           (bcv-simple-check-step-pre (g 'inst inst) sig-frame))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable bcv-check-INVOKE
+                                      bcv-verified-method-table
+                                      bcv-simple-check-INVOKE))))</pre>
+  </body>
+</html>

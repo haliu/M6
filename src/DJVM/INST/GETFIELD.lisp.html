@@ -1,0 +1,1013 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>GETFIELD.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+
+(include-book <span class="string"><a href="base.lisp.html">"base"</a></span>)
+(include-book <span class="string"><a href="base-consistent-state.lisp.html">"base-consistent-state"</a></span>)
+(include-book <span class="string"><a href="base-extra.lisp.html">"base-extra"</a></span>)
+
+
+(acl2::set-verify-guards-eagerness 2)
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">wff-getfield</span> (<a href="inst.lisp.html">inst</a>)
+  (wff-one-arg <a href="inst.lisp.html">inst</a>))
+
+
+(<span class="keyword">defun</span> <span class="function-name">protectedAccessCheck</span>(<a href="inst.lisp.html">inst</a> s)
+  (<span class="keyword">declare</span> (ignore <a href="inst.lisp.html">inst</a> s))
+  <span class="comment">;; temporary implementation!! 
+</span>  t)
+
+<span class="comment">;;; Tue Jun  7 13:35:37 2005
+;;; to be moved to base-djvm-functions.lisp??
+</span>
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;; Tue Jun  7 13:36:16 2005
+</span>
+(<span class="keyword">defun</span> <span class="function-name">GETFIELD1-guard</span> (field-rep s)
+  (mylet* ((obj-ref   (safe-topStack s))
+           (classname (field-classname field-rep))
+           (fieldname (field-fieldname field-rep))
+           (fieldtype (field-fieldtype field-rep))
+           (value     (m6-getfield classname fieldname obj-ref s)))
+          (and (wff-field field-rep)
+               (topStack-guard-strong s)
+               (wff-REFp obj-ref) 
+               (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+               (&lt;= (len (operand-stack (current-frame s))) (max-stack s))
+               (or (check-NULL obj-ref)
+                   (and (or (not  (equal (field-size field-rep) 2))
+                            (&lt;= (+ 1 (len (operand-stack (current-frame s))))
+                                (max-stack s)))
+                        (field-access-guard classname fieldname 
+                                            (rREF obj-ref)
+                                            s))))))
+
+(defthm wff-getfield-implies-wff-inst
+  (implies (wff-getfield <a href="inst.lisp.html">inst</a>)
+           (wff-<a href="inst.lisp.html">inst</a> <a href="inst.lisp.html">inst</a>))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable wff-getfield)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+(defthm wff-getfield-implies-len-inst
+  (implies (wff-getfield <a href="inst.lisp.html">inst</a>)
+           (equal (len <a href="inst.lisp.html">inst</a>) 2))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable wff-getfield)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+(defthm wff-getfield-implies-len-inst-arg
+  (IMPLIES (WFF-GETFIELD INST)
+           (EQUAL (LEN (CDR (NTH 1 INST))) 1))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable wff-getfield)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+
+(defthm wff-inst-implies-truelistp
+  (implies (wff-<a href="inst.lisp.html">inst</a> <a href="inst.lisp.html">inst</a>)
+           (true-listp <a href="inst.lisp.html">inst</a>))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable wff-inst)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+(defthm wff-inst-implies-truelistp
+  (implies (wff-<a href="inst.lisp.html">inst</a> <a href="inst.lisp.html">inst</a>)
+           (true-listp <a href="inst.lisp.html">inst</a>))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable wff-inst)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+(defthm wff-inst-implies-car-integerp
+  (implies (wff-<a href="inst.lisp.html">inst</a> <a href="inst.lisp.html">inst</a>)
+           (integerp (car <a href="inst.lisp.html">inst</a>)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable wff-inst)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+(defthm wff-inst-implies-true-listp-arg
+  (implies (wff-<a href="inst.lisp.html">inst</a> <a href="inst.lisp.html">inst</a>)
+           (true-listp (nth 1 <a href="inst.lisp.html">inst</a>)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable wff-inst)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+(defthm wff-inst-implies-consp-arg
+  (implies (wff-<a href="inst.lisp.html">inst</a> <a href="inst.lisp.html">inst</a>)
+           (consp (nth 1 <a href="inst.lisp.html">inst</a>)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable wff-inst)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+(defthm wff-inst-implies-consp-arg
+  (implies (wff-<a href="inst.lisp.html">inst</a> <a href="inst.lisp.html">inst</a>)
+           (consp (nth 1 <a href="inst.lisp.html">inst</a>)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable wff-inst)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+(local (in-theory (disable current-frame-guard 
+                           max-stack-guard
+                           fieldcp-classname
+                           fieldcp-fieldname
+                           fieldcp-fieldtype
+                           fieldcp-to-field-ptr
+                           wff-getfield
+                           FIELD-CLASSNAME
+                           FIELD-FIELDNAME
+                           FIELD-FIELDTYPE
+                           wff-fieldCP
+                           wff-field
+                           lookupField
+                           deref-field
+                           java-visible-portion
+                           pending-exception
+                           pending-exception-aux
+                           field-size
+                           resolveClassReference-guard)))
+
+
+<span class="comment">;;; to be moved into <a href="base-consistent-state.lisp.html">base-consistent-state</a> !!! 
+</span>
+<span class="comment">;; (defun GETFIELD-guard (<a href="inst.lisp.html">inst</a> s)
+;;   (mylet* ((obj-ref (safe-topStack s))
+;;            (fieldCP (arg <a href="inst.lisp.html">inst</a>)))
+;;           (and (wff-getfield <a href="inst.lisp.html">inst</a>)
+;;                (wff-fieldCP fieldCP)
+;;                (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+;;                (topStack-guard-strong s)
+;;                (not (mem '*abstract* (method-accessflags (current-method s))))
+;;                (not (mem '*native* (method-accessflags (current-method s))))
+;;                (resolveClassReference-guard s)
+;;                (protectedAccessCheck <a href="inst.lisp.html">inst</a> s)
+;;                (wff-REFp obj-ref)
+;;                (mv-let (field-rep new-s)
+;;                        (resolveFieldReference (arg <a href="inst.lisp.html">inst</a>) s)
+;;                        (or (not field-rep)
+;;                            (or (CHECK-NULL obj-ref)
+;;                                (and (REFp obj-ref (heap new-s))
+;;                                     (or (not (isArrayType 
+;;                                               (obj-type (deref2 obj-ref (heap new-s)))))
+;;                                         (equal (fieldcp-classname fieldCP) "java.lang.Object"))
+;;                                     (mv-let (assignable new-s2)
+;;                                             (isAssignableTo (obj-type (deref2 obj-ref (heap new-s)))
+;;                                                             (fieldCP-classname fieldCP) new-s)
+;;                                             (and assignable
+;;                                                  (or (and (equal (field-size field-rep) 2)
+;;                                                           (&lt;= (+ 1 (len (operand-stack 
+;;                                                                          (current-frame new-s2))))
+;;                                                               (max-stack new-s2)))
+;;                                                      (and (equal (field-size field-rep) 1)
+;;                                                           (&lt;= (len (operand-stack (current-frame new-s2)))
+;;                                                               (max-stack new-s2)))))))))))))
+</span>
+<span class="comment">;;;
+;;; modify the above guard!! 
+;;; check things in order. otherwise the guard does not verify!  
+;;; 
+</span>
+<span class="comment">;;
+;;(i-am-here) ;; Thu Jul 28 20:14:43 2005
+;;
+</span>
+<span class="comment">;;
+;; need to show that lookupfield if found then wff-field
+;;
+</span>  
+(include-book <span class="string"><a href="base-consistent-state-load-class.lisp.html">"base-consistent-state-load-class"</a></span>)
+(include-book <span class="string"><a href="base-consistent-state-lookupfield.lisp.html">"base-consistent-state-lookupfield"</a></span>)
+
+(<span class="keyword">defun</span> <span class="function-name">GETFIELD-guard</span> (<a href="inst.lisp.html">inst</a> s)
+  (mylet* ((obj-ref (safe-topStack s))
+           (fieldCP (arg <a href="inst.lisp.html">inst</a>)))
+          (and (wff-getfield <a href="inst.lisp.html">inst</a>)
+               (wff-fieldCP fieldCP)
+               (<a href="../consistent-state-strong.lisp.html">consistent-state-strong</a> s)
+               (topStack-guard-strong s)
+               (not (mem '*abstract* (method-accessflags (current-method s))))
+               (not (mem '*native* (method-accessflags (current-method s))))
+               (resolveClassReference-guard s)
+               (protectedAccessCheck <a href="inst.lisp.html">inst</a> s)
+               (wff-REFp obj-ref)
+               (or (mv-let (field-rep new-s)
+                           (resolveFieldReference (arg <a href="inst.lisp.html">inst</a>) s)
+                           (<span class="keyword">declare</span> (ignore new-s))
+                           (not field-rep))  
+                   <span class="comment">;; if the field does not exist
+</span>                   <span class="comment">;; then we won't assert anything! 
+</span>                   (or (CHECK-NULL obj-ref)
+                       (and (REFp obj-ref (heap s))
+                            <span class="comment">;; (not (isArrayType 
+</span>                            <span class="comment">;;       (obj-type (deref2 obj-ref (heap s)))))
+</span>                            <span class="comment">;; Fri May 12 15:59:21 2006??? 
+</span>                            <span class="comment">;; with this, our theorem does not prove! 
+</span>                            <span class="comment">;; 
+</span>
+                            <span class="comment">;; Mon Jun 20 13:49:47 2005 ... 
+</span>                            <span class="comment">;; (equal (fieldcp-classname fieldCP) "java.lang.Object"))
+</span>                            <span class="comment">;; JVM spec is slightly wrong. checked Thu Jun 16 14:22:38 2005
+</span>                            <span class="comment">;; added Thu Jun  9 18:10:51 2005
+</span>                            <span class="comment">;; check with JVM Spec. 
+</span>                            (mv-let (assignable new-s)
+                                    (isAssignableTo (obj-type (deref2 obj-ref (heap s)))
+                                                    (fieldCP-classname fieldCP) s)
+                                    (<span class="keyword">declare</span> (ignore new-s))
+                                    assignable) <span class="comment">;; add a new assignable
+</span>                       <span class="comment">;;;
+</span>                       <span class="comment">;;; this is interesting!! 
+</span>                       <span class="comment">;;; Fri Jun 17 15:24:21 2005.
+</span>                       <span class="comment">;;; because we know if a field is ever found 
+</span>                       <span class="comment">;;; it is always assignable!!! Assuming that a object
+</span>                       <span class="comment">;;; exists. 
+</span>                       <span class="comment">;;; 
+</span>                       <span class="comment">;;;
+</span>                       <span class="comment">;;; Fri Jun 17 15:25:29 2005. 
+</span>                       <span class="comment">;;;
+</span>                       <span class="comment">;;; If it is found, we know FIELDCP-class/interface is a
+</span>                       <span class="comment">;;; subclass of the resulting class. 
+</span>                       <span class="comment">;;;
+</span>                       <span class="comment">;;; If here is assignable ...  Mon Jun 20 13:27:43
+</span>                       <span class="comment">;;; 2005!!! 
+</span>         
+                                <span class="comment">;; requirement.
+</span>                                <span class="comment">;; we might checked isSuperClass.... 
+</span>                                <span class="comment">;; ....  ;; Sat Jun 11 22:13:57 2005
+</span>               <span class="comment">;; We should check the isAssignable 
+</span>               <span class="comment">;; after resolving the class... 
+</span>               <span class="comment">;;  
+</span>               <span class="comment">;; Do we? The Bytecode verifier will guarantee 
+</span>               <span class="comment">;; that it is in fact assignable. 
+</span>               <span class="comment">;; and that class exists!! 
+</span>               <span class="comment">;; and resolveFieldReference reduces to a read only lookup. It
+</span>               <span class="comment">;; will not change the JVM state!!! 
+</span>                            (mv-let (field-rep new-s)
+                                    (resolveFieldReference (arg <a href="inst.lisp.html">inst</a>) s)
+                                    (<span class="keyword">declare</span> (ignore new-s))
+                                    (or (and (equal (field-size field-rep) 2)
+                                             (&lt;= (+ 1 (len (operand-stack 
+                                                            (current-frame s))))
+                                                 (max-stack s)))
+                                        (and (equal (field-size field-rep) 1)
+                                             (&lt;= (len (operand-stack (current-frame s)))
+                                                 (max-stack s)))))))))))
+
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">execute-getfield1</span> (field-rep s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (GETFIELD1-guard field-rep s)))
+  (mylet* ((obj-ref   (safe-topStack s))
+           (classname (field-classname field-rep))
+           (fieldname (field-fieldname field-rep))
+           (fieldtype (field-fieldtype field-rep))
+           (value     (m6-getfield classname fieldname (rREF obj-ref) s)))
+         (<span class="keyword">if</span> (CHECK-NULL obj-ref)
+             (state-set-pending-exception-safe <span class="string">"java.lang.NullPointerException"</span> s)
+           (<span class="keyword">if</span> (equal (field-size field-rep) 2)
+               (safe-pushCategory2 (tag value fieldtype) (popStack s))
+             (safe-pushStack (tag value fieldtype) (popStack s))))))
+
+
+
+(include-book <span class="string"><a href="base-load-class-normalize.lisp.html">"base-load-class-normalize"</a></span>)
+(include-book <span class="string"><a href="base-judgement-after-load-class-no-change.lisp.html">"base-judgement-after-load-class-no-change"</a></span>)
+
+<span class="comment">;;; take quite some efforts to reason about class loading and why guard is
+;;; true! for these operations!! 
+</span>
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-skip-proofs.lisp.html">"base-skip-proofs"</a></span>))
+   (defthm raise-exception-consistent-state-strong
+     (implies (<a href="../consistent-state-strong.lisp.html">consistent-state-strong</a> s)
+              (<a href="../consistent-state-strong.lisp.html">consistent-state-strong</a> (raise-exception any s)))))
+
+
+(include-book <span class="string"><a href="base-consistent-state-consistent-object.lisp.html">"base-consistent-state-consistent-object"</a></span>)
+
+
+
+(encapsulate ()
+ (local (include-book <span class="string"><a href="base-load-class-normalize-when-found.lisp.html">"base-load-class-normalize-when-found"</a></span>))
+ (defthm resolveClassReference-no-change-if-already-loaded-if-not-array-Object
+   (implies (and (consistent-object obj (heap s) (instance-class-table s))
+                 (case-split (not (isArrayType (obj-type obj))))
+                 (car (isAssignableTo (obj-type obj) typ2 s))
+                 (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+            (equal (resolveClassReference typ2 s) s)))
+
+ (defthm resolveClassReference-java-lang-Object-no-change
+   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+            (equal (resolveClassReference <span class="string">"java.lang.Object"</span> s) s))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (resolveClassReference 
+                                    class-loaded?)
+                                   (isClassTerm))))))
+
+<span class="comment">;; (i-am-here) ;; Thu Jun 16 21:58:50 2005
+</span>
+(in-theory (disable m6-getfield jvm::jvp-access-field-guard))
+
+
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-consistent-state-make-state-general.lisp.html">"base-consistent-state-make-state-general"</a></span>))
+  (defthm consistent-state-make-state-x-general
+    (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                  (equal (pc s) pc)
+                  (equal (heap-init-map (aux s)) (heap-init-map aux))
+                  (equal (heap s) hp)
+                  (equal (thread-table s) tt)
+                  (equal (env s) env)
+                  (or err
+                      (equal (error-flag s) err))
+                  (equal (current-thread s) cid))
+             (<a href="../consistent-state.lisp.html">consistent-state</a> (make-state pc 
+                                           cid 
+                                           hp 
+                                           tt
+                                           (class-table s)
+                                           env
+                                           err
+                                           aux)))))
+
+
+(defthm resolveClassReference-no-change-if-already-loaded-specific-further
+  (implies (and (consistent-object (deref2 (topStack s) (heap s)) (heap s) (instance-class-table s))
+                (case-split (not (isArrayType (obj-type (deref2 (topStack s) (heap s))))))
+                (car (isAssignableTo (obj-type (deref2 (topStack s) (heap s)))
+                                     (FIELDCP-CLASSNAME fieldcp)
+                                     s))
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+           (equal (resolveClassReference 
+                   (fieldcp-classname fieldcp) s) s)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">execute-getfield</span> (<a href="inst.lisp.html">inst</a> s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (GETFIELD-guard <a href="inst.lisp.html">inst</a> s)))
+   (mylet* ((fieldCP (arg <a href="inst.lisp.html">inst</a>)))
+    (mv-let (field-rep new-s)
+            (resolveFieldReference fieldCP s)
+            (<span class="keyword">if</span> (not (no-fatal-error? new-s)) new-s
+              <span class="comment">;; should not be an efficiency issue. 
+</span>              <span class="comment">;; the issue here is that we know 
+</span>              <span class="comment">;; if guard succeed, there will be no-fatal-error?
+</span>              <span class="comment">;; because when guard succed.
+</span>              <span class="comment">;; resolveClassReference will return a same state!! 
+</span>              (<span class="keyword">if</span> (pending-exception s)
+                  (raise-exception (pending-exception s) s)
+                (<span class="keyword">if</span> field-rep  
+                    <span class="comment">;; if resolve failed, field-rep is nil
+</span>                    <span class="comment">;; may need to be changed to assert
+</span>                    <span class="comment">;; wff-field-rep. Fri Mar 11 15:45:10 2005 
+</span>                    (<span class="keyword">let</span> ((new-s2 (execute-getfield1 field-rep new-s))) 
+                      (<span class="keyword">if</span> (pending-exception new-s2)
+                          (raise-exception (pending-exception new-s2) new-s2)
+                        (ADVANCE-PC new-s2))) 
+                  (fatalSlotError fieldCP new-s)))))))
+<span class="comment">;;;
+;;; take much more than we expected to even to get execute-getfield guard
+;;; verified!!
+;;;
+;;; prove an implementation is correct. it does not violate its internal
+;;; assertions!! 
+;;;
+;;; <a href="GETFIELD.lisp.html">GETFIELD</a> is a good example! m6-getfield needs a strong guard. 
+;;;
+;;;
+</span>
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;;(i-am-here) ;; Sun Jun 12 23:32:19 2005
+</span>
+<span class="comment">;;(in-theory (disable m6-getfield))
+</span>
+(encapsulate ()
+   (local (include-book <span class="string"><a href="base-consistent-object-m6-getfield.lisp.html">"base-consistent-object-m6-getfield"</a></span>))
+   (defthm consistent-object-consistent-state-m6-getfield-consistent-value-x
+     (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                   (car (isAssignableTo (obj-type (deref2 v (heap s)))
+                                        (fieldcp-classname fieldCP)
+                                        s))
+                   (REFp v (heap s))
+                   (equal (FIELD-CLASSNAME (LOOKUPFIELD (FIELDCP-TO-FIELD-PTR fieldcp)
+                                                        S))
+                          classname)
+                   (lookupField (fieldcp-to-field-ptr fieldCP) s)
+                   (not (NULLp v)))
+              (CONSISTENT-VALUE-X
+               (TAG (M6-GETFIELD classname
+                     (fieldcp-fieldname fieldcp)
+                     (RREF v)
+                     S)
+                    (fieldcp-fieldtype fieldcp))
+               (INSTANCE-CLASS-TABLE S)
+               (HEAP S)))))
+
+
+(defthm if-type-size-2-category2
+  (implies (and (not (consp v))
+                (EQUAL (type-size type)
+                       2))
+           (category2 (tag v type)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable tag-of tag wff-tagged-value))))
+
+(defthm if-type-size-1-category1
+  (implies (and (not (consp v))
+                (EQUAL (type-size type)
+                       1))
+           (category1 (tag v type)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable tag-of tag category1 wff-tagged-value))))
+
+
+(defthm consistent-value-x-tag-imlplies-not-consp
+  (implies (consistent-value-x (tag v type) cl hp)
+           (not (consp v)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable consistent-value-x 
+                                     rREF wff-REFp tag
+                                     tag-of
+                                     wff-tagged-value
+                                     REFp consistent-value 
+                                     value-of))))
+                                     
+
+(defthm consistent-value-x-tag-imlplies-not-consp-specific
+  (implies (consistent-value-x (tag (m6-getfield classname
+                                                 (FIELDCP-FIELDNAME fieldcp)
+                                                 v 
+                                                 s)
+                                    (fieldcp-fieldtype fieldcp))
+                               (instance-class-table s) 
+                               (heap s))
+           (not (consp (m6-getfield classname
+                                    (FIELDCP-FIELDNAME fieldcp)
+                                    v 
+                                    s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable consistent-value-x 
+                                     rREF wff-REFp tag
+                                     tag-of
+                                     wff-tagged-value
+                                     REFp consistent-value 
+                                     value-of))))
+                                     
+
+
+
+(encapsulate ()
+  (local (include-book <span class="string"><a href="base-consistent-state-pushCategory2.lisp.html">"base-consistent-state-pushCategory2"</a></span>))
+  (DEFTHM
+    CONSISTENT-STATE-PUSHSTACK-CONSISTENT-STATE-PUSHSTACK-2
+    (IMPLIES (AND (CONSISTENT-VALUE-X V (INSTANCE-CLASS-TABLE S)
+                                      (HEAP S))
+                  (CATEGORY2 V)
+                  (&lt;= (+ 2
+                         (LEN (OPERAND-STACK (CURRENT-FRAME S))))
+                      (MAX-STACK S))
+                  (CONSISTENT-STATE S))
+             (CONSISTENT-STATE (PUSHSTACK V (pushStack '(topx . topx) S))))))
+
+
+
+(encapsulate () 
+   (local (include-book <span class="string"><a href="base-frame-sig-expansion.lisp.html">"base-frame-sig-expansion"</a></span>))
+   (defthm object-field-is-always-initialized-m6-getfield
+     (implies (and (case-split (not (primitive-type?
+                                     (fieldcp-fieldtype fieldcp))))
+                   (lookupfield (fieldcp-to-field-ptr fieldcp) s)
+                   (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                   (consistent-object-init-state 
+                    (deref2 v (heap s))
+                    (instance-class-table s) (heap-init-map (aux s)))
+                   (consistent-object (deref2 v (heap s))
+                                      (heap s)
+                                      (instance-class-table s))
+                   (car (isAssignableTo (obj-type (deref2 v (heap s)))
+                                        (fieldcp-classname fieldcp) s)))
+              (not (consp (deref2-init 
+                           (tag (m6-getfield 
+                                 (field-classname (lookupfield
+                                                   (fieldcp-to-field-ptr fieldcp)
+                                                   s))
+                                 (fieldcp-fieldname fieldcp) 
+                                 (rREF v) s)
+                                (fieldcp-fieldtype fieldcp))
+                           (heap-init-map (aux s))))))))
+
+<span class="comment">;; (i-am-here) ;; Sun Aug  7 23:13:33 2005
+</span>
+(encapsulate () 
+  (local 
+   (defthm tag-tag-ref-reduce
+     (implies (not (primitive-type? type))
+              (equal (tag v type)
+                     (tag-REF v)))
+     <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable tag tag-ref)))))
+
+ (defthm not-primitive-deref2-init-specific
+  (implies (and (case-split (not (primitive-type? (FIELDCP-FIELDtype (ARG INST)))))
+                (NOT
+                 (CONSP
+                  (DEREF2-INIT
+                   (TAG
+                    (M6-GETFIELD
+                     (FIELD-CLASSNAME
+                      (LOOKUPFIELD (FIELDCP-TO-FIELD-PTR (ARG INST)) s))
+                     (FIELDCP-FIELDNAME (ARG INST))
+                     (RREF (TOPSTACK S))
+                     S)
+                    (FIELDCP-FIELDTYPE (ARG INST)))
+                   (HEAP-INIT-MAP (AUX S))))))
+           (not (consp (deref2-init 
+                        (TAG-REF 
+                         (M6-GETFIELD
+                          (FIELD-CLASSNAME
+                           (LOOKUPFIELD (FIELDCP-TO-FIELD-PTR (ARG INST)) s))
+                          (FIELDCP-FIELDNAME (ARG INST))
+                          (RREF (TOPSTACK S))
+                          s))
+                        (heap-init-map (aux s))))))))
+
+
+(in-theory (disable category2))
+(in-theory (e/d (field-size) (type-size)))
+
+(include-book <span class="string"><a href="base-m6-getfield-consistent-value.lisp.html">"base-m6-getfield-consistent-value"</a></span>)
+
+
+(defthm GETFIELD-guard-implies-execute-GETFIELD-perserve-consistency
+  (implies (GETFIELD-guard <a href="inst.lisp.html">inst</a> s)
+           (<a href="../consistent-state-strong.lisp.html">consistent-state-strong</a> (execute-GETFIELD <a href="inst.lisp.html">inst</a> s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:cases</span> ((isArrayType (obj-type (deref2 (topstack s) 
+                                                         (heap s))))))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;;
+;; (defun check-AASTORE (<a href="inst.lisp.html">inst</a> s)
+;;   (declare (xargs :guard (<a href="../consistent-state.lisp.html">consistent-state</a> s)))
+;;   (declare (ignore <a href="inst.lisp.html">inst</a>))
+;;   (mylet* ((value (safe-topStack s))
+;;            (index (safe-secondStack s))
+;;            (array-ref (safe-thirdStack s)))
+;;           (and (topStack-guard-strong s)
+;;                (secondStack-guard-strong s)
+;;                (thirdStack-guard-strong s)
+;;                (equal (tag-of value)    'REF)
+;;                (equal (tag-of array-ref)    'REF)
+;;                (equal (tag-of index) 'INT)
+;;                (or (equal (rREF value) -1) ;; Sat May  7 22:47:34 2005
+;;                    (not (bound? (rREF value) (heap-init-map (aux s))))
+;;                    (not (consp (deref2-init value (heap-init-map (aux s))))))
+;;                (or (CHECK-NULL array-ref)
+;;                    (and (array-type-s (obj-type (deref2 array-ref (heap s)))
+;;                                       (instance-class-table s))
+;;                         (not (primitive-type? (array-component-type
+;;                                               (obj-type (deref2 array-ref 
+;;                                                                 (heap s)))))))))))
+</span>
+<span class="comment">;; old definition of check-AASTORE!! modified extensively during the proof
+;; discovered problems about assertion! 
+;; 
+;; Mon Jul 25 17:12:24 2005
+;;
+</span>
+<span class="comment">;;(i-am-here) ;; Tue Jun 14 21:40:16 2005
+</span>
+
+(defthm consistent-state-implies-resolveClassReference-guard
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (topStack-guard-strong s))
+           (resolveClassReference-guard s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable resolveClassReference-guard))))
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">check-GETFIELD</span> (<a href="inst.lisp.html">inst</a> s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (<a href="../consistent-state.lisp.html">consistent-state</a> s)))
+  (mylet* ((obj-ref (safe-topStack s))
+           (fieldCP (arg <a href="inst.lisp.html">inst</a>)))
+          (and (wff-getfield <a href="inst.lisp.html">inst</a>)
+               (wff-fieldCP fieldCP)
+               (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+               (topStack-guard-strong s)
+               (equal (tag-of obj-ref) 'REF)
+               (protectedAccessCheck <a href="inst.lisp.html">inst</a> s) 
+               <span class="comment">;;; need to assert that field can be found!! 
+</span>               (or (mv-let (field-rep new-s)
+                       (resolveFieldReference (arg <a href="inst.lisp.html">inst</a>) s)
+                       (<span class="keyword">declare</span> (ignore new-s))
+                       (not field-rep))
+                   (or (equal (rREF obj-ref) -1)
+                       (and (or (not (isArrayType (obj-type (deref2 obj-ref (heap
+                                                                             s)))))
+                                (equal (fieldcp-classname fieldcp) 
+                                       <span class="string">"java.lang.Object"</span>))
+                            (mv-let (assignable new-s)
+                                    (isAssignableTo (obj-type (deref2 obj-ref (heap s)))
+                                                    (fieldCP-classname fieldCP)
+                                                    s)
+                                    (<span class="keyword">declare</span> (ignore new-s))
+                                    assignable)
+                            (or (and (equal (type-size (fieldcp-fieldtype fieldCP)) 1)
+                                     (&lt;= (len (operand-stack (current-frame s)))
+                                         (max-stack s)))
+                                (and (equal (type-size (fieldcp-fieldtype fieldCP)) 2)
+                                     (&lt;= (+ 1 (len (operand-stack (current-frame s))))
+                                         (max-stack s))))))))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+
+(defthm check-GETFIELD-implies-guard-succeeds
+  (implies (and (<a href="../consistent-state-strong.lisp.html">consistent-state-strong</a> s)
+               (check-GETFIELD <a href="inst.lisp.html">inst</a> s))
+          (GETFIELD-guard <a href="inst.lisp.html">inst</a> s)))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;-- BCV::check-GETFIELD implies DJVM::check-GETFIELD on a corresponding state -----
+</span>
+(encapsulate ()
+ (local (include-book <span class="string"><a href="base-bcv.lisp.html">"base-bcv"</a></span>))
+ (local (include-book <span class="string"><a href="base-bcv-djvm-getfield.lisp.html">"base-bcv-djvm-getfield"</a></span>))
+ <span class="comment">;;
+</span> <span class="comment">;; the most difficult part is to relate how BCV::isAssignable relates to to
+</span> <span class="comment">;; DJVM::isAssignableTo
+</span> <span class="comment">;;
+</span> <span class="comment">;; The insight is that when fieldcp-classname is not 'java.lang.Object' nor
+</span> <span class="comment">;; some interface type (and both type is loaded) These two different judgement
+</span> <span class="comment">;; matches
+</span> <span class="comment">;;
+</span> <span class="comment">;; So we also need to spend efforts in showing when lookupfields succeeds 
+</span> <span class="comment">;; then we can conclude that the fieldcp-classname is not java.lang.Object. 
+</span> <span class="comment">;; 
+</span> <span class="comment">;; A second thing is to show about every type is assignable to
+</span> <span class="comment">;; 'java.lang.Object' if it is a type of some object that exists in a
+</span> <span class="comment">;; consistent-state!
+</span> <span class="comment">;;
+</span> (defthm bcv-check-GETFIELD-ensures-djvm-check-GETFIELD
+   (implies (and (bcv::check-GETFIELD <a href="inst.lisp.html">inst</a> (env-sig s) 
+                                     (frame-sig  (current-frame s)
+                                                 (instance-class-table s)
+                                                 (heap s)
+                                                 (heap-init-map (aux s))))
+                 (wff-getfield <a href="inst.lisp.html">inst</a>)
+                 (wff-fieldCP (arg <a href="inst.lisp.html">inst</a>))
+                 (no-fatal-error? s)
+                 <span class="comment">;;; need to assert that field is found!! 
+</span>                 <span class="comment">;;; otherwise this is not true!! Mon Jul 11 14:58:41 2005
+</span>                 (lookupField (fieldcp-to-field-ptr (arg <a href="inst.lisp.html">inst</a>)) s)
+                 (not (mem '*native* (method-accessflags (current-method s))))
+                 (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+            (djvm::check-GETFIELD <a href="inst.lisp.html">inst</a> s))
+   <span class="builtin">:hints</span> ((<span class="string">"Subgoal 10"</span> <span class="builtin">:cases</span> ((isInterface (class-by-name (fieldcp-classname
+                                                              (arg <a href="inst.lisp.html">inst</a>))
+                                                             (instance-class-table s))))))))
+
+<span class="comment">;; Mon Aug 29 21:19:50 2005
+;;
+;; value-sig is complicated. It depends on the initialization Status!! 
+;;
+</span>
+<span class="comment">;-- BCV::check-GETFIELD monotonic   -------------------------------------
+</span>
+<span class="comment">;;; A few important to steps:
+</span>
+
+(encapsulate ()
+    (local (include-book <span class="string"><a href="base-bcv-check-monotonic.lisp.html">"base-bcv-check-monotonic"</a></span>))
+    (local (in-theory (disable bcv::good-scl)))
+    (defthm sig-check-GETFIELD-on-more-general-implies-more-specific
+      (implies (and (bcv::good-icl icl)
+                    (bcv::sig-frame-more-general gframe sframe env1)
+                    (bcv::consistent-sig-stack (bcv::frameStack gframe) icl)
+                    (bcv::consistent-sig-stack (bcv::frameStack sframe) icl)
+                    (bcv::good-java-type (bcv::fieldtypecp (bcv::arg1 <a href="inst.lisp.html">inst</a>)) icl)
+                    (bcv::good-java-type 
+                     (bcv::prefix-class
+                      (bcv::fieldclassnamecp (bcv::arg1 <a href="inst.lisp.html">inst</a>))) icl)
+                    (bcv::good-java-type 
+                     (bcv::prefix-class
+                      (bcv::classClassname (bcv::classenvironment env1))) icl)
+                    (bcv::good-scl (bcv::classtableEnvironment env1))
+                    (bcv::check-GETFIELD <a href="inst.lisp.html">inst</a> env1 gframe)
+                    (bcv::icl-scl-compatible icl (bcv::classtableEnvironment env1)))
+               (bcv::check-GETFIELD <a href="inst.lisp.html">inst</a> env1 sframe))
+      <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (bcv::classenvironment bcv::classClassname))))))
+
+<span class="comment">;;
+;; have to introduce extra concept such as good-java-type ...
+;; because of the definition of bcv::isAssignable
+;; it is transitive only on certain types!
+;; 
+</span>
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;-- BCV::execute-GETFIELD next step  monotonic ---------------------------
+</span>
+(encapsulate () 
+     (local (include-book <span class="string"><a href="base-bcv-step-monotonic.lisp.html">"base-bcv-step-monotonic"</a></span>))
+     (defthm GETFIELD-monotonicity
+       (implies (and (bcv::sig-frame-more-general gframe sframe env1)
+                     (bcv::check-GETFIELD <a href="inst.lisp.html">inst</a> env1 gframe) 
+                     (bcv::check-GETFIELD <a href="inst.lisp.html">inst</a> env1 sframe) 
+                     (bcv::consistent-sig-stack (bcv::frameStack gframe) icl)
+                     (bcv::consistent-sig-stack (bcv::frameStack sframe) icl)
+                     (bcv::good-icl icl)
+                     (bcv::icl-scl-compatible icl (bcv::classtableEnvironment env1)))
+                (bcv::sig-frame-more-general 
+                 (bcv::normal-frame (bcv::execute-GETFIELD <a href="inst.lisp.html">inst</a> env gframe))
+                 (bcv::normal-frame (bcv::execute-GETFIELD <a href="inst.lisp.html">inst</a> env sframe))
+                 env1))))
+
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;-- DJVM::next-state more specific than BCV  ---------------------------
+</span>
+<span class="comment">;; starting from a same state. 
+</span>
+<span class="comment">;; (i-am-here) ;; Fri Jul 22 20:36:49 2005
+</span>
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-frame-sig-expansion.lisp.html">"base-frame-sig-expansion"</a></span>))
+  (defthm execute-GETFIELD-frame-sig-is
+    (mylet* ((ns (execute-GETFIELD <a href="inst.lisp.html">inst</a> s))
+             (field-rep (car (resolveFieldReference (arg <a href="inst.lisp.html">inst</a>) s)))
+             (classname (jvm::field-classname field-rep))
+             (fieldname (jvm::field-fieldname field-rep))
+             (fieldtype (jvm::field-fieldtype field-rep)))
+            (implies 
+             (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                  (not (pending-exception (resolveClassReference 
+                                           (normalize-type-rep (fieldcp-classname 
+                                                                (arg <a href="inst.lisp.html">inst</a>))) s)))
+                  (not (pending-exception (mv-nth 1 (resolveFieldReference (arg <a href="inst.lisp.html">inst</a>) S))))
+                  (not (NULLp (topStack s)))
+                  (no-fatal-error? (mv-nth 1 (resolveFieldReference (arg <a href="inst.lisp.html">inst</a>) s)))
+                  (car (resolveFieldReference (arg <a href="inst.lisp.html">inst</a>) S))
+                  (NO-FATAL-ERROR? (RESOLVECLASSREFERENCE (FIELDCP-CLASSNAME (ARG INST))
+                                                          S))
+                  (check-GETFIELD <a href="inst.lisp.html">inst</a> s))
+             (equal (frame-sig (current-frame ns)
+                               (instance-class-table ns)
+                               (heap ns)
+                               (heap-init-map (aux ns)))
+                    (frame-push-value-sig-g (value-sig (tag (m6-getfield classname fieldname 
+                                                                         (rREF (topStack s))
+                                                                         s)
+                                                            fieldtype)
+                                                       (instance-class-table s)
+                                                       (heap s)
+                                                       (heap-init-map (aux s))
+                                                       (method-ptr (current-frame s)))
+                                            (frame-sig (current-frame (popStack s))
+                                                       (instance-class-table s)
+                                                       (heap s)
+                                                       (heap-init-map (aux s)))))))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (frame-push-value-sig-g frame-push-value-sig)
+                                    (get-field-type
+                                     consistent-object-init-state
+                                     ))
+             <span class="builtin">:cases</span> ((not (primitive-type? (fieldcp-fieldtype 
+                                            (arg <a href="inst.lisp.html">inst</a>))))))
+            (<span class="string">"Subgoal 1"</span> <span class="builtin">:cases</span> ((NULLp 
+                                  (TAG
+                                   (M6-GETFIELD
+                                    (FIELD-CLASSNAME (LOOKUPFIELD (FIELDCP-TO-FIELD-PTR (ARG INST))
+                                                                  S))
+                                    (FIELDCP-FIELDNAME (ARG INST))
+                                    (RREF (TOPSTACK S))
+                                    S)
+                                   (FIELDCP-FIELDTYPE (ARG INST)))))))))
+
+<span class="comment">;;; We have adequate rules to simplify when the field-type is primitive-type?
+;;; when the value is a NULL pointer
+;;; when the value is a valid-pointer into the heap
+;;;
+;;; We show that the value is a consistent-value !!! &lt;------- this is the most
+;;; important part. in base-consistent-object-m6-getfield.lisp 
+</span>
+<span class="comment">;;; Fri Jul 22 11:47:48 2005
+;;; Wed Jul 20 15:16:05 2005
+;;; Tue Jul 19 21:52:29 2005
+;;;
+;;;
+;----------------------------------------------------------------------
+</span>
+<span class="comment">;; (i-am-here) ;; Sat Jul 23 20:08:54 2005
+</span>
+(encapsulate () 
+ (local (include-book <span class="string"><a href="base-bcv-frame-sig-expansion.lisp.html">"base-bcv-frame-sig-expansion"</a></span>))
+ (defthm bcv-execute-GETFIELD-is
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (not (pending-exception (resolveClassReference 
+                                          (normalize-type-rep (fieldcp-classname 
+                                                               (arg <a href="inst.lisp.html">inst</a>))) s)))
+                 (not (pending-exception (mv-nth 1 (resolveFieldReference (arg <a href="inst.lisp.html">inst</a>) S))))
+                 (not (NULLp (topStack s)))
+                 (no-fatal-error? (mv-nth 1 (resolveFieldReference (arg <a href="inst.lisp.html">inst</a>) s)))
+                 (car (resolveFieldReference (arg <a href="inst.lisp.html">inst</a>) S))
+                 (NO-FATAL-ERROR? (RESOLVECLASSREFERENCE (FIELDCP-CLASSNAME (ARG INST))
+                                                         S))
+                 (check-GETFIELD <a href="inst.lisp.html">inst</a> s)
+                 (bcv::check-GETFIELD <a href="inst.lisp.html">inst</a> (env-sig s) 
+                                      (frame-sig (current-frame s)
+                                                 (instance-class-table s)
+                                                 (heap s)
+                                                 (heap-init-map (aux s)))))
+            (equal (car  (bcv::execute-GETFIELD
+                          <a href="inst.lisp.html">inst</a> (env-sig s) 
+                          (frame-sig (current-frame s)
+                                     (instance-class-table s)
+                                     (heap s)
+                                     (heap-init-map (aux s)))))
+                   (frame-push-value-sig-g (djvm-translate-int-type (bcv::fieldtypecp (arg <a href="inst.lisp.html">inst</a>)))
+                                           (frame-sig (current-frame (popStack s))
+                                                      (instance-class-table s)
+                                                      (heap s)
+                                                      (heap-init-map (aux
+                                                                      s))))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () 
+                                   (bcv::prefix-class
+                                    bcv::translate-type
+                                    normalize-type-rep))))))
+
+
+
+<span class="comment">;;----------------------------------------------------------------------
+;;
+;; Sat Jul 23 19:13:15 2005
+;;
+;; (i-am-here) ;; Mon Jul 25 19:58:21 2005
+;; Mon Jul 25 19:59:39 2005
+</span>
+<span class="comment">;; (i-am-here) ;; Tue Jul 26 01:15:05 2005
+</span>
+(local (include-book <span class="string"><a href="base-next-state-more-specific.lisp.html">"base-next-state-more-specific"</a></span>))
+
+<span class="comment">;;                           (WFF-TYPE-REP (BCV::FIELDTYPECP (ARG INST)))
+;;                           (bcv::good-java-type (bcv::fieldtypecp (arg <a href="inst.lisp.html">inst</a>))
+;;                                                (instance-class-table s))
+;;                           (or (primitive-type? type)
+;;                               (NULLp tagged-value)
+;;                               (not (consp (deref2-init tagged-value (heap-init-map (aux s)))))))
+</span>
+
+(encapsulate () 
+  (local (in-theory (disable BCV-FRAME-STACK-FRAME-SIG-IS-OPSTACK-SIG-specific)))
+  (defthm next-state-no-more-general-GETFIELD
+    (mylet* ((oframe (frame-sig (current-frame s)
+                                (instance-class-table s)
+                                (heap s)
+                                (heap-init-map (aux s))))
+             (ns   (execute-GETFIELD <a href="inst.lisp.html">inst</a> s))
+             (nframe (frame-sig (current-frame ns)
+                                (instance-class-table ns)
+                                (heap ns)
+                                (heap-init-map (aux ns)))))
+            (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                          (not (&lt; (value-of (topStack s)) 0))
+                          (not (pending-exception s))
+                          (no-fatal-error? s)
+                          (not (NULLp (topStack s)))
+                          (no-fatal-error? (mv-nth 1 (resolveFieldReference (arg <a href="inst.lisp.html">inst</a>) s)))
+                          (car (resolveFieldReference (arg <a href="inst.lisp.html">inst</a>) S))
+                          (NO-FATAL-ERROR? (RESOLVECLASSREFERENCE (FIELDCP-CLASSNAME (ARG INST))
+                                                                  S))
+                          (not (pending-exception (resolveClassReference
+                                                   (normalize-type-rep 
+                                                    (fieldcp-classname (arg
+                                                                        <a href="inst.lisp.html">inst</a>))) s)))
+                          (bcv::check-GETFIELD <a href="inst.lisp.html">inst</a> (env-sig s) oframe)
+                          (check-GETFIELD <a href="inst.lisp.html">inst</a> s))
+                     (bcv::sig-frame-more-general 
+                      (mv-nth 0 (bcv::execute-GETFIELD
+                                 <a href="inst.lisp.html">inst</a> 
+                                 (env-sig s)
+                                 oframe))
+                      nframe
+                      (env-sig s))))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable execute-GETFIELD 
+                                        bcv::execute-GETFIELD)))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+
+
+(include-book <span class="string"><a href="../../M6/m6-bytecode.lisp.html">"../../M6/m6-bytecode"</a></span>)
+(include-book <span class="string"><a href="../consistent-state-to-untag-state.lisp.html">"../../DJVM/consistent-state-to-untag-state"</a></span>)
+
+<span class="comment">;; (i-am-here) ;; Tue Jul 26 20:40:27 2005
+</span>
+<span class="comment">;; (local (include-book "base-untag-state"))
+</span>
+<span class="comment">;; ;; (encapsulate ()
+;; ;;    (defthm equal-GETFIELD-when-guard-succeeds
+;; ;;      (implies (GETFIELD-guard <a href="inst.lisp.html">inst</a> s)
+;; ;;               (equal (untag-state (djvm::execute-GETFIELD <a href="inst.lisp.html">inst</a> s))
+;; ;;                      (m6::execute-GETFIELD <a href="inst.lisp.html">inst</a> (untag-state s))))))
+</span>
+<span class="comment">;; ;; ;;
+;; ;; ;; need to fix the untag-value!!! Tue Jul 26 02:00:00 2005
+;; ;; ;;
+</span>
+<span class="comment">;;(i-am-here) ;; Tue Aug  2 17:30:00 2005
+</span>
+<span class="comment">;; (i-am-here) ;; Fri May 12 17:47:18 2006
+</span>
+(encapsulate ()
+   (local (include-book <span class="string"><a href="base-state-equiv.lisp.html">"base-state-equiv"</a></span>))
+   (defthm equal-GETFIELD-when-guard-succeeds
+      (implies (and (state-equiv M6::m6-s DJVM::djvm-s)
+                    (GETFIELD-guard <a href="inst.lisp.html">inst</a> DJVM::djvm-s))
+               (state-equiv (m6::execute-GETFIELD <a href="inst.lisp.html">inst</a> M6::m6-s)
+                            (djvm::execute-GETFIELD <a href="inst.lisp.html">inst</a> DJVM::djvm-s)))
+      <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize fertilize)))))
+
+
+<span class="comment">;; Tue Aug  2 17:47:59 2005
+</span>
+<span class="comment">;;;
+;;; AT LAST!! 
+;;;
+;----------------------------------------------------------------------
+</span>
+<span class="comment">;;(i-am-here) ;; Mon Aug 15 21:55:06 2005
+</span>
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-method-ptr-no-change.lisp.html">"base-method-ptr-no-change"</a></span>))
+  (defthm execute-GETFIELD-change-no-method-ptr
+    (equal (method-ptr (current-frame (djvm::execute-GETFIELD <a href="inst.lisp.html">inst</a> s)))
+           (method-ptr (current-frame s)))))
+
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-method-no-change.lisp.html">"base-method-no-change"</a></span>))
+  (defthm deref-method-no-change-if-already-loaded-GETFIELD
+    (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+             (equal (deref-method (method-ptr (current-frame s))
+                                  (instance-class-table 
+                                   (djvm::execute-GETFIELD <a href="inst.lisp.html">inst</a> s)))
+                    (deref-method (method-ptr (current-frame s))
+                                  (instance-class-table s))))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>(in-theory (disable check-GETFIELD GETFIELD-guard execute-GETFIELD wff-getfield))
+
+
+</pre>
+  </body>
+</html>

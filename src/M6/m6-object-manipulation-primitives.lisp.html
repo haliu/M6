@@ -1,0 +1,548 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>m6-object-manipulation-primitives.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"M6"</span>)
+(include-book <span class="string"><a href="m6-type-value.lisp.html">"../M6/m6-type-value"</a></span>)
+(include-book <span class="string"><a href="m6-class-table.lisp.html">"../M6/m6-class-table"</a></span>)
+(include-book <span class="string"><a href="m6-state.lisp.html">"../M6/m6-state"</a></span>)
+(include-book <span class="string"><a href="m6-class-hierachy-aux.lisp.html">"../M6/m6-class-hierachy-aux"</a></span>)
+(include-book <span class="string"><a href="m6-obj.lisp.html">"../M6/m6-obj"</a></span>)
+(include-book <span class="string"><a href="m6-thread.lisp.html">"../M6/m6-thread"</a></span>)
+(include-book <span class="string"><a href="m6-frame-manipulation-primitives.lisp.html">"../M6/m6-frame-manipulation-primitives"</a></span>)
+
+(acl2::set-verify-guards-eagerness 0)
+<span class="comment">;;; still problematic!! guard verification!! 
+</span>
+<span class="comment">;-------------------------------------------------
+; Primitives for building an java-visible-portion
+;-------------------------------------------------
+</span>
+<span class="comment">;; (defun array-type? (type-sig)
+;;   (and (true-listp type-sig)
+;;        (equal (length type-sig) 2)
+;;        (equal (car type-sig) 'ARRAY)))
+</span>
+
+<span class="comment">;; (defun reference-type (type)
+;;   (or (stringp type)
+;;       (array-type? type)))
+</span>
+<span class="comment">;; ;; Does not handle floating point constant properly.
+;; ;; ACL2 has no support for floating numbers directly.
+</span>
+<span class="comment">;; (defun default-value (type)
+;;   (cond ((equal type 'BYTE)  0)
+;;         ((equal type 'SHORT) 0)
+;;         ((equal type 'INT)   0)
+;;         ((equal type 'LONG)  0)
+;;         ((equal type 'FLOAT) "0.0")
+;;         ((equal type 'DOUBLE) "0.0");
+;;         ((equal type 'CHAR)   0)
+;;         ((equal type 'BOOLEAN) nil)
+;;         ((array-type? type) -1)
+;;         ((reference-type type) -1) ;; use -1 as null pointer.
+;;         (t 'NOT-DEFINED))) 
+;;
+</span>
+<span class="comment">;; ;;; moved to jvm-type-value.lisp
+</span>
+(include-book <span class="string"><a href="../M6-DJVM-shared/jvm-object-manipulation-primitives.lisp.html">"../M6-DJVM-shared/jvm-object-manipulation-primitives"</a></span>)
+
+<span class="comment">;; (defun make-field-value-pair (field-name value)
+;;   (cons field-name value))
+</span>
+
+<span class="comment">;; (defun make-immediate-field-bindings (class-name field-bindings)
+;;   (cons class-name field-bindings))
+</span>
+
+<span class="comment">;; ;; initialization will actually fill in default values for those
+;; ;; fields. however in build-class-fields-bindings
+</span>
+<span class="comment">;; (defun wff-class-fields (class-fields)
+;;   (if (not (consp class-fields))
+;;       (equal class-fields nil)
+;;     (and (wff-field (car class-fields))
+;;          (wff-class-fields (cdr class-fields)))))
+</span>
+<span class="comment">;; (defun build-class-fields-bindings (class-fields)
+;;   (declare (xargs :guard (wff-class-fields class-fields)))
+;;   (if (endp class-fields)
+;;       nil
+;;     (let* ((field (car class-fields))
+;;            (field-name (field-fieldname field))
+;;            (field-type (field-fieldtype field)))
+;;     (cons (make-field-value-pair field-name (default-value field-type))
+;;           (build-class-fields-bindings (cdr class-fields))))))
+</span>  
+<span class="comment">;; ;; too much efforts in defining those guard checks!! 
+;; ;; (acl2::set-verify-guards-eagerness 0)
+</span>
+<span class="comment">;; (defun build-immediate-instance-data-guard (class-name s)
+;;   (and (wff-state s)
+;;        (wff-class-table (class-table s))
+;;        (wff-instance-class-table (instance-class-table s))
+;;        (wff-class-rep (class-by-name class-name
+;;                                      (instance-class-table s)))
+;;        (wff-class-fields (fields (class-by-name
+;;                                   class-name
+;;                                   (instance-class-table s))))))
+</span>
+<span class="comment">;; (defun build-immediate-instance-data (class-name S)
+;;   (declare (xargs :guard (build-immediate-instance-data-guard class-name s)))
+;;   (let* ((dcl (instance-class-table S))
+;;          (field-bindings 
+;;           (build-class-fields-bindings 
+;;            (fields (class-by-name class-name dcl)))))
+;;     (mv (make-immediate-field-bindings class-name field-bindings) S)))
+</span>
+
+<span class="comment">;; (defun build-a-java-visible-instance-data-guard (class-names s)
+;;   (if (not (consp class-names))
+;;       t
+;;     (and (build-immediate-instance-data-guard (car class-names) s)
+;;          (build-a-java-visible-instance-data-guard (cdr class-names) s))))
+</span>        
+<span class="comment">;; (defun build-a-java-visible-instance-data (class-names S)
+;;   (declare (xargs :guard (build-a-java-visible-instance-data-guard class-names s)))
+;;   (if (not (consp class-names))
+;;       (mv nil S)
+;;     (mv-let (immediate-instance-data new-S)
+;;             (build-immediate-instance-data (car class-names) S)
+;;           (mv-let (remaining-instance-data new-S2)
+;;                   (build-a-java-visible-instance-data (cdr class-names) new-S)
+;;               (mv (cons immediate-instance-data remaining-instance-data)
+;;                    new-S2)))))
+</span>
+<span class="comment">;; (defun make-java-lang-Object-java-visible-part (s)
+;;   (mv (list (cons "java.lang.Object" nil))
+;;       s))
+</span>
+<span class="comment">;; ;------------
+;; ;; contains definition of collect-superclass-list and 
+;; ;; it's termination argument.
+</span>
+<span class="comment">;; ;; assume all superclasses are loaded already.
+</span>
+<span class="comment">;; ;; forget about guard verification for now!! 
+</span>
+<span class="comment">;; (acl2::set-verify-guards-eagerness 0) 
+</span>
+<span class="comment">;; ;; many guard will not be verified. 
+</span>  
+
+<span class="comment">;; (defun build-a-java-visible-instance (classname S)
+;;   (let* ((cl (instance-class-table S))
+;;          (classnames (collect-superclass-list classname cl)))
+;;     (if (equal classname "java.lang.Object")
+;;         (make-java-lang-Object-java-visible-part S)
+;;       (build-a-java-visible-instance-data classnames S))))
+</span>  
+
+<span class="comment">;; (defun jvp-setfield (classname fieldname value obj) 
+;;   (bind classname 
+;;         (bind fieldname value
+;;               (binding classname obj))
+;;         obj))   ;; about how to change the java-visible-portion.
+</span>
+<span class="comment">;; (defun jvp-getfield (classname fieldname obj)
+;;   (binding fieldname 
+;;            (binding classname obj)))
+</span>
+
+
+
+<span class="comment">;; (defun build-common-info (of-class)
+;;   (make-common-info 0 (new-monitor) of-class)) ;; ha code is same 
+</span>
+<span class="comment">;; (defun build-INSTANCE-specific-info ()
+;;   (make-INSTANCE-specific-info))
+</span>
+<span class="comment">;; ;; add accessor to ... 
+;; (defun build-an-instance (classname S)
+;;   (mv-let (java-visible-portion new-S) 
+;;           (build-a-java-visible-instance classname S)
+;;           (let ((commoninfo           (build-common-info classname))
+;;                 (specificinfo         (build-INSTANCE-specific-info)))
+;;             (mv (make-object commoninfo specificinfo java-visible-portion)  new-S))))
+</span>
+
+<span class="comment">;; ;; so far only deal with building one instance 
+</span>
+<span class="comment">;; ;; this M6 and DJVM specific!! because it make uses of topStack and depends on
+;; ;; the value representation of values on the stack. 
+</span>
+<span class="comment">;; ;------------------------------------------
+;; ; Primitives for building an Array instance
+;; ;------------------------------------------
+</span>
+<span class="comment">;; ;; to build string, we need "array of char"
+;; ;; use information from book <a href="../M6-DJVM-shared/jvm-type-value.lisp.html">jvm-type-value</a>
+</span>
+<span class="comment">;; (defun build-ARRAY-specific-info (the-internal-array bound)
+;;   (list 'specific-info 'ARRAY the-internal-array bound))
+</span>
+
+<span class="comment">;; (defun array-type (array-obj) 
+;;   (obj-type array-obj))
+</span>
+
+<span class="comment">;; (defun array-bound (array-obj) 
+;;   (let ((array-specific-info (specific-info array-obj)))
+;;     (nth 3 array-specific-info)))
+</span>
+<span class="comment">;; (defun array-data (array-obj)
+;;   (let ((array-specific-info (specific-info array-obj)))
+;;     (nth 2 array-specific-info)))
+</span>
+<span class="comment">;; (defun element-at (index array)
+;;   (nth index (array-data array)))
+</span>
+<span class="comment">;; (defun init-array (type count)
+;;   (if (zp count)
+;;       nil
+;;       (cons (default-value type) (init-array type (- count 1)))))
+</span>
+
+<span class="comment">;; (defun make-array (type bound data S)
+;;   (mv-let (java-visible-portion new-S)
+;;           (build-a-java-visible-instance "java.lang.Object" S)
+;;           (let* ((common-info (build-common-info type))
+;;                  (specific-info (build-ARRAY-specific-info data bound)))
+;;             (mv (make-object common-info specific-info java-visible-portion) new-S))))
+</span>
+
+
+<span class="comment">;; (defun set-element-at (index value array S)
+;;   (make-array (array-type array)
+;;               (array-bound array)
+;;               (update-nth index value (array-data array))
+;;               S))
+</span>
+
+<span class="comment">;; (defun build-an-array-instance (element-type length S)
+;;   (let ((array-type (make-array-type element-type))
+;;         (array-data (init-array element-type length)))
+;;     (make-array array-type length array-data S)))
+</span>
+
+<span class="comment">;; ;; make a change here. don't want to introduce exception here.  let's assume
+;; ;; once this is called, length is guaranteed to be correct. 
+;; ;; all possible exception should be thrown before it call this function.
+</span>
+<span class="comment">;; (defun new-array (element-type length S)
+;;   (if (&lt; length 0)
+;;       (m6-internal-error "new-array precondition violated" s)
+;;     (mv-let (the-object new-s)
+;;             (build-an-array-instance element-type length S)
+;;             (let* ((old-heap (heap new-s))
+;;                    (addr     (alloc old-heap))
+;;                    (new-heap (bind addr the-object old-heap)))
+;;               (pushStack addr (update-trace addr (state-set-heap new-heap new-s)))))))
+;; ;; whenever we create a new object, we update-the trace.
+</span>
+<span class="comment">;; ;; .... M6, DJVM specific ...
+</span>
+
+<span class="comment">;; (defun set-element-at-array (index value array-ref s)
+;;   (let* ((old-heap (heap s))
+;;          (old-array-obj (binding array-ref old-heap)))
+;;     (mv-let (new-array-obj new-s)
+;;             (set-element-at index value old-array-obj s)
+;;             (let* ((new-heap (bind array-ref new-array-obj old-heap)))
+;;               (state-set-heap new-heap new-s)))))
+;; ;; we don't update the trace if there is only a write.
+</span>
+
+<span class="comment">;; (defun set-array-content1 (obj-refs array-ref s offset)
+;;   (if (endp obj-refs)
+;;       s
+;;     (set-array-content1 (cdr obj-refs) array-ref 
+;;                         (set-element-at-array offset (car obj-refs) 
+;;                                               array-ref s)
+;;                         (+ offset 1))))
+</span>
+
+<span class="comment">;; (defun set-array-content (obj-refs array-ref s)
+;;   (set-array-content1 obj-refs array-ref s 0))
+</span>
+
+<span class="comment">;; ;;  another definition will be 
+</span>
+
+<span class="comment">;; ;; (defun multiarray-measure (counts length)
+;; ;;   (if (zp length)
+;; ;;       (cons (cons (+ (len counts) 1) 0) 0)
+;; ;;     (cons (cons (+ (len counts) 1) 0) (+ length 1))))
+</span>
+
+
+<span class="comment">;; ;; (mutual-recursion 
+;; ;;  (defun make-multiarray1 (array-type counts s)
+;; ;;    (declare (xargs :measure (multiarray-measure counts 0)))
+;; ;;    (if (endp counts)
+;; ;;        (pushStack -1 s)  
+;; ;;      ;; with the array-ref on the top of the stack
+;; ;;      (mv-let (obj-refs s1)
+;; ;;              (make-multiarray2 (array-base-type array-type)
+;; ;;                                (cdr counts) 
+;; ;;                                (car counts) 
+;; ;;                                s)
+;; ;;              ;; first create all elements of the array
+;; ;;              (let* ((s2 (new-array (array-base-type array-type) 
+;; ;;                                    (car counts)
+;; ;;                                    s1))
+;; ;;                     (array-ref (topStack s2))
+;; ;;                     (s3 (set-array-content obj-refs array-ref s2)))
+;; ;;                s3))))
+</span>
+<span class="comment">;; ;;  (defun make-multiarray2 (array-type counts length s)
+;; ;;    (declare (xargs :measure (multiarray-measure counts length)))
+;; ;;    (if (zp length)
+;; ;;        (mv nil s)
+;; ;;      (mv-let (obj-refs new-s)
+;; ;;              (make-multiarray2 array-type counts (- length 1) s)
+;; ;;              (let* ((new-s2 (make-multiarray1 array-type counts new-s))
+;; ;;                     (obj-ref (topStack new-s2)))
+;; ;;                (mv (cons obj-ref obj-refs) (popStack new-s2)))))))
+</span>
+
+<span class="comment">;; ;; ;; bytecode verifier would ensure the array-type is actually has more depths
+;; ;; ;; than dim, here we check the runtime data from stack to ensure there are 
+;; ;; (defun multiarray-stack-non-negative (dim s)
+;; ;;   (if (zp dim)
+;; ;;       t
+;; ;;     (if (&lt; (topStack s) 0)
+;; ;;         nil
+;; ;;       (multiarray-stack-non-negative (- dim 1) (popStack s)))))
+</span>  
+
+<span class="comment">;; ;; ;; similiar to new-array, assume exception is not thrown here.
+;; ;; (defun new-multiarray (array-type dim s)
+;; ;;   (if (multiarray-stack-non-negative dim s)
+;; ;;       (m6-internal-error "new-multiarray precondition violated" s)
+;; ;;     (let ((counts (reverse (take dim (operand-stack (current-frame s))))))
+;; ;;       (make-multiarray1 array-type counts s))))
+</span>    
+
+
+<span class="comment">;; ;------------------------------------------
+;; ; Primitives for building an Generic Object 
+;; ;------------------------------------------
+</span>
+<span class="comment">;; ;---------------------------------------------------------------------------
+;; ; 
+;; ;  Build a String before class is properly loaded.  only used by Class Loader
+;; ;  to create initial heap when loading the classs.
+;; ;
+;; ;----------------------------------------------------------------------------
+</span>
+<span class="comment">;; ;; 08/19/2002
+;; ;; because the special field appeared in the String also appeared as java
+;; ;; visible field in String. We treat it as a generic_object.
+</span>
+<span class="comment">;; (defun build-STRING-specific-info ()
+;;   (make-STRING-specific-info))
+</span>
+<span class="comment">;; (defun build-a-javaString (s)
+;;   (mv-let (java-visible-portion new-S) 
+;;           (build-a-java-visible-instance "java.lang.String" S)
+;;           (let ((commoninfo           (build-common-info "java.lang.String"))
+;;                 (specificinfo         (build-STRING-specific-info)))
+;;             (mv (make-object commoninfo specificinfo java-visible-portion)  new-S))))
+</span>
+
+<span class="comment">;; ;  build the heap objects that represent the classes loaded.
+;; ;
+</span>
+<span class="comment">;; (defun build-instanceClass-info (classname) 
+;;   (make-INSTANCE_CLASS-specific-info classname))
+</span>
+
+<span class="comment">;; ; (defun build-instanceClass-info (classname) 
+;; ;   (list 'INSTANCE_CLASS classname))
+;; ;; FIXED for consistent-test.  10/27/03 
+</span>
+
+<span class="comment">;; (defun isInstanceClass? (specificinfo)
+;;   (equal (cadr specificinfo) 'INSTANCE_CLASS))
+</span> 
+<span class="comment">;; (defun specific-info-classname (info)
+;;   (caddr info))
+</span>
+
+<span class="comment">;; (defun build-java-lang-Class-java-visible-part (S)
+;;   (mv (list (cons "java.lang.Class" nil)
+;;             (cons "java.lang.Object" nil))
+;;       s))
+</span>
+
+<span class="comment">;; (defun build-an-instanceClass (classname S)
+;;   (mv-let (java-visible-portion new-S)
+;;           (build-java-lang-Class-java-visible-part s)
+;;           (let ((commoninfo           (build-common-info "java.lang.Class"))
+;;                 (specific-info        (build-instanceClass-info classname)))
+;;             (mv (make-object commoninfo specific-info java-visible-portion)
+;;                 new-S))))
+</span>                                                
+
+<span class="comment">;; (defun build-instanceClassArrayClass-info (type-desc) 
+;;   (make-instanceclassarrayclass-info type-desc))
+</span>
+<span class="comment">;; (defun isArrayClass? (specificinfo)
+;;   (equal (cadr specificinfo) 'ARRAY_CLASS))
+</span>
+<span class="comment">;; ;; may need to seperate the pacakage name out...
+;; ;; notice this is an instance of java.lang.Class which described an array-type.
+</span>
+
+<span class="comment">;; (defun specific-info-array-desc (info)
+;;   (caddr info))
+</span>
+<span class="comment">;; (defun build-instanceClassArrayClass (base-type-desc S)
+;;   (mv-let (java-visible-portion new-S)
+;;           (build-java-lang-Class-java-visible-part s)
+;;           (let ((commoninfo   (build-common-info "java.lang.Class"))
+;;                 (specific-info   (build-instanceClassArrayClass-info
+;;                                   (make-array-type base-type-desc))))
+;;             (mv (make-object commoninfo specific-info java-visible-portion)
+;;                 new-S))))
+</span>
+
+
+<span class="comment">;; ;--------------- build a Throwable-instance ----- 
+;; (defun build-throwable-specific-info (message backtrace)
+;;   (make-throwable-specific-info message backtrace))
+</span>
+<span class="comment">;; (defun specific-info-throwable-instance-message (specific-info)
+;;   (nth 2 specific-info))
+</span>
+
+<span class="comment">;; (defun build-a-Throwable-instance (classname s)
+;;   (mv-let (java-visible-portion new-s)
+;;           (build-a-java-visible-instance classname s)
+;;           (let ((commoninfo (build-common-info classname))
+;;                 (specific-info (build-throwable-specific-info -1 nil)))
+;;             (mv (make-object commoninfo specific-info java-visible-portion)
+;;                 new-S))))
+</span>
+
+
+<span class="comment">;; ;  
+;; ;-------------- above we defined how to build various objects ------- 
+;; ;
+;; ;        GENERIC-OBJECT
+;; ;        ARRAY
+;; ;        STRING
+;; ;        INSTANCE-CLASS
+;; ;        ARRAY-CLASS
+;; ;        THROWABLE-instance
+;; ;        
+;; ;
+</span>
+<span class="comment">;; ;-------------- next we defined a unified interface face to use them --- 
+</span>
+<span class="comment">;; ;; assuming both c1 has been loaded (all it's superclass has been loaded. 
+</span>
+<span class="comment">;; ;; isSubClassOf1 is defined in jvm-semantics-primitives-aux.lisp
+;; ;; for the termination argument.
+</span>
+<span class="comment">;; (defun isSubClassOf (c1 c2 s)
+;;   (isSubClassOf1 c1 c2 (instance-class-table s) nil))
+</span>
+
+<span class="comment">;; ;; 
+;; ;; the class of classname MUST have been loaded. 
+;; ;; before we can call this function.
+;; ;;
+;; (defun instantiate (classname S)
+;;   (cond ((equal classname "java.lang.String") 
+;;          (build-a-javaString S))
+;;         ;; classname can't be string. 
+;;         ;; is a Throwable class.
+;;         ((isSubClassOf classname "java.lang.Throwable" s) 
+;;          (build-a-Throwable-instance classname s))
+;;         (t  (build-an-instance classname s))))
+</span>        
+
+<span class="comment">;; (defun  new-instance (classname S)
+;;   (mv-let (instance new-S)
+;;           (instantiate classname S)
+;;           (let* ((heap (heap new-S))
+;;                  (new-addr (alloc heap))
+;;                  (new-heap (bind new-addr instance heap)))
+;;             (mv new-addr (update-trace new-addr (state-set-heap new-heap s))))))
+</span>
+
+<span class="comment">;; ;-
+</span>
+
+<span class="comment">;; (defun type-by-class-ref (class-ref s)
+;;   (let* ((class-obj (deref class-ref (heap s)))
+;;          (specific-info (specific-info class-obj)))
+;;     (if (isInstanceClass? specific-info)
+;;         (specific-info-classname specific-info)
+;;       (if (isArrayClass? specific-info)
+;;           (specific-info-array-desc specific-info)
+;;         nil))));; impossible
+</span>
+
+<span class="comment">;; ;-------------- <a href="../common/primitives.lisp.html">primitives</a> for modifying obj ----
+;; ; this is internal operation, assume all classes are already initialized. 
+;; ;
+</span>
+<span class="comment">;; (defun m6-putfield (classname fieldname value obj-ref s)
+;;   (let* ((old-heap (heap s))
+;;          (old-obj  (binding obj-ref old-heap))
+;;          (old-jvp  (java-visible-portion old-obj))
+;;          (new-jvp  (jvp-setfield classname fieldname value old-jvp))
+;;          (new-obj  (make-object (common-info old-obj)
+;;                                 (specific-info old-obj)
+;;                                 new-jvp))
+;;          (new-heap (bind obj-ref new-obj old-heap)))
+;;     (state-set-heap new-heap s)))
+</span>
+
+<span class="comment">;; (defun m6-getfield (classname fieldname obj-ref s)
+;;   (binding fieldname 
+;;            (binding classname 
+;;                     (java-visible-portion (deref obj-ref (heap s))))))
+</span>
+
+</pre>
+  </body>
+</html>

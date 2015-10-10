@@ -1,0 +1,288 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>consistent-state-bcv-on-track.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="consistent-state.lisp.html">"../DJVM/consistent-state"</a></span>)
+(include-book <span class="string"><a href="consistent-state-to-sig-state.lisp.html">"../DJVM/consistent-state-to-sig-state"</a></span>)
+(include-book <span class="string"><a href="INST/base-djvm-functions.lisp.html">"../DJVM/INST/base-djvm-functions"</a></span>)
+(include-book <span class="string"><a href="../BCV/typechecker-simple.lisp.html">"../BCV/typechecker-simple"</a></span>)
+(include-book <span class="string"><a href="../BCV/typechecker-ext.lisp.html">"../BCV/typechecker-ext"</a></span>)
+(include-book <span class="string"><a href="../BCV/bcv-good-env-encapsulate.lisp.html">"../BCV/bcv-good-env-encapsulate"</a></span>)
+(include-book <span class="string"><a href="../BCV/good-scl-strong-encapsulate.lisp.html">"../BCV/good-scl-strong-encapsulate"</a></span>)
+<span class="comment">;;
+;; Tue Dec 20 11:09:21 2005. basically, we want to assert that DJVM is stepwise
+;; compatible with the BCV's prediction.
+;;
+</span>
+<span class="comment">;;
+;; We can assume consistent-state, even consistent-state-obj-init!!!
+;;
+</span>
+<span class="comment">;;
+;; frameIsAssignable StackFrame MapFrame Environment)
+;;
+;----------------------------------------------------------------------
+</span>
+<span class="comment">;;
+;; (i-am-here)
+;;
+</span>
+
+(acl2::set-verify-guards-eagerness 0)
+
+
+(<span class="keyword">defun</span> <span class="function-name">method-is-verified</span> (method-ptr scl)
+  (<span class="keyword">let*</span> ((class-name (method-ptr-classname method-ptr))
+         (method-name (method-ptr-methodname method-ptr))
+         (method-args (method-ptr-args-type method-ptr))
+         (method-returntype (method-ptr-returntype method-ptr)))
+    (mv-let (class-exist curClass-static)
+            (class-by-name-s class-name scl)
+            (mv-let 
+             (method-exist  curMethod-static)
+             (jvm::method-by-name-s method-name 
+                                    method-args 
+                                    method-returntype
+                                    (methods-s curClass-static))
+             (and class-exist
+                  method-exist
+                  (BCV::bcv-simple-method  curClass-static 
+                                           curMethod-static
+                                           (bcv::collect-sig-frame-vector-for-method 
+                                            curClass-static
+                                            curMethod-static 
+                                            scl)
+                                           scl))))))
+
+(<span class="keyword">defun</span> <span class="function-name">class-loaded-from</span> (classname cl scl)
+  (<span class="keyword">let*</span> ((curClass (class-by-name classname cl)))
+    (mv-let (class-exist curClass-static)
+            (class-by-name-s classname scl)
+            (and class-exist
+                 (class-is-loaded-from-helper
+                  curClass
+                  curClass-static)))))
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">method-loaded-from</span> (method-ptr cl scl)
+  (<span class="keyword">let*</span> ((class-name (method-ptr-classname method-ptr))
+         (method-name (method-ptr-methodname method-ptr))
+         (method-args (method-ptr-args-type method-ptr))
+         (method-returntype (method-ptr-returntype method-ptr)))
+    (mv-let 
+     (class-exist curClass-static)
+     (class-by-name-s class-name scl)
+     (mv-let 
+      (method-exist  curMethod-static)
+      (jvm::method-by-name-s method-name 
+                             method-args 
+                             method-returntype
+                             (methods-s curClass-static))
+      (and class-exist
+           method-exist
+           (equal (runtime-method-rep curMethod-static
+                                      class-name)
+                  (deref-method method-ptr cl)))))))
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">consistent-frame-bcv0</span> (method-ptr cl scl)
+  (and (class-loaded-from (method-ptr-classname method-ptr) cl scl)
+       (method-loaded-from method-ptr cl scl)
+       (method-is-verified method-ptr scl)))
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">sig-frame-compatible-with-recorded</span> (pc sig-frame stack-maps scl)
+  (bcv::frameisassignable sig-frame
+                          (bcv::searchStackFrame 
+                           pc 
+                           (bcv::stack-map-wrap stack-maps))
+                          (fake-env scl)))
+                                                 
+
+(<span class="keyword">defun</span> <span class="function-name">stack-maps-witness</span> (method-ptr scl)
+  (<span class="keyword">let*</span>  ((class-name (method-ptr-classname method-ptr))
+          (method-name (method-ptr-methodname method-ptr))
+          (method-args (method-ptr-args-type method-ptr))
+          (method-returntype (method-ptr-returntype method-ptr)))
+    (mv-let 
+     (class-exist curClass-static)
+     (class-by-name-s class-name scl)
+     (<span class="keyword">declare</span> (ignore class-exist))
+     (mv-let 
+      (method-exist  curMethod-static)
+      (jvm::method-by-name-s method-name 
+                             method-args 
+                             method-returntype
+                             (methods-s curClass-static))
+      (<span class="keyword">declare</span> (ignore method-exist))
+      (bcv::collect-sig-frame-vector-for-method curClass-static
+                                                curMethod-static 
+                                                scl)))))
+
+
+<span class="comment">;;; the problem that in M6, the PC is not maintained in the frame but as a part
+;;; of the state.  which make the reasoning about consistent-callee-frame-bcv 
+;;; difficult. 
+;;; 
+;;; If the current thread is active, then, it is current (pc s)
+;;; otherwise, it is "saved-pc" in the current thread. 
+</span>
+(<span class="keyword">defun</span> <span class="function-name">consistent-callee-frame-bcv</span> (pc frame hp hp-init cl scl)
+  (<span class="keyword">let*</span> ((method-ptr (method-ptr frame))
+         (djvm-sig-frame (frame-sig frame cl hp hp-init)))
+    (and (consistent-frame-bcv0 method-ptr cl scl)
+         (bcv::searchStackFrame 
+          pc 
+          (bcv::stack-map-wrap (stack-maps-witness method-ptr scl)))
+         (sig-frame-compatible-with-recorded
+          pc 
+          djvm-sig-frame 
+          (stack-maps-witness method-ptr scl)
+          scl))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">consistent-caller-frame-bcv</span> (caller return-type hp hp-init cl scl)
+  (<span class="keyword">let*</span> ((method-ptr (method-ptr caller))
+         (djvm-sig-frame (frame-sig caller cl hp hp-init)))
+    (and (consistent-frame-bcv0 method-ptr cl scl) 
+         <span class="comment">;; method is verified 
+</span>         (sig-frame-compatible-with-recorded 
+          (resume-pc caller)
+          (BCV::TYPETRANSITION  
+           <span class="comment">;; push the return-type onto the operand stack to match with bcv's
+</span>           <span class="comment">;; assumption.
+</span>           nil nil  return-type djvm-sig-frame)
+          (stack-maps-witness method-ptr scl)
+          scl))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+;;                CONSISTENT-ADJACENT-FRAME
+;;                (CALLER CALLEE CL)
+;;                (DECLARE
+;;                 (XARGS
+;;                   :GUARD (CONSISTENT-ADJACENT-FRAME-GUARD CALLER CALLEE CL)))
+;;                (AND
+;;                 (EQUAL (RETURN-PC CALLEE)
+;;                        (RESUME-PC CALLER))
+;;                 (VALID-OFFSET-INTO
+;;                      (RETURN-PC CALLEE)
+;;                      (METHOD-CODE (DEREF-METHOD (METHOD-PTR CALLER) CL)))
+;;                 (&lt;=
+;;                   (+ (LEN (OPERAND-STACK CALLER))
+;;                      (TYPE-SIZE (METHOD-PTR-RETURNTYPE (METHOD-PTR CALLEE))))
+;;                   (METHOD-MAXSTACK (DEREF-METHOD (METHOD-PTR CALLER)
+;;                                                  CL)))))
+</span>
+(<span class="keyword">defun</span> <span class="function-name">return-type-callee</span> (frame)
+  (method-ptr-returntype (method-ptr frame)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">consistent-call-stack-bcv1</span> (cs hp hp-init cl scl)
+    (<span class="keyword">if</span> (endp cs) t
+      (<span class="keyword">if</span> (endp (cdr cs)) t
+        (and (consistent-caller-frame-bcv (cadr cs)
+                                          (return-type-callee (car cs))
+                                          hp hp-init cl scl)
+             (consistent-adjacent-frame (cadr cs)
+                                        (car cs) cl)
+             (consistent-call-stack-bcv1 (cdr cs) hp hp-init cl scl)))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">consistent-thread-entry-bcv</span> (thread pc curthread hp hp-init cl scl)
+  (<span class="keyword">if</span> (equal (thread-id thread) curthread)
+      (and (consistent-callee-frame-bcv pc (car (thread-call-stack thread))
+                                        hp hp-init cl scl)
+           (consistent-call-stack-bcv1 (thread-call-stack thread)
+                                       hp hp-init cl scl))
+    (and (consistent-callee-frame-bcv  (thread-saved-pc thread)
+                                       (car (thread-call-stack thread))
+                                       hp hp-init cl scl)
+         (consistent-call-stack-bcv1 (thread-call-stack thread)
+                                     hp hp-init cl scl))))
+
+<span class="comment">;; because our choice, this is complicated
+;; if the thread is the current thread, the (pc s) records the next instruction
+;; if the thread is not active, the (save-pc (top-frame ...)) is the next
+;; instruction
+;; for caller, the next instruction is (resume-pc frame) ... 
+</span>
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">consistent-thread-table-bcv</span> (threads pc curthread hp hp-init cl scl)
+  (<span class="keyword">if</span> (endp threads) t
+    (and (consistent-thread-entry-bcv 
+          (car threads) pc curthread hp hp-init cl scl)
+         (consistent-thread-table-bcv (cdr threads) pc curthread hp hp-init cl scl))))
+                                      
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;;;
+;;; I don't want to guard verify these functions definitions. 
+;;; 
+;;; However, if they occur as part of the JVM operation. we have to verify
+;;; those!!! 
+;;; 
+</span>
+(<span class="keyword">defun</span> <span class="function-name"><a href="consistent-state-bcv-on-track.lisp.html">consistent-state-bcv-on-track</a></span> (s)
+  (and (bcv::good-scl-strong (env-class-table (env s)))
+       (consistent-thread-table-bcv 
+        (thread-table s)
+        (pc s)
+        (current-thread s)
+        (heap s)
+        (heap-init-map (aux s))
+        (instance-class-table s)
+        (env-class-table (env s)))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+
+
+
+
+</pre>
+  </body>
+</html>

@@ -1,0 +1,121 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>POP.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"ACL2"</span>)
+(include-book <span class="string"><a href="djvm-model.lisp.html">"djvm-model"</a></span>)
+(include-book <span class="string"><a href="bcv-simple-model.lisp.html">"bcv-simple-model"</a></span>)
+(include-book <span class="string"><a href="generic.lisp.html">"generic"</a></span>)
+
+(include-book <span class="string"><a href="consistent-state-properties.lisp.html">"consistent-state-properties"</a></span>)
+(include-book <span class="string"><a href="bcv-method-properties.lisp.html">"bcv-method-properties"</a></span>)
+
+
+<span class="comment">;--- EXPORT ----
+</span>
+(encapsulate () 
+  (local (include-book <span class="string"><a href="djvm-POP.lisp.html">"djvm-POP"</a></span>))
+  (defthm consistent-state-preserved-by-DJVM-POP
+    (implies (and (<a href="consistent-state.lisp.html">consistent-state</a> st)
+                  (equal (next-inst st) inst)
+                  (equal (op-code inst) '<a href="POP.lisp.html">POP</a>)
+                  (djvm-check-POP inst st))
+             (<a href="consistent-state.lisp.html">consistent-state</a>
+              (djvm-execute-POP inst st)))))
+
+
+<span class="comment">;;(i-am-here) ;; Mon Nov 21 10:57:11 2005
+</span>
+
+
+
+(defthm bcv-simple-inst-implies-next-pc-bounded-POP
+  (implies (and (bcv-simple-inst pc inst sig-vector)
+                (equal (g 'pc (cdr (assoc-equal pc sig-vector))) pc)
+                (equal (op-code inst) '<a href="POP.lisp.html">POP</a>))
+           (assoc-equal (+ 1 pc) sig-vector)))
+
+
+
+(local (in-theory (disable collect-witness-bcv-method)))
+
+
+
+(defthm bcv-simple-inst-implies-next-pc-bounded-POP-specific
+  (implies (and (bcv-simple-inst pc (next-inst st)
+                                 (collect-witness-bcv-method 
+                                  (current-method st)
+                                  (g 'method-table st)))
+                (equal (g 'pc (cdr (assoc-equal pc 
+                                                (collect-witness-bcv-method 
+                                                 (current-method st)
+                                                 (g 'method-table st)))))
+                       pc)
+                (equal (op-code (next-inst st)) '<a href="POP.lisp.html">POP</a>))
+           (assoc-equal (+ 1 pc) (collect-witness-bcv-method 
+                                  (current-method st)
+                                  (g 'method-table st)))))
+
+
+
+(local (in-theory (disable current-method <a href="consistent-state.lisp.html">consistent-state</a> 
+                           collect-witness-bcv-method
+                           bcv-simple-inst next-inst)))
+
+
+
+(defthm bcv-simple-check-pop-implies-djvm-check
+  (IMPLIES (AND (CONSISTENT-STATE DJVM-S)
+                (equal (op-code (next-inst djvm-s)) '<a href="POP.lisp.html">POP</a>)
+                (BCV-SIMPLE-CHECK-POP (next-inst djvm-s)
+                                         (EXTRACT-SIG-FRAME (CAR (G 'CALL-STACK DJVM-S))
+                                                            (G 'METHOD-TABLE DJVM-S))))
+           (DJVM-CHECK-POP (next-inst djvm-s) djvm-s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable <a href="consistent-state.lisp.html">consistent-state</a>))))
+
+
+
+
+
+
+
+</pre>
+  </body>
+</html>

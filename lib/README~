@@ -1,0 +1,16 @@
+This directory contains the jvm2acl2 tool. 
+
+George Porter developed the tool.  Hanbing Liu extended to generate formats
+suitable for use M6. 
+
+jvm2acl2 tool uses CFParse library from IBM. 
+
+jvm2acl2/ directory  contains the source code (in Java) and compiled form. 
+
+CFParse/  directory contains the CFParse library for parsing .class files. 
+
+
+
+
+
+

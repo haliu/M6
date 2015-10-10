@@ -1,0 +1,3 @@
+(ld "../DJVM/djvm.pkg")
+(certify-book "djvm-state" 6 t :skip-proofs-okp t)
+

@@ -1,0 +1,165 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-consistent-state-lookupfield.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="../../M6-DJVM-shared/jvm-linker.lisp.html">"../../M6-DJVM-shared/jvm-linker"</a></span>)
+(include-book <span class="string"><a href="../../M6-DJVM-shared/jvm-class-table.lisp.html">"../../M6-DJVM-shared/jvm-class-table"</a></span>)
+(include-book <span class="string"><a href="../../M6-DJVM-shared/jvm-object-type-hierachy.lisp.html">"../../M6-DJVM-shared/jvm-object-type-hierachy"</a></span>)
+(include-book <span class="string"><a href="../consistent-state.lisp.html">"../../DJVM/consistent-state"</a></span>)
+
+
+(local (include-book <span class="string"><a href="base-consistent-state-lookupfield-support.lisp.html">"base-consistent-state-lookupfield-support"</a></span>))
+
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-lookupfield-fieldname-normalize.lisp.html">"base-lookupfield-fieldname-normalize"</a></span>))
+
+  (defthm field-fieldname-reduce
+    (implies (LOOKUPFIELD field-ptr s)
+             (equal (FIELD-FIELDNAME (LOOKUPFIELD field-ptr s))
+                    (field-ptr-fieldname field-ptr))))
+
+  (defthm field-fieldtype-reduce
+    (implies (LOOKUPFIELD field-ptr s)
+             (equal (FIELD-FIELDTYPE (LOOKUPFIELD field-ptr s))
+                    (field-ptr-type field-ptr)))))
+
+<span class="comment">;;; Mon Jun 20 13:55:06 2005 
+;;; wasted my time not asserting fieldcp-classname could not be
+;;; "java.lang.Object"!! 
+;;; 
+</span>
+<span class="comment">;; (defthm
+;;   consistent-object-and-field-found-in-lookup-implies-jvm-field-access-guard
+;;   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+;;                 (consistent-object obj (heap s) (instance-class-table s))
+;;                 (or (not (isArrayType (obj-type obj)))
+;;                     ;;(and (equal (fieldcp-classname fieldcp) "java.lang.Object")
+;;                     (consistent-array-object obj (heap s)
+;;                                              (instance-class-table s)
+;;                                              (array-class-table s)))
+;;                 ;; need to strengthen GUARD 
+;;                 ;; and check for <a href="GETFIELD.lisp.html">GETFIELD</a> ;; Thu Jun  9 15:43:06 2005
+;;                 ;; done!! 
+;;                 (car (isAssignableTo (obj-type obj) (fieldCP-classname fieldcp) s))
+;;                 (lookupField (fieldcp-to-field-ptr fieldCP) s))
+;;            (jvm::jvp-access-field-guard (field-classname 
+;;                                          (lookupField (fieldcp-to-field-ptr
+;;                                                        fieldCP) s))
+;;                                         (fieldcp-fieldname fieldcp)
+;;                                         (java-visible-portion obj))))
+</span>
+
+
+(defthm
+  consistent-object-and-field-found-in-lookup-implies-jvm-field-access-guard
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (consistent-object obj (heap s) (instance-class-table s))
+                (car (isAssignableTo (obj-type obj) (fieldCP-classname fieldcp) s))
+                (lookupField (fieldcp-to-field-ptr fieldCP) s))
+           (jvm::jvp-access-field-guard (field-classname 
+                                         (lookupField (fieldcp-to-field-ptr
+                                                       fieldCP) s))
+                                        (fieldcp-fieldname fieldcp)
+                                        (java-visible-portion obj))))
+
+
+
+
+(defthm consistent-state-field-found-wff-field-rep 
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (lookupField field-ptr s))
+           (wff-field (lookupField field-ptr s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+           <span class="builtin">:in-theory</span> (e/d () (wff-field 
+                               <a href="../consistent-state.lisp.html">consistent-state</a>
+                               fields)))))
+
+
+(defthm reduce-field-ptr-field-name
+  (equal (FIELD-PTR-FIELDNAME (FIELDCP-TO-FIELD-PTR FIELDCP))
+         (fieldcp-fieldname fieldcp))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable fieldcp-fieldname field-ptr-fieldname
+                                     make-field-ptr
+                                     fieldcp-to-field-ptr))))
+
+
+
+
+
+(defthm field-ptr-classname-reduce
+   (equal (FIELD-PTR-CLASSNAME (FIELDCP-TO-FIELD-PTR FIELDCP))
+          (fieldcp-classname fieldcp))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable fieldcp-classname
+                                      fieldcp-to-field-ptr))))
+
+
+
+(defthm field-ptr-fieldname-reduce
+  (equal (field-ptr-fieldname (FIELDCP-TO-FIELD-PTR FIELDCP))
+         (fieldcp-fieldname fieldcp))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable fieldcp-classname fieldcp-to-field-ptr))))
+
+
+(defthm field-ptr-fieldtype-reduce
+  (equal (field-ptr-type (FIELDCP-TO-FIELD-PTR FIELDCP))
+         (fieldcp-fieldtype fieldcp))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable fieldcp-classname fieldcp-to-field-ptr))))
+
+
+(in-theory (disable wff-field))
+
+
+
+
+
+
+(defthm consistent-state-lookupfield-fail-if-array-type-assignable-into
+  (implies (and  (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (isArrayType typ1) 
+                 (car (isAssignableTo typ1 (fieldcp-classname fieldcp) s)))
+           (not (lookupField (fieldcp-to-field-ptr fieldcp) s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (<a href="../consistent-state.lisp.html">consistent-state</a> 
+                                      isClassTerm
+                                      fieldcp-classname)))))
+
+</pre>
+  </body>
+</html>

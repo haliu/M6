@@ -1,0 +1,781 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>m6-native.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      .variable-name {
+        /* font-lock-variable-name-face */
+        color: #eedd82;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"M6"</span>)
+(include-book <span class="string"><a href="m6-internal-primitives.lisp.html">"../M6/m6-internal-primitives"</a></span>)
+(include-book <span class="string"><a href="m6-state.lisp.html">"../M6/m6-state"</a></span>)
+(include-book <span class="string"><a href="m6-obj.lisp.html">"../M6/m6-obj"</a></span>)
+(include-book <span class="string"><a href="m6-type-value.lisp.html">"../M6/m6-type-value"</a></span>)
+(include-book <span class="string"><a href="m6-thread.lisp.html">"../M6/m6-thread"</a></span>)
+(include-book <span class="string"><a href="m6-frame-manipulation-primitives.lisp.html">"../M6/m6-frame-manipulation-primitives"</a></span>)
+(include-book <span class="string"><a href="m6-monitor-failure-as-java-Exception.lisp.html">"../M6/m6-monitor-failure-as-java-Exception"</a></span>)
+(include-book <span class="string"><a href="m6-object-manipulation-primitives.lisp.html">"../M6/m6-object-manipulation-primitives"</a></span>)
+(include-book <span class="string"><a href="m6-static-initializer.lisp.html">"../M6/m6-static-initializer"</a></span>)
+(include-book <span class="string"><a href="m6-semantic-primitives-2.lisp.html">"../M6/m6-semantic-primitives-2"</a></span>)
+(include-book <span class="string"><a href="m6-exceptions.lisp.html">"../M6/m6-exceptions"</a></span>)
+
+<span class="comment">;;(acl2::set-verify-guards-eagerness 0)
+</span>
+(<span class="keyword">defun</span> <span class="function-name">obj-class-ref</span> (obj-ref s)
+  (<span class="keyword">let*</span> ((obj (deref obj-ref (heap s)))
+         (obj-type (obj-type obj)))
+    (<span class="keyword">if</span> (array-type? obj-type)
+        (array-class-ref (array-class-by-name obj-type (array-class-table s)))
+      (class-ref (class-by-name obj-type (instance-class-table s))))))
+
+
+(<span class="keyword">defconst</span> <span class="variable-name">*Java_java_lang_Object_getClass*</span> 
+  (make-method-ptr <span class="string">"java.lang.Object"</span> <span class="string">"getClass"</span> '() <span class="string">"java.lang.Class"</span>))
+
+(<span class="keyword">defun</span> <span class="function-name">Java_java_lang_Object_getClass</span> (s)
+  (pushStack (obj-class-ref (topStack s) s)
+             (popStack s)))
+
+(<span class="keyword">defconst</span> <span class="variable-name">*Java_java_lang_Object_hashCode*</span> 
+  (make-method-ptr <span class="string">"java.lang.Object"</span> <span class="string">"hashCode"</span> '() 'INT))
+
+
+(<span class="keyword">defun</span> <span class="function-name">Java_java_lang_Object_hashCode</span> (s)
+  (pushStack (obj-hashcode (deref (topStack s) (heap s)))
+             (popStack s)))
+
+
+
+
+
+
+
+(<span class="keyword">defconst</span> <span class="variable-name">*Java_java_lang_Object_wait_0*</span> 
+  (make-method-ptr <span class="string">"java.lang.Object"</span> <span class="string">"wait"</span> '() 'void))
+
+<span class="comment">;;  different from KVM source code
+</span>(<span class="keyword">defun</span> <span class="function-name">Java_java_lang_Object_wait_0</span> (s)
+  (<span class="keyword">let*</span> ((obj-ref (topStack s)))
+    (mv-let (status new-s)
+            (monitorWait obj-ref 0 (popStack s))
+            (<span class="keyword">declare</span> (ignore status))
+            new-s)))
+
+
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">ll_zero_ge</span>(v)
+  (= v 0))
+
+
+(<span class="keyword">defconst</span> <span class="variable-name">*Java_java_lang_Object_wait_1*</span> 
+  (make-method-ptr <span class="string">"java.lang.Object"</span> <span class="string">"wait"</span> '(LONG) 'void))
+
+<span class="comment">;;  different from KVM source code
+</span>(<span class="keyword">defun</span> <span class="function-name">Java_java_lang_Object_wait_1</span>(s)
+  (<span class="keyword">let*</span> ((period  (topLong s))  <span class="comment">;; Mon May  1 19:43:21 2006!! 
+</span>         (obj-ref (topStack (popLong s))))
+    (<span class="keyword">if</span> (ll_zero_ge period)
+        (mv-let (status new-s)
+                (monitorWait obj-ref period (popStack (popLong s)))
+                (<span class="keyword">declare</span> (ignore status))
+                new-s)
+      (raise-exception <span class="string">"java.lang.IllegalArgumentException"</span> (popStack (popLong s))))))
+
+
+(<span class="keyword">defconst</span> <span class="variable-name">*Java_java_lang_Object_notify*</span> 
+  (make-method-ptr <span class="string">"java.lang.Object"</span> <span class="string">"notify"</span> '() 'void))
+
+(<span class="keyword">defun</span> <span class="function-name">Java_java_lang_Object_notify</span>(s)
+  (<span class="keyword">let*</span> ((obj-ref (topStack s)))
+    (mv-let (status new-s)
+            (monitorNotify obj-ref 'SINGLE (popStack s))
+            (<span class="keyword">declare</span> (ignore status))
+            new-s)))
+
+
+(<span class="keyword">defconst</span> <span class="variable-name">*Java_java_lang_Object_notifyAll*</span> 
+  (make-method-ptr <span class="string">"java.lang.Object"</span> <span class="string">"notifyAll"</span> '() 'void))
+
+(<span class="keyword">defun</span> <span class="function-name">Java_java_lang_Object_notifyAll</span>(s)
+  (<span class="keyword">let</span> ((obj-ref (topStack s)))
+   (mv-let (status new-s)
+            (monitorNotify obj-ref 'ALL (popStack s))
+            (<span class="keyword">declare</span> (ignore status))
+            new-s)))
+
+
+
+
+
+
+
+
+
+
+
+
+
+<span class="comment">;; and so on .... 
+</span>(<span class="keyword">defconst</span> <span class="variable-name">*Java_java_lang_String_charAt*</span> 
+  (make-method-ptr <span class="string">"java.lang.String"</span> <span class="string">"charAt"</span> '(INT) 'CHAR))
+
+
+(<span class="keyword">defun</span> <span class="function-name">Java_java_lang_String_charAt</span> (s)
+  (<span class="keyword">let*</span> ((obj-ref (topStack (popStack s)))
+         (array-obj-ref (m6-getfield <span class="string">"java.lang.String"</span> <span class="string">"value"</span> obj-ref s)))
+    (pushStack (element-at (topStack s)
+                           (deref array-obj-ref 
+                                  (heap s)))
+                           (popStack (popStack s)))))
+
+(<span class="keyword">defconst</span> <span class="variable-name">*false*</span> 0)
+(<span class="keyword">defconst</span> <span class="variable-name">*true*</span>  1)
+
+(<span class="keyword">defun</span> <span class="function-name">sub-array-data</span> (offset count array)
+  (<span class="keyword">if</span> (zp count)
+      nil
+    (cons (element-at offset array)
+          (sub-array-data (+ offset 1)
+                          (- count  1)
+                          array))))
+
+(<span class="keyword">defconst</span> <span class="variable-name">*Java_java_lang_String_equals*</span> 
+  (make-method-ptr <span class="string">"java.lang.String"</span> <span class="string">"equals"</span> '(<span class="string">"java.lang.Object"</span>) 'BOOLEAN))
+
+
+(<span class="keyword">defun</span> <span class="function-name">getStringContents</span> (str-ref s)
+  (<span class="keyword">let*</span> ((arr-ref (m6-getfield <span class="string">"java.lang.String"</span> <span class="string">"value"</span> str-ref s))
+         (arr-off (m6-getfield <span class="string">"java.lang.String"</span> <span class="string">"offset"</span> str-ref s))
+         (arr-cnt (m6-getfield <span class="string">"java.lang.String"</span> <span class="string">"count"</span>  str-ref s))
+         (array   (deref arr-ref (heap s))))
+    (sub-array-data arr-off arr-cnt array)))
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">Java_java_lang_String_equals</span> (s) 
+  (<span class="keyword">let*</span> ((obj-ref1 (topStack (popStack s)))
+         (obj-ref2 (topStack s)))
+    (<span class="keyword">if</span> (not (equal (obj-type (deref obj-ref1 (heap s)))
+                    <span class="string">"java.lang.String"</span>))
+        (pushStack *false* (popStack (popStack s)))
+      (<span class="keyword">let</span> ((array-content1 (getStringContents obj-ref1 s))
+            (array-content2 (getStringContents obj-ref2 s)))
+      (<span class="keyword">if</span> (equal array-content1 array-content2)
+          (pushStack *true* (popStack (popStack s)))
+        (pushStack *false* (popStack (popStack s))))))))
+
+
+<span class="comment">;; ;; not used 
+;; (defun make-acl2-string (chars)
+;;   (coerce chars 'string))
+</span>
+<span class="comment">;; (defun code-to-chars (nums)
+;;   (if (endp nums)
+;;       nil
+;;     (cons (code-char (car nums))
+;;           (code-to-chars (cdr nums)))))
+</span>
+
+
+(<span class="keyword">defconst</span> <span class="variable-name">*property-configuration*</span> 
+  (str-to-array-char-data <span class="string">"microedition.configuration"</span> 0 (length <span class="string">"microedition.configuration"</span>)))
+
+(<span class="keyword">defconst</span> <span class="variable-name">*property-platform*</span> 
+  (str-to-array-char-data <span class="string">"microedition.platform"</span>  0 (length  <span class="string">"microedition.platform"</span>)))
+
+(<span class="keyword">defconst</span> <span class="variable-name">*property-encoding*</span> 
+  (str-to-array-char-data <span class="string">"microedition.encoding"</span>  0 (length<span class="string">"microedition.encoding"</span>)))
+
+(<span class="keyword">defun</span> <span class="function-name">getSystemProperty</span> (key)
+  (<span class="keyword">cond</span> ((equal key *property-configuration*)
+         <span class="string">"CLDC-1.0"</span>)
+        ((equal key *property-platform*)
+         <span class="string">"palm"</span>)
+        ((equal key *property-encoding*)
+         <span class="string">"ISO8859_1"</span>)))
+         
+(<span class="keyword">defconst</span> <span class="variable-name">*Java_java_lang_System_getProperty0*</span> 
+  (make-method-ptr <span class="string">"java.lang.System"</span> <span class="string">"getProperty0"</span> '(<span class="string">"java.lang.String"</span>) <span class="string">"java.lang.String"</span>))
+    
+(<span class="keyword">defun</span> <span class="function-name">Java_java_lang_System_getProperty0</span> (s)
+  (<span class="keyword">let*</span> ((str-ref (topStack s))
+         (key     (getStringContents str-ref s)))
+    (<span class="keyword">let</span> ((value (getSystemProperty key)))
+      (<span class="keyword">if</span> (equal value nil)
+          (pushStack -1 (popStack s))
+        (mv-let (str-ref s1)
+                (ACL2-str-to-JavaString-ref  value s)
+                (pushStack str-ref (popStack s1)))))))
+    
+    
+(<span class="keyword">defconst</span> <span class="variable-name">*Java_java_lang_String_indexOf_1*</span>
+  (make-method-ptr <span class="string">"java.lang.String"</span> <span class="string">"indexOf"</span> '(INT) 'INT))
+
+(<span class="keyword">defun</span> <span class="function-name">indexOf1</span> (value list from)
+  (<span class="keyword">if</span> (endp list)
+      -1
+    (<span class="keyword">if</span> (equal (car list) value)
+        from
+      (indexOf1 value (cdr list) (+ from 1)))))
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">indexOf</span> (value list)
+  (indexOf1 value list 0))
+
+(<span class="keyword">defun</span> <span class="function-name">Java_java_lang_String_indexOf_1</span> (s)
+  (<span class="keyword">let*</span> ((str-ref (topStack (popStack s)))
+         (value   (topStack s))
+         (array-data (getStringContents str-ref s)))
+    (pushStack (indexOf value array-data)
+               (popStack (popStack s)))))
+
+(<span class="keyword">defconst</span> <span class="variable-name">*Java_java_lang_String_indexOf_2*</span>
+  (make-method-ptr <span class="string">"java.lang.String"</span> <span class="string">"indexOf"</span> '(INT INT) 'INT))
+
+(<span class="keyword">defun</span> <span class="function-name">Java_java_lang_String_indexOf_2</span> (s)
+  (<span class="keyword">let*</span> ((str-ref (topStack (popStack (popStack s))))
+         (value   (topStack (popStack s)))
+         (from    (topStack s))
+         (array-data (getStringContents str-ref s)))
+    (pushStack (indexOf1 value array-data from)
+               (popStack (popStack (popStack s))))))
+
+
+(<span class="keyword">defconst</span> <span class="variable-name">*Java_java_lang_StringBuffer_append*</span>
+  (make-method-ptr <span class="string">"java.lang.StringBuffer"</span>
+                   <span class="string">"append"</span> '(<span class="string">"java.lang.String"</span>)
+                   <span class="string">"java.lang.StringBuffer"</span>))
+
+(<span class="keyword">defun</span> <span class="function-name">Java_java_lang_StringBuffer_append</span> (s) 
+  <span class="comment">;; I changed the src of CLDC code, so that this method is no longer native.
+</span>  s)
+
+(<span class="keyword">defconst</span> <span class="variable-name">*Java_java_lang_System_arraycopy*</span>
+  (make-method-ptr<span class="string">"java.lang.System"</span> <span class="string">"arraycopy"</span>
+                  '(<span class="string">"java.lang.Object"</span> INT (CLASS <span class="string">"java.lang.Object"</span>) INT INT)
+                  'VOID))
+
+
+<span class="comment">;; this is called after we know obj-refs are refs 
+</span>(<span class="keyword">defun</span> <span class="function-name">check-entries</span> (obj-refs type s)
+  (<span class="keyword">if</span> (endp obj-refs)
+      (mv t s)
+    (<span class="keyword">if</span> (equal (car obj-refs) -1)
+        (check-entries (cdr obj-refs) type s)
+      (<span class="keyword">let*</span> ((obj (deref (car obj-refs) (heap s)))
+             (obj-type (obj-type obj)))
+        (mv-let (assignable new-s)
+                (isAssignableTo obj-type type s)
+                (<span class="keyword">if</span> assignable 
+                    (check-entries (cdr obj-refs) type new-s)
+                  (mv nil new-s)))))))
+
+<span class="comment">;; (defun sub-list (l1 s1 len)
+;;   (if (endp l1)
+;;       nil
+;;     (if (zp s1)
+;;         (if (zp len)
+;;             nil
+;;           (cons (car l1) (sub-list (cdr l1) 0 (- len 1))))
+;;       (sub-list (cdr l1) (- s1 1) len))))
+</span>
+
+<span class="comment">;; (defun setChars (l1 s1 l2 s2 len)
+;;   (app (sub-list l2 0 s2)
+;;        (app (sub-list l1 s1 len)
+;;             (sub-list l2 (+ s2 len) (- (len l2) (+ s2 len))))))
+</span>
+
+
+(<span class="keyword">defun</span> <span class="function-name">Java_java_lang_System_arraycopy</span> (s)
+  (<span class="keyword">let</span> ((length  (topStack s))
+        (dstPos  (secondStack s))
+        (dst-ref (thirdStack s))
+        (srcPos  (fourthStack s))
+        (src-ref (fifthStack s))
+        (s1      (popStackN 5 s)))
+    (<span class="keyword">if</span> (or (equal dst-ref -1)
+            (equal src-ref -1))
+        (raise-exception <span class="string">"null pointer"</span> s)
+      (<span class="keyword">let*</span> ((src (deref src-ref (heap s)))
+             (dst (deref dst-ref (heap s))))
+        (<span class="keyword">if</span> (or (not (array-type? (obj-type src)))
+                (not (array-type? (obj-type dst))))
+            (raise-exception <span class="string">"java.lang.ArrayStoreException"</span> s)
+          (<span class="keyword">let*</span> ((src-elem (array-base-type (obj-type src)))
+                 (dst-elem (array-base-type (obj-type dst))))
+            (<span class="keyword">if</span> (or  (and (primitive-type?      src-elem)
+                          (not (primitive-type? dst-elem)))
+                     (and (not (primitive-type? src-elem))
+                          (primitive-type?      dst-elem)
+                     (and (primitive-type?      src-elem)
+                          (primitive-type?      dst-elem)
+                          (not (equal src-elem dst-elem)))))
+                (raise-exception <span class="string">"java.lang.ArrayStoreException"</span> s)
+
+
+              (<span class="keyword">let</span> ((srcEnd (+ length srcPos))
+                    (dstEnd (+ length dstPos))
+                    (srcLen (array-bound src))
+                    (dstLen (array-bound dst)))
+                (<span class="keyword">if</span> (or (&lt; length 0)
+                        (&lt; srcPos 0)
+                        (&lt; dstPos 0)
+                        (and (&gt; length 0)     <span class="comment">;; the case when + warp...
+</span>                             (or (&lt; srcEnd 0)
+                                 (&lt; dstEnd 0)))
+                        (&gt; srcEnd srcLen)
+                        (&gt; dstEnd dstLen))
+                    (raise-exception 
+                     <span class="string">"java.lang.ArrayIndexOutOfBoundsException"</span> s)
+                  (<span class="keyword">if</span> (primitive-type? dst-elem)
+                        <span class="comment">;; just copy .. 
+</span>                        (<span class="keyword">let*</span> ((src-data (array-data src))
+                               (dst-data (array-data dst))
+                               (new-dst-data 
+                                (setChars src-data srcPos dst-data dstPos length)))
+                          (prog2$ (acl2::debug-print <span class="string">"new dst data ~p0~%"</span> new-dst-data)
+                                  (set-array-content new-dst-data dst-ref s)))
+                      (mv-let (assignable s2)
+                              (isAssignableTo  src-elem dst-elem s1)
+                              (<span class="keyword">if</span> assignable
+                                  (<span class="keyword">let*</span> ((src-data (array-data src))
+                                         (dst-data (array-data dst))
+                                         (new-dst-data 
+                                          (setChars src-data srcPos dst-data dstPos length)))
+                                    (set-array-content new-dst-data dst-ref s2))
+                                <span class="comment">;; while in case of instance class. more complicated 
+</span>                                <span class="comment">;; check one by one.
+</span>                                (<span class="keyword">let</span> ((new-data (sub-array-data srcPos length src)))
+                                  (mv-let (assignable s3)
+                                          (check-entries new-data dst-elem s2)
+                                          (<span class="keyword">if</span> (not assignable)
+                                              (raise-exception 
+                                               <span class="string">"java.lang.ArrayStoreException"</span> s)
+                                            (<span class="keyword">let*</span> ((src-data (array-data src))
+                                                   (dst-data (array-data dst))
+                                                   (new-dst-data 
+                                                    (setChars src-data srcPos dst-data dstPos length)))
+                                              (set-array-content new-dst-data dst-ref s3)))))))))))))))))
+
+
+                            
+                            
+(<span class="keyword">defconst</span> <span class="variable-name">*Java_java_lang_Class_forName*</span> 
+  (make-method-ptr 
+   <span class="string">"java.lang.Class"</span>  <span class="string">"forName"</span> 
+   '(<span class="string">"java.lang.String"</span>) <span class="string">"java.lang.Class"</span>))
+
+
+(<span class="keyword">defun</span> <span class="function-name">replaceLetters</span> (chars c1 c2)
+  (<span class="keyword">if</span> (endp chars)
+      nil
+    (<span class="keyword">if</span> (equal (car chars) c2)
+        (cons c1 (replaceLetters (cdr chars) c1 c2))
+      (cons (car chars) (replaceLetters (cdr chars) c1 c2)))))
+
+
+
+<span class="comment">;; tmp implementation.
+</span>(<span class="keyword">defun</span> <span class="function-name">verifyName</span> (name env)
+  (<span class="keyword">declare</span> (ignore name env))
+  t)
+  
+(<span class="keyword">defun</span> <span class="function-name">Java_java_lang_Class_forName</span> (s)
+  (<span class="keyword">let</span> ((str-ref (topStack s)))
+    (<span class="keyword">if</span> (equal str-ref -1)
+        (raise-exception <span class="string">"nullpointer exception"</span> s)
+      (<span class="keyword">let*</span> ((classname0 (getStringContents str-ref s))
+             (classname1 (replaceLetters classname0 (char-code #\.) (char-code #\/)))
+             (classname  (make-acl2-string (code-to-chars classname1))))
+        (<span class="keyword">if</span> (verifyName classname1 (env s))
+            (<span class="keyword">let*</span> ((s1 (getClass classname s))
+                   (class-rep (class-by-name classname (instance-class-table s1))))
+              (<span class="keyword">if</span> class-rep
+                  (<span class="keyword">let</span> ((class-ref (class-ref class-rep)))
+                    <span class="comment">;; impossible to have array class loaded here using getClass
+</span>                    (<span class="keyword">if</span> (not (class-initialized? classname s1))
+                        (initializeClass classname (pushStack class-ref (popStack s1)))
+                      (pushStack class-ref (popStack s1))))
+                <span class="comment">;;(raise-exception "class not found" s1))) ;; Mon May  1
+</span>                <span class="comment">;;17:58:47 2006
+</span>                (raise-exception <span class="string">"java.lang.ClassNotFoundException"</span> s1)))
+          (fatalError <span class="string">"wrong name format"</span> s))))))
+
+
+<span class="comment">;; (defun Java_java_lang_Class_forName (s)
+;;   (let ((str-ref (topStack s)))
+;;     (if (equal str-ref -1)
+;;         (raise-exception "nullpointer exception" s)
+;;       (let* ((classname0 (getStringContents str-ref s))
+;;              (classname1 (replaceLetters classname0 (char-code #\.) (char-code #\/)))
+;;              (classname  (make-acl2-string (code-to-chars classname1))))
+;;         (if (verifyName classname1 (env s))
+;;             (let* ((s1 (getClass classname s))
+;;                    (class-rep (class-by-name classname (instance-class-table s1))))
+;;               (if class-rep
+;;                   (let ((class-ref (class-ref class-rep)))
+;;                     ;; impossible to have array class loaded here using getClass
+;;                     (if (not (class-initialized? classname s1))
+;;                         (initializeClass classname (pushStack class-ref (popStack s1)))
+;;                       (pushStack class-ref (popStack s1))))
+;;                 (raise-exception "class not found" s1)))
+;;           (fatalError "wrong name format" s))))))
+</span>
+
+
+(<span class="keyword">defconst</span> <span class="variable-name">*Java_java_lang_System_getOutput*</span> 
+  (make-method-ptr 
+   <span class="string">"java.lang.System"</span>  <span class="string">"getOutput"</span> '() <span class="string">"java.io.PrintStream"</span>))
+
+
+
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">Java_java_lang_System_getOutput1</span> (s)
+  (<span class="keyword">let</span> ((class-rep (class-by-name <span class="string">"java.io.PrintStream"</span> (instance-class-table
+                                                         s))))
+    (<span class="keyword">if</span> (not class-rep)
+        (raise-exception <span class="string">"class not found"</span> s)
+      (<span class="keyword">if</span> (not (class-initialized? <span class="string">"java.io.PrintStream"</span> s))
+          (mylet* ((s1 (pushFrame (RunCustomCode-method-ptr) nil s))
+                   (s2 (pushStack (make-callback-func-ptr
+                                   '*interruptedGetOutput1Behavior*) s1)))
+            (initializeClass <span class="string">"java.io.PrintStream"</span> 
+             <span class="comment">;; fake a call frame so that when java.io.PrintStream comes back,
+</span>             <span class="comment">;; continue the call.
+</span>                             s2))
+        (mv-let (os-ref s1)
+                (new-instance <span class="string">"java.io.PrintStream"</span> s)
+                <span class="comment">;; fake it now. ignore the details of initialization for now.
+</span>                <span class="comment">;; need to fake a frame to call PrintStream &lt;init&gt;
+</span>                <span class="comment">;; to call interpreter?
+</span>                <span class="comment">;; eventaully, any I/O operation is direct to the native
+</span>                <span class="comment">;; instance. 
+</span>                (pushStack os-ref s1))))))
+        
+
+
+(<span class="keyword">defun</span> <span class="function-name">Java_java_lang_System_getOutput</span> (s)
+  <span class="comment">;; should properly set up the java.lang.System.out, in, err
+</span>  <span class="comment">;; currently left it trival implementation. Implementating IO ??
+</span>  (<span class="keyword">if</span> (not (class-loaded? <span class="string">"java.io.PrintStream"</span> s))
+      (<span class="keyword">let</span> ((s1 (load_class <span class="string">"java.io.PrintStream"</span> s)))
+        (Java_java_lang_System_getOutput1 s1))
+    (Java_java_lang_System_getOutput1 s)))
+
+
+(<span class="keyword">defconst</span> <span class="variable-name">*Java_java_lang_Class_newInstance*</span> 
+  (make-method-ptr 
+   <span class="string">"java.lang.Class"</span>  <span class="string">"newInstance"</span> '() <span class="string">"java.lang.Object"</span>))
+
+<span class="comment">; tmp implementation
+</span>(<span class="keyword">defun</span> <span class="function-name">classHasAccessToClass</span> (classname type s)
+  (<span class="keyword">declare</span> (ignore classname type))
+  (mv t s))
+           
+
+
+(<span class="keyword">defun</span> <span class="function-name">Java_java_lang_Class_newInstance</span> (s)
+  (<span class="keyword">let*</span> ((current-class-rep (current-class s))
+         (accessflags       (class-accessflags current-class-rep))
+         (class-ref (topStack s))
+         (type-rep  (type-by-class-ref class-ref s)))
+    (<span class="keyword">if</span> (or (Array-Type? type-rep)
+            (or (mem '*interface* accessflags)
+                (mem '*abstract*  accessflags)))
+        (raise-exception <span class="string">"java.lang.InstantiationException"</span> s)
+      (mv-let (accessible s1)
+              (classHasAccessToClass (classname current-class-rep) type-rep s)
+              (<span class="keyword">if</span> accessible
+                  (<span class="keyword">let</span> ((method-rep (lookupMethod (initMethod-ptr type-rep) s1)))
+                    (<span class="keyword">if</span> (and method-rep
+                             (equal (method-classname method-rep) type-rep))
+                             <span class="comment">;; we omit the check to prevent invoking a protected init of
+</span>                             <span class="comment">;; superclass.
+</span>                        (mv-let (obj-ref s2)
+                                (new-instance type-rep s1)
+                                (<span class="keyword">if</span> obj-ref 
+                                    (<span class="keyword">let*</span> ((s3 (pushStack obj-ref s2))
+                                           (s4 (pushFrame
+                                                (RunCustomCode-method-ptr) nil s3))
+
+                                           (s5 (pushStack
+                                                (make-callback-func-ptr
+                                                 '*newInstanceReturnObject*)
+                                                s4))
+                                           (s6 (pushStack obj-ref s5))
+                                           (s7 (pushFrameWithPop obj-ref
+                                                                 method-rep s6)))
+                                      s7)
+                                  s2)) <span class="comment">;; some exception has been thrown.
+</span>                      (raise-exception <span class="string">"java/lang/IllegalAccessException"</span> s1)))
+                (raise-exception <span class="string">"java/lang/IllegalAccessException"</span> s1))))))
+
+                                  
+                                      
+                                
+
+(<span class="keyword">defconst</span> <span class="variable-name">*Java_java_lang_Thread_currentThread*</span> 
+  (make-method-ptr 
+   <span class="string">"java.lang.Thread"</span>  <span class="string">"currentThread"</span> '() <span class="string">"java.lang.Thread"</span>))
+
+(<span class="keyword">defun</span> <span class="function-name">Java_java_lang_Thread_currentThread</span> (s) 
+  (<span class="keyword">let*</span> ((tid (current-thread s))
+         (thread-rep (thread-by-id tid (thread-table s)))
+         (thread-ref (thread-ref thread-rep)))
+    (pushStack thread-ref s)))
+          
+            
+        
+(<span class="keyword">defconst</span> <span class="variable-name">*Java_java_lang_Thread_start*</span> 
+  (make-method-ptr 
+   <span class="string">"java.lang.Thread"</span>  <span class="string">"start"</span> '() 'VOID))
+
+
+(<span class="keyword">defun</span> <span class="function-name">Java_java_lang_Thread_yield</span> (s)
+  s)
+
+<span class="comment">;; in our implementation, schedule is provided. 
+</span>
+
+<span class="comment">;; doesn't support sleep on a timer...
+</span>
+<span class="comment">;; our handling of suspendThread, place thread 0 in an advanteous position in
+;; round robin algorithm.
+</span>(<span class="keyword">defun</span> <span class="function-name">Java_java_lang_Thread_sleep</span> (s)
+  (<span class="keyword">let</span> ((period (popLong s)))
+    (<span class="keyword">if</span> (not (equal period 0))
+        (fatalError <span class="string">"not implemented"</span> s)
+      (suspendThread s))))
+  
+
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">runMethod-ptr</span> (classname)
+  (make-method-ptr classname <span class="string">"run"</span> '() 'void))
+
+
+(<span class="keyword">defun</span> <span class="function-name">initThreadBehavior2</span> (ptid s)
+  (<span class="keyword">if</span> (not (equal ptid -1))
+      (state-set-current-thread 
+       ptid (loadExecutionEnvironment 
+             ptid (storeExecutionEnvironment s)))
+    (state-set-current-thread 
+     ptid (storeExecutionEnvironment s))))
+                              
+  
+
+        
+        
+
+(<span class="keyword">defun</span> <span class="function-name">initThreadBehavior1</span> (ptid tid thisMethod sync-obj-ref s)
+  (<span class="keyword">let*</span> ((method-ptr (method-rep-to-method-ptr thisMethod))
+         (s1 (state-set-current-thread tid s))
+         (s2 (pushFrame method-ptr (list sync-obj-ref) s1))
+         (s3 (set-top-frame-return-pc 'KILL_THREAD s2))
+         (accessflags (method-accessflags thisMethod)))
+    (<span class="keyword">if</span> (mem '*synchronized* accessflags)
+       (<span class="keyword">let*</span>  ((s4 (pushFrame (RunCustomCode-method-ptr) nil s3))
+               (s5 (pushStack (make-callback-func-ptr
+                               '*initThreadBehaviorFromThread*) s4)))
+        (initThreadBehavior2 ptid s5))
+      (initThreadBehavior2 ptid (set-curframe-sync-obj -1 s3)))))
+      
+               
+      
+
+
+(<span class="keyword">defun</span> <span class="function-name">initThreadBehavior</span> (tid thisMethod sync-obj-ref s)
+  (<span class="keyword">let</span> ((ptid (current-thread s)))
+    (<span class="keyword">if</span> (not (equal ptid -1))
+        (initThreadBehavior1 ptid tid thisMethod sync-obj-ref
+                             (storeExecutionEnvironment s))
+        (initThreadBehavior1 ptid tid thisMethod sync-obj-ref s))))
+                             
+
+<span class="comment">;; we know this obj is
+;; of type runnable. so 
+;; top so stack has no target-ref 
+</span>(<span class="keyword">defun</span> <span class="function-name">Java_java_lang_Thread_start1</span> (tid target-ref s)
+  (<span class="keyword">let*</span> ((classname  (obj-type (deref target-ref (heap s))))
+         (thisMethod (lookupMethod (runMethod-ptr classname) s)))
+    (<span class="keyword">let*</span> ((s1 (initThreadBehavior tid thisMethod target-ref s))
+           (s2 s1)
+           <span class="comment">;;(s2 (pushStack target-ref s1))
+</span>           (s3 (startThread tid s2))
+           (s4 (resumeThread tid s3)))
+      s4)))
+    
+
+
+<span class="comment">;; assume  top of stack is the thread-ref
+</span>(<span class="keyword">defun</span> <span class="function-name">Java_java_lang_Thread_start</span> (s)
+  (<span class="keyword">let*</span> ((thread-ref (topStack s))
+         (target     (m6-getfield <span class="string">"java.lang.Thread"</span> <span class="string">"target"</span> thread-ref s))
+         (s1         (popStack s)))
+    (mv-let (tid s2)
+            (getVMthread thread-ref s1)
+            (<span class="keyword">let*</span> ((thread-rep (thread-by-id tid (thread-table s2)))
+                   (thread-state (thread-state thread-rep)))
+              (<span class="keyword">if</span> (not (equal thread-state '(thread_just_born)))
+                  (raise-exception <span class="string">"java.lang.IllegalThreadStateException"</span> s2)
+                (<span class="keyword">if</span> (not (equal target -1))
+                    (Java_java_lang_Thread_start1 tid target  s2)
+                  (Java_java_lang_Thread_start1 tid thread-ref s2)))))))
+
+
+
+
+(<span class="keyword">defconst</span> <span class="variable-name">*Java_java_lang_Thread_setPriority0*</span> 
+  (make-method-ptr 
+   <span class="string">"java.lang.Thread"</span>  <span class="string">"setPriority0"</span> '(int) 'VOID))
+
+
+(<span class="keyword">defun</span> <span class="function-name">Java_java_lang_Thread_setPriority0</span> (s)
+  <span class="comment">;; trival implementation
+</span>  (popStack (popStack s)))
+
+
+
+
+(<span class="keyword">defconst</span> <span class="variable-name">*Java_java_io_PrintStream_write*</span> 
+  (make-method-ptr 
+   <span class="string">"java.io.PrintStream"</span>  <span class="string">"write"</span> '(<span class="string">"java.lang.String"</span>) 'VOID))
+
+
+(<span class="keyword">defun</span> <span class="function-name">Java_java_io_PrintStream_write</span> (s)
+  (<span class="keyword">let*</span> ((obj-str-ref (topStack s))
+         (printStream-ref (secondStack s))
+         (acl2string  (JavaString-to-ACL2-str obj-str-ref s)))
+    (prog2$ (acl2::cw <span class="string">"output from the stream at heap ref ~p0 is ~p1~%"</span>  printStream-ref acl2string)
+            (popStack (popStack s)))))
+
+
+(<span class="keyword">defconst</span> <span class="variable-name">*Java_java_io_PrintStream_newLine*</span> 
+  (make-method-ptr 
+   <span class="string">"java.io.PrintStream"</span>  <span class="string">"newLine"</span> '() 'VOID))
+
+
+(<span class="keyword">defun</span> <span class="function-name">Java_java_io_PrintStream_newLine</span> (s)
+  (<span class="keyword">let*</span> ((printStream-ref (topStack s)))
+    (prog2$ (acl2::cw <span class="string">"output from the stream at heap ref ~p0 is ~p1~%"</span>  printStream-ref <span class="string">"newline"</span>)
+            (popStack s))))
+    
+
+(<span class="keyword">defun</span> <span class="function-name">newInstanceReturnObject</span> (s)
+  (popFrame s))
+
+
+(<span class="keyword">defun</span> <span class="function-name">gen-method-nsig</span> (method)
+  (make-method-ptr (method-classname method)
+                   (method-methodname method)
+                   (method-args       method)
+                   (method-returntype method)))
+
+
+<span class="comment">;; i modify the code of StringBuffer implementation, it is now not a native
+;; implementation but implemented in Java.
+</span>
+(<span class="keyword">defun</span> <span class="function-name">invokeNativeFunction</span> (method s)
+  (prog2$ 
+      (acl2::debug-print <span class="string">"call native method ~p0~%"</span> method)
+      (<span class="keyword">let</span> ((nsig (gen-method-nsig method)))
+        (<span class="keyword">cond</span> ((equal nsig *Java_java_lang_Object_getClass*)
+               (Java_java_lang_Object_getClass s))
+              ((equal nsig *Java_java_lang_Object_hashCode*)
+               (Java_java_lang_Object_hashCode s))
+              ((equal nsig *Java_java_lang_Object_wait_0*)
+               (Java_java_lang_Object_wait_0 s))
+              ((equal nsig *Java_java_lang_Object_wait_1*)
+               (Java_java_lang_Object_wait_1 s))
+              ((equal nsig *Java_java_lang_Object_notify*)
+               (Java_java_lang_Object_notify s))
+              ((equal nsig *Java_java_lang_Object_notifyAll*)
+               (Java_java_lang_Object_notifyAll s))
+
+
+              <span class="comment">;; and so on. 
+</span>              ((equal nsig *Java_java_lang_String_charAt*)
+               (Java_java_lang_String_charAt s))
+              ((equal nsig *Java_java_lang_String_equals*)
+               (Java_java_lang_String_equals s))
+              ((equal nsig *Java_java_lang_System_getProperty0*)
+               (Java_java_lang_System_getProperty0 s))
+              ((equal nsig *Java_java_lang_String_indexOf_1*) <span class="comment">;; could be not native.
+</span>               (Java_java_lang_String_indexOf_1 s))
+              ((equal nsig *Java_java_lang_String_indexOf_2*) <span class="comment">;; could be not native.
+</span>               (Java_java_lang_String_indexOf_2 s))
+
+              ((equal nsig *Java_java_lang_System_arraycopy*)
+               (Java_java_lang_System_arraycopy s))
+              ((equal nsig *Java_java_lang_Class_forName*)
+               (Java_java_lang_Class_forName s))
+              ((equal nsig *Java_java_lang_System_getOutput*)
+               (Java_java_lang_System_getOutput s))
+              ((equal nsig *Java_java_lang_Class_newInstance*)
+               (Java_java_lang_Class_newInstance s))
+              ((equal nsig *Java_java_lang_Thread_currentThread*)
+               (Java_java_lang_Thread_currentThread s))
+              ((equal nsig *Java_java_lang_Thread_start*)
+               (Java_java_lang_Thread_start s))
+              ((equal nsig *Java_java_lang_Thread_setPriority0*)
+               (Java_java_lang_Thread_setPriority0 s))
+
+              ((equal nsig *Java_java_io_PrintStream_write*)
+               (Java_java_io_PrintStream_write s))
+              ((equal nsig *Java_java_io_PrintStream_newLine*)
+               (Java_java_io_PrintStream_newLine s))
+
+              (t (prog2$ (acl2::debug-print <span class="string">"function undefined yet ~p0~%"</span> nsig)
+
+                         s))))))
+
+
+
+
+</pre>
+  </body>
+</html>

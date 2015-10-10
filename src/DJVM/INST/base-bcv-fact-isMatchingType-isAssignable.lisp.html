@@ -1,0 +1,90 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-bcv-fact-isMatchingType-isAssignable.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="base.lisp.html">"base"</a></span>)
+(include-book <span class="string"><a href="base-consistent-state.lisp.html">"base-consistent-state"</a></span>)
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(local (include-book <span class="string"><a href="base-bcv-support.lisp.html">"base-bcv-support"</a></span>))
+
+(local 
+ (defthm bcv-isMatchingType-bcv-isAssignable
+   (implies (and (bcv::isMatchingType typ stk env)
+                 (equal (bcv::sizeof typ) 1))
+            (bcv::isAssignable (car stk) typ env))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv::isMatchingType)))))
+
+
+(defthm bcv-isMatchingType-bcv-isAssignable-specific
+  (implies (and (bcv::isMatchingType typ (opstack-sig 
+                                          (operand-stack (current-frame s))
+                                          cl hp hp-init method-ptr) env)
+                (canPopCategory1 (operand-stack (current-frame s)))
+                (equal (bcv::sizeof typ) 1))
+           (bcv::isAssignable (value-sig (topStack s)
+                                         cl hp hp-init method-ptr) typ env)))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;; (defthm isMatchingType-isAssignableTo
+;;   (implies 
+;;    (BCV::ISMATCHINGTYPE
+;;     (BCV::PREFIX-CLASS (BCV::FIELDCLASSNAMECP (BCV::ARG1 INST)))
+;;     (OPSTACK-SIG (OPERAND-STACK (CURRENT-FRAME S))
+;;                  (INSTANCE-CLASS-TABLE S)
+;;                  (HEAP S)
+;;                  (HEAP-INIT-MAP (AUX S))
+;;                  (METHOD-PTR (CURRENT-FRAME S)))
+;;     (ENV-SIG S))
+;;    (bcv::isAssignable (value-sig (topStack s)
+;;                                  cl hp hp-init method-ptr) 
+;;                       typ env)))
+</span>
+</pre>
+  </body>
+</html>

@@ -1,0 +1,116 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>state-equiv-def.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"ACL2"</span>)
+(include-book <span class="string"><a href="jvm-model.lisp.html">"jvm-model"</a></span>)
+(include-book <span class="string"><a href="djvm-model.lisp.html">"djvm-model"</a></span>)
+
+
+(<span class="keyword">defun</span> <span class="function-name">method-equiv</span> (jvm-method djvm-method)
+  (and (equal (g 'method-name jvm-method)
+              (g 'method-name djvm-method))
+       (equal (g 'max-stack jvm-method)
+              (g 'max-stack djvm-method))
+       (equal (g 'nargs jvm-method)
+              (g 'nargs djvm-method))
+       (equal (g 'code jvm-method)
+              (g 'code djvm-method))))
+              
+
+
+(<span class="keyword">defun</span> <span class="function-name">class-table-equiv</span> (jvm-method-table djvm-method-table)
+  (<span class="keyword">if</span> (endp djvm-method-table) t
+      (and (method-equiv (binding (caar djvm-method-table)
+                                  jvm-method-table)
+                         (cdar djvm-method-table))
+           (class-table-equiv jvm-method-table (cdr djvm-method-table)))))
+
+
+<span class="comment">;;r (defun class-table-equiv2 (jvm-method-table djvm-method-table)
+;;   (if (endp jvm-method-table) t
+;;       (and (method-equiv  (cdar jvm-method-table)
+;;                           (binding (caar jvm-method-table)
+;;                                    djvm-method-table))
+;;            (class-table-equiv2 (cdr jvm-method-table) djvm-method-table))))
+;;
+;;
+;; (defun class-table-equiv (jvm-method-table djvm-method-table)
+;;   (and (class-table-equiv1  
+</span>
+
+
+(<span class="keyword">defun</span> <span class="function-name">opstack-equiv</span> (jvm-opstack djvm-opstack)
+  (equal jvm-opstack 
+         djvm-opstack))
+
+(<span class="keyword">defun</span> <span class="function-name">local-equiv</span> (jvm-local djvm-local)
+  (equal jvm-local djvm-local))
+
+
+(<span class="keyword">defun</span> <span class="function-name">call-frame-equiv</span> (jvm-call-frame djvm-call-frame)
+  (and (equal (g 'pc jvm-call-frame)
+              (g 'pc djvm-call-frame))
+       (equal (g 'method-name jvm-call-frame)
+              (g 'method-name djvm-call-frame))
+       (opstack-equiv (g 'op-stack jvm-call-frame)
+                      (g 'op-stack djvm-call-frame))
+       (local-equiv (g 'locals jvm-call-frame)
+                    (g 'locals djvm-call-frame))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">call-stack-equiv</span> (jvm-call-stack djvm-call-stack)
+  (<span class="keyword">if</span> (endp jvm-call-stack)
+      (endp djvm-call-stack)
+    (<span class="keyword">if</span> (endp djvm-call-stack) nil
+      (and (call-frame-equiv (topx jvm-call-stack) (topx djvm-call-stack))
+           (call-stack-equiv (popx jvm-call-stack) (popx djvm-call-stack))))))
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">state-equiv</span> (jvm-s djvm-s)
+  (and (class-table-equiv (g 'method-table jvm-s)
+                          (g 'method-table djvm-s))
+       (call-stack-equiv (g 'call-stack jvm-s)
+                         (g 'call-stack djvm-s))))
+
+</pre>
+  </body>
+</html>

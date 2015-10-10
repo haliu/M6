@@ -1,0 +1,34 @@
+#!/bin/sh
+
+if [ "$CFPARSE_HOME" = "" ]; then
+        CFPARSE_HOME=../lib
+fi
+
+if [ ! -f $CFPARSE_HOME/apps.jar ]; then
+        echo Cannot find apps.jar, is CFPARSE_HOME set correctly?
+        exit 1
+fi
+if [ ! -f $CFPARSE_HOME/cfparse.jar ]; then
+        echo Cannot find cfparse.jar, is CFPARSE_HOME set correctly?
+        exit 1
+fi
+
+case "$1" in
+	asm)	cmd=com.ibm.toad.asm.Asm; shift
+		;;
+	jackie)	cmd=com.ibm.toad.jackie.Main; shift
+		;;
+	cfparse) cmd=com.ibm.toad.cfparse.Main; shift
+		;;
+	gasm)	cmd=com.ibm.toad.asm.gui.Main; shift
+		;;
+	dis)	cmd=com.ibm.toad.asm.Dis; shift
+		;;
+esac
+
+if [ "$cmd" = "" ]; then
+        echo Bad wrapper usage. Please run cfparse, asm, gasm, jackie, dis.
+        exit 1
+fi
+
+java -classpath $CFPARSE_HOME/swingall.jar:$CFPARSE_HOME/apps.jar:$CFPARSE_HOME/cfparse.jar:$CLASSPATH $cmd $*

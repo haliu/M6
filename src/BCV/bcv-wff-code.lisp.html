@@ -1,0 +1,236 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>bcv-wff-code.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"BCV"</span>)
+(include-book <span class="string"><a href="typechecker.lisp.html">"typechecker"</a></span>)
+(include-book <span class="string"><a href="typechecker-ext.lisp.html">"typechecker-ext"</a></span>)
+(include-book <span class="string"><a href="typechecker-simple.lisp.html">"typechecker-simple"</a></span>)
+(include-book <span class="string"><a href="../M6-DJVM-shared/jvm-bytecode.lisp.html">"../M6-DJVM-shared/jvm-bytecode"</a></span>)
+
+
+(include-book <span class="string"><a href="bcv-base.lisp.html">"bcv-base"</a></span>)
+
+<span class="comment">;; we prove a few result. 
+;;
+;; 1. ordered pc! 
+;;
+</span>
+<span class="comment">;;
+;; 2. if instruction are strictly increasing 
+;;     as a lemma it is not equal
+;;
+</span>
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(local (in-theory (disable jvm::inst-size 
+                           isStackMap
+                           isEnd
+                           instrOffset
+                           mapOffset
+                           getMap
+                           isInstruction)))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(local 
+(encapsulate () 
+
+(defthm is-suffix-member-extract-code
+   (implies (and (is-suffix mergedcode1 mergedcode)
+                 (wff-merged-code-weak mergedcode)
+                 (member <a href="../DJVM/INST/inst.lisp.html">inst</a> (extract-code mergedcode1)))
+            (member <a href="../DJVM/INST/inst.lisp.html">inst</a> (extract-code mergedcode))))
+
+
+
+(defthm pc-wff-mergedcode1-offset-lemma-2
+   (implies (and (pc-wff-mergedcode1 pc mergedcode)
+                 (member x (extract-pc mergedcode)))
+            (&lt;= pc x)))
+
+
+
+(defthm pc-wff-mergedcode1-any
+  (implies (and (pc-wff-mergedcode1 pc mergedcode)
+                (consp mergedcode)
+                (not (isEnd (car mergedcode)))
+                (&lt;= 0 pc))
+           (PC-WFF-MERGEDCODE1 (next-pc MERGEDCODE)
+                               MERGEDCODE))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+           <span class="builtin">:in-theory</span> (enable getMap mapOffset))))
+
+
+(defthm pc-wff-mergedcode1-is-suffix
+  (implies (and (pc-wff-mergedcode1 pc mergedcode)
+                (wff-merged-code-weak mergedcode1)
+                (is-suffix mergedcode1 mergedcode)
+                (consp mergedcode1)
+                (not (isEnd (car mergedcode1))))
+           (pc-wff-mergedcode1 (next-pc mergedcode1)
+                               mergedcode1))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize))))
+
+
+(defthm pc-wff-mergedcode1-is-suffix-specific
+  (implies (and (pc-wff-mergedcode1 pc mergedcode)
+                (wff-merged-code-weak mergedcode1)
+                (is-suffix (cons instr mergedcode1) mergedcode)
+                (isInstruction instr))
+           (pc-wff-mergedcode1 (+ (instrOffset instr)
+                                  (jvm::inst-size instr))
+                               mergedcode1))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span> pc-wff-mergedcode1-is-suffix
+                            (mergedcode1 (cons instr mergedcode1)))))))
+           
+
+(defthm pc-wff-mergedcode1-jvm-size-greater
+  (implies (and (member instr  mergedcode)
+                (isInstruction instr)
+                (pc-wff-mergedcode1 pc mergedcode))
+           (&lt;= 1 (jvm::inst-size instr))))
+
+           
+
+(defthm is-suffix-member
+  (implies (IS-SUFFIX (cons instr mergedcode1)
+                      MERGEDCODE)
+           (member instr mergedcode)))
+
+
+
+(defthm member-extract-inst-member-extract-pc
+  (implies (member <a href="../DJVM/INST/inst.lisp.html">inst</a> (extract-code mergedcode))
+           (member (<a href="../DJVM/INST/inst.lisp.html">inst</a>rOffset <a href="../DJVM/INST/inst.lisp.html">inst</a>)
+                   (extract-pc mergedcode))))
+
+))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(defthm wff-merged-code-weak-is-suffix
+  (implies (and (is-suffix mergedcode1 mergedcode)
+                (consp mergedcode1)
+                (wff-merged-code-weak mergedcode))
+           (wff-merged-code-weak mergedcode1))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+
+(defthm pc-wff-mergedcode1-is-suffix
+  (implies (and (pc-wff-mergedcode1 pc mergedcode)
+                (wff-merged-code-weak mergedcode1)
+                (is-suffix mergedcode1 mergedcode)
+                (consp mergedcode1)
+                (not (isEnd (car mergedcode1))))
+           (pc-wff-mergedcode1 (next-pc mergedcode1)
+                               mergedcode1))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize))))
+           
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(defthm pc-wff-mergedcode1-offset-greater
+  (implies (and (IS-SUFFIX (CONS instr1 mergedcode1)
+                           mergedcode)
+                (isInstruction instr1)
+                (pc-wff-mergedcode1 0 mergedcode)
+                (member instr2 (extract-code mergedcode1)))
+           (&lt; (instrOffset instr1)
+              (instrOffset instr2)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> 
+           <span class="builtin">:in-theory</span> (disable pc-wff-mergedcode1-offset-lemma-2
+                               pc-wff-mergedcode1-is-suffix-specific
+                               wff-merged-code-weak-is-suffix
+                               pc-wff-mergedcode1-jvm-size-greater)
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span> pc-wff-mergedcode1-offset-lemma-2
+                                   (pc (+ (instrOffset instr1)
+                                          (jvm::inst-size instr1)))
+                                   (x (instrOffset instr2))
+                                   (mergedcode mergedcode1))
+                        (<span class="builtin">:instance</span> pc-wff-mergedcode1-is-suffix-specific
+                                   (pc 0)
+                                   (instr instr1))
+                        (<span class="builtin">:instance</span> wff-merged-code-weak-is-suffix
+                                   (mergedcode1 (cons instr1 mergedcode1)))
+                        (<span class="builtin">:instance</span> pc-wff-mergedcode1-jvm-size-greater
+                                   (instr instr1)
+                                   (pc 0))
+                        (<span class="builtin">:instance</span> is-suffix-member
+                                   (instr instr1)))
+           <span class="builtin">:do-not-induct</span> t)))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(defthm pc-wff-mergedcode1-offset-specific
+  (implies (and (IS-SUFFIX (CONS instr1 mergedcode1)
+                           mergedcode)
+                (isInstruction instr1)
+                (pc-wff-mergedcode1 0 mergedcode)
+                (member instr2 (extract-code mergedcode1)))
+           (not (equal  (instrOffset instr1)
+                        (instrOffset instr2))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> ((<span class="builtin">:instance</span> pc-wff-mergedcode1-offset-greater)))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm is-suffix-member-f
+  (implies (IS-SUFFIX (cons instr mergedcode1)
+                      MERGEDCODE)
+           (member instr mergedcode))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+</pre>
+  </body>
+</html>

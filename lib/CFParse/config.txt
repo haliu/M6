@@ -1,0 +1,67 @@
+# View Menu Configuration file, of the following form.
+# Top-Level Record name is the name of the CFNode
+# for each top level menu, two items are defined
+# the default view. i.e. the view to begin with
+# and the Structure MenuItem.
+# Each MenuItem must have the following defined fields
+# 	name : the name of the MenuItem 
+# 	className : the fully qualified className of the Viewer for this view
+#	args : the arguments for the constructor of the implementing class. These are comma delineated between braces []
+#			and must be in the order defined in the constructor.
+ 
+ConstantPool(
+	default = "Table View";
+
+	Pie_Chart = MenuItem(
+		name = "Pie Chart";
+		className = "com.ibm.toad.jackie.impl.PieChartConstantPoolViewer";
+		args = ["com.ibm.toad.cfparse.ConstantPool"];
+	);
+
+	Table_View = MenuItem(
+		name = "Table View";
+		className = "com.ibm.toad.jackie.impl.DefaultConstantPoolViewer";
+		args = ["com.ibm.toad.cfparse.ConstantPool"];
+	);
+)
+
+Interfaces(
+	default = "Table View";
+
+	Table_View = MenuItem(
+		name = "Table View";
+		className = "com.ibm.toad.jackie.impl.DefaultInterfaceListViewer";
+		args = ["com.ibm.toad.cfparse.InterfaceList"];
+	);
+)
+
+Attributes(
+	default = "Table View";
+
+	Table_View = MenuItem(
+		name = "Table View";
+		className = "com.ibm.toad.jackie.impl.DefaultAttrInfoListViewer";
+		args = ["com.ibm.toad.cfparse.attributes.AttrInfoList","com.ibm.toad.cfparse.ConstantPool"];
+	);
+)
+
+Methods(
+	default = "Table View";
+
+	Table_View = MenuItem(
+		name = "Table View";
+		className = "com.ibm.toad.jackie.impl.DefaultMethodInfoListViewer";
+		args = ["com.ibm.toad.cfparse.MethodInfoList","com.ibm.toad.cfparse.ConstantPool"];
+	);
+)
+
+Fields(
+	default = "Table View";
+
+	Table_View = MenuItem(
+		name = "Table View";
+		className = "com.ibm.toad.jackie.impl.DefaultFieldInfoListViewer";
+		args = ["com.ibm.toad.cfparse.FieldInfoList","com.ibm.toad.cfparse.ConstantPool"];
+	);
+)
+

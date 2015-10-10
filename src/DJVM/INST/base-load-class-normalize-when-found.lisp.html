@@ -1,0 +1,208 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-load-class-normalize-when-found.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+
+(include-book <span class="string"><a href="../consistent-state.lisp.html">"../../DJVM/consistent-state"</a></span>)
+(include-book <span class="string"><a href="../consistent-state-properties.lisp.html">"../../DJVM/consistent-state-properties"</a></span>)
+(include-book <span class="string"><a href="../../M6-DJVM-shared/jvm-object-type-hierachy.lisp.html">"../../M6-DJVM-shared/jvm-object-type-hierachy"</a></span>)
+
+(in-theory (disable getArrayClass resolveClassReference))
+
+(include-book <span class="string"><a href="base-valid-type-s.lisp.html">"base-valid-type-s"</a></span>)
+
+
+<span class="comment">;; (defthm consistent-object-not-array-implies-class-loaded
+;;   (implies (and (consistent-object obj (heap s) (instance-class-table s))
+;;                 (not (isArrayType (obj-type obj))))
+;;            (isClassTerm (class-by-name (obj-type obj)
+;;                                        (instance-class-table s))))
+;;   :hints (("Goal" :in-theory (enable consistent-object class-exists?))))
+</span>                 
+
+
+
+(defthm valid-type-strong-not-array-type-implies-loaded
+  (implies (and (valid-type-strong type (instance-class-table s))
+                (not (isArrayType type)))
+           (isClassTerm (class-by-name type (instance-class-table s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:expand</span>  (VALID-TYPE-S TYPE (INSTANCE-CLASS-TABLE S) 0)
+           <span class="builtin">:in-theory</span> (e/d (wff-array-type class-exists? isArrayType)
+                           (isClassTerm)))))
+
+
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-isAssignableTo-properties.lisp.html">"base-isAssignableTo-properties"</a></span>))
+  (defthm isAssignable-to-then-loaded
+    (implies (and (car (isAssignableTo typ1 typ2 s))
+                  (not (equal typ1 typ2))
+                  (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+             (valid-type-strong typ2 (instance-class-table s)))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)))))
+
+(defthm not-array-type-is-not-assignable-to-array-type
+  (implies (and (not (isArrayType typ1))
+                (car (isAssignableTo typ1 typ2 s)))
+           (not (isArrayType typ2)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable isArrayType array-type?))))
+
+
+(encapsulate ()
+  (local (include-book <span class="string"><a href="../../M6-DJVM-shared/jvm-state.lisp.html">"../../M6-DJVM-shared/jvm-state"</a></span>))
+  (defthm wff-state-implies-make-state-equal-state
+    (implies (wff-state s)
+             (equal (make-state (pc s)
+                                (current-thread s)
+                                (heap s)
+                                (thread-table s)
+                                (class-table s)
+                                (env s)
+                                (error-flag s)
+                                (aux s))
+                    s))))
+
+
+(defthm load-loaded-class-no-change
+  (implies (and (wff-state s)
+                (isClassTerm (class-by-name name (instance-class-table s))))
+           (equal (load_class name s) s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (load_class class-loaded?
+                                   state-set-current-thread)
+                                  (isClassTerm))
+           <span class="builtin">:expand</span> (LOAD_CLASS_X NAME
+                                 (MAKE-STATE (PC S)
+                                             -1 (HEAP S)
+                                             (THREAD-TABLE S)
+                                             (CLASS-TABLE S)
+                                             (ENV S)
+                                             (ERROR-FLAG S)
+                                             (AUX S))
+                                 NIL 3))))
+           
+
+(defthm resolveClassReference-no-change-if-not-array-type-and-loaded
+  (implies (and (wff-state s)
+                (not (isArrayType typ2))
+                (isClassTerm (class-by-name typ2 (instance-class-table s))))
+           (equal (resolveClassReference typ2 s) s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (resolveClassReference 
+                                   state-set-current-thread
+                                   isArrayType)
+                                  (isClassTerm)))))
+
+
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-consistent-state-consistent-object.lisp.html">"base-consistent-state-consistent-object"</a></span>))
+  (defthm consistent-object-valid-type-strong
+    (implies (and (consistent-object obj (heap s) (instance-class-table s))
+                  (or (not (isArrayType (obj-type obj)))
+                      (consistent-array-object obj (heap s) 
+                                               (instance-class-table s)
+                                               (array-class-table s)))
+                  (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+             (valid-type-strong (obj-type obj) (instance-class-table s)))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (consistent-object 
+                                     consistent-array-object) ())))))
+
+<span class="comment">;;
+;;(i-am-here) ;; Thu Jun 16 18:33:32 2005
+;;
+</span>
+(defthm resolveClassReference-no-change-if-already-loaded-if-not-array-Object
+  (implies (and (consistent-object obj (heap s) (instance-class-table s))
+                (case-split (not (isArrayType (obj-type obj))))
+                (car (isAssignableTo (obj-type obj) typ2 s))
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+           (equal (resolveClassReference typ2 s) s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (obj-type 
+                                      isClassTerm
+                                      wff-state
+                                      consistent-object))
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span> isAssignable-to-then-loaded
+                            (typ1 (obj-type obj)))))))
+
+
+(local 
+ (defthm consistent-state-implies-isClassTerm-java-lang-Object
+   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+            (isClassTerm (class-by-name <span class="string">"java.lang.Object"</span>
+                                        (instance-class-table s))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a>
+                                    class-loaded?)
+                                   (isClassTerm))))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+(defthm resolveClassReference-java-lang-Object-no-change
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (equal (resolveClassReference <span class="string">"java.lang.Object"</span> s) s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (resolveClassReference 
+                                   class-loaded?)
+                                  (isClassTerm)))))
+
+
+
+
+
+<span class="comment">;;;
+;;;
+;;; we need to prove is array type A is assignable to array type B.
+;;; then array type B is already loaded!!! 
+;;; However this may not be the case!!! 
+;;;
+;;; for example: 
+;;;   (array (array (array "java.lang.String"))) exists
+;;; may not implies 
+;;; that 
+;;;   (array (array (array "java.lang.Object"))) exists!!! 
+;;; 
+;;; so the class loading will change the the state!
+;;; 
+;;; What save us here is that we know we will not use getfield on 
+;;; array-objects!! 
+;;; 
+;;;
+</span>
+<span class="comment">;----------------------------------------------------------------------
+</span>
+</pre>
+  </body>
+</html>

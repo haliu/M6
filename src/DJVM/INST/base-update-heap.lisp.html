@@ -1,0 +1,268 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-update-heap.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="base.lisp.html">"base"</a></span>)
+(include-book <span class="string"><a href="base-consistent-state.lisp.html">"base-consistent-state"</a></span>)
+
+
+(defthm mv-nth-1-set-element-at
+  (equal (mv-nth 1 (set-element-at index value array s))
+         s))
+
+
+
+(local 
+ (encapsulate ()
+  (local (include-book <span class="string"><a href="base-consistent-state-step-definition.lisp.html">"base-consistent-state-step-definition"</a></span>))
+  (<span class="keyword">defun</span> <span class="function-name">consistent-state-step</span> (s)
+    (and
+     (wff-state s)
+     (wff-env (env s))
+     (wff-aux (aux s))
+     (alistp (heap-init-map (aux s)))
+     (wff-heap-init-map-strong (heap-init-map (aux s)))
+     (wff-class-table (class-table s))
+     (wff-instance-class-table-strong (instance-class-table s))
+     (wff-array-class-table (array-class-table s))
+     (wff-static-class-table-strong (external-class-table s))
+     (wff-methods-instance-class-table-strong
+      (instance-class-table s))
+     (consistent-class-hierachy (instance-class-table s))
+     (consistent-heap (heap s)
+                      (instance-class-table s)
+                      (array-class-table s))
+     (consistent-heap-init-state (heap s)
+                                 (instance-class-table s)
+                                 (heap-init-map (aux s)))
+     (consistent-heap-array-init-state (heap s)
+                                       (instance-class-table s)
+                                       (array-class-table s)
+                                       (heap-init-map (aux s)))
+     (consistent-class-table (instance-class-table s)
+                             (external-class-table s)
+                             (heap s))
+     (consistent-thread-table (thread-table s)
+                              (instance-class-table s)
+                              (heap s))
+     (unique-id-thread-table (thread-table s))
+     (thread-exists? (current-thread s)
+                     (thread-table s))
+     (instance-class-table-inv s)
+     (array-class-table-inv s)
+     (boot-strap-class-okp s)
+     (equal (bcv::scl-bcv2jvm
+             (bcv::scl-jvm2bcv (external-class-table s)))
+            (external-class-table s))
+     (bcv::good-scl (bcv::scl-jvm2bcv (external-class-table s)))))))
+
+
+(local (include-book <span class="string"><a href="base-consistent-state-modifying-object.lisp.html">"base-consistent-state-modifying-object"</a></span>))
+(local (include-book <span class="string"><a href="base-consistent-state-step-properties.lisp.html">"base-consistent-state-step-properties"</a></span>))
+
+(local 
+ (defthm state-set-heap-loader-inv
+   (implies (wff-state s)
+            (equal (jvm::loader-inv (state-set-heap hp s))
+                   (jvm::loader-inv s)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable jvm::loader-inv no-fatal-error?)))))
+
+(local 
+ (defthm state-set-heap-class-loaded?
+   (equal (class-loaded? any (state-set-heap hp s))
+          (class-loaded? any s))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable class-loaded?)))))
+
+
+
+(defthm state-set-heap-build-a-java-instance-data-guard
+  (implies (wff-state s)
+           (equal (build-a-java-visible-instance-data-guard any (state-set-heap hp s))
+                  (build-a-java-visible-instance-data-guard any s))))
+
+
+
+
+
+(local
+ (defthm state-set-heap-build-a-java-instance-guard
+   (implies (wff-state s)
+            (equal (build-a-java-visible-instance-guard any (state-set-heap hp s))
+                   (build-a-java-visible-instance-guard any s)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (build-a-java-visible-instance-guard) (state-set-heap))))))
+
+
+
+(local 
+ (defthm state-set-heap-array-class-correctly-loaded?
+   (implies (wff-state s)
+            (equal (jvm::array-class-correctly-loaded? l (state-set-heap hp s))
+                   (jvm::array-class-correctly-loaded? l s)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (array-base-type)
+                                   (state-set-heap))))))
+  
+
+(local 
+ (defthm state-set-heap-array-class-table-inv-helper
+   (implies (wff-state s)
+            (equal (jvm::array-class-table-inv-helper l (state-set-heap hp s))
+                   (jvm::array-class-table-inv-helper l s)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (state-set-heap))))))
+
+
+(local 
+ (defthm consistent-array-object-implies-wff-internal-array-f
+   (implies (consistent-array-object obj hp cl acl)
+            (wff-internal-array obj))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable consistent-array-object)))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+<span class="comment">;; (i-am-here) ;; Sat Jul 16 17:16:19 2005
+</span>
+(local (in-theory (disable bcv::good-scl)))
+
+(local 
+ (defthm boot-strap-class-okp-implies-class-exists?
+   (implies (boot-strap-class-okp s)
+            (class-exists? <span class="string">"java.lang.Object"</span>
+                           (instance-class-table s)))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+
+(local 
+ (defthm consistent-state-implies-class-exists?
+   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+            (class-exists? <span class="string">"java.lang.Object"</span>
+                           (instance-class-table s)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a>)
+                                   (boot-strap-class-okp))))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+<span class="comment">;; (i-am-here) ;; Thu Jul 21 16:49:46 2005
+</span>
+(skip-proofs 
+ (defthm consistent-state-implies-bind-any-object
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (consistent-object obj (heap s) (instance-class-table s)))
+            (CONSISTENT-HEAP-INIT-STATE (BIND (RREF V) OBJ (HEAP S))
+                                        (INSTANCE-CLASS-TABLE S)
+                                        (HEAP-INIT-MAP (AUX S))))))
+
+(local 
+ (defthm consistent-state-bind-consistent-object-of-same-type-preserves-consistent-state
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (REFp v (heap s))
+                 (not (NULLp v))
+                 (or (not (isArrayType (obj-type (deref2 v (heap s)))))
+                     (and (consistent-array-object obj (heap s) (instance-class-table s)
+                                                   (array-class-table s))
+                          (or (primitive-type? (array-component-type (obj-type obj)))
+                              (array-content-initialized (array-data obj)
+                                                         (heap-init-map (aux s))))))
+                 (consistent-object obj (heap s) (instance-class-table s))
+                 (equal (obj-type obj) (obj-type (deref2 v (heap s))))
+                 (equal (heap s) hp))
+            (consistent-state-step (state-set-heap (bind (rREF v) obj hp)
+                                                   s)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (consistent-state-step
+                                    )
+                                   (consistent-heap REFp NULLp
+                                                    state-set-heap
+                                    consistent-heap-array-init-state))
+            <span class="builtin">:do-not-induct</span> t))))
+
+
+(local 
+ (defthm consistent-state-step-implies-consistent-state
+   (implies (consistent-state-step s)
+            (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a>)))
+   <span class="builtin">:rule-classes</span> nil))
+
+
+(local (defthm consistent-state-step-consistent-state-state-set-heap
+         (implies (consistent-state-step (state-set-heap hp s))
+                  (<a href="../consistent-state.lisp.html">consistent-state</a> (state-set-heap hp s)))
+         <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> ((<span class="builtin">:instance</span>
+                                consistent-state-step-implies-consistent-state
+                                (s (state-set-heap hp s))))))))
+
+
+
+(defthm consistent-state-bind-consistent-object-of-same-type-preserves-consistent-state-general
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (REFp v (heap s))
+                 (not (NULLp v))
+                 (or (not (isArrayType (obj-type (deref2 v (heap s)))))
+                     (and (consistent-array-object obj (heap s) (instance-class-table s)
+                                                   (array-class-table s))
+                          (or (primitive-type? (array-component-type (obj-type obj)))
+                              (array-content-initialized (array-data obj)
+                                                         (heap-init-map (aux s))))))
+                 (consistent-object obj (heap s) (instance-class-table s))
+                 (equal (obj-type obj) (obj-type (deref2 v (heap s))))
+                 (equal (heap s) hp))
+            (<a href="../consistent-state.lisp.html">consistent-state</a> (state-set-heap (bind (rREF v) obj hp)
+                                              s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d ()
+                                  (consistent-state-step state-set-heap)))))
+
+
+
+(in-theory (disable set-element-at state-set-heap))
+
+
+
+
+
+            
+                   
+                
+                
+</pre>
+  </body>
+</html>

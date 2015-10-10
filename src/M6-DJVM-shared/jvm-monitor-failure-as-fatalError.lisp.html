@@ -1,0 +1,166 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>jvm-monitor-failure-as-fatalError.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"JVM"</span>)
+(include-book <span class="string"><a href="jvm-obj.lisp.html">"../M6-DJVM-shared/jvm-obj"</a></span>)
+(include-book <span class="string"><a href="jvm-monitor-primitives.lisp.html">"../M6-DJVM-shared/jvm-monitor-primitives"</a></span>)
+(include-book <span class="string"><a href="jvm-state.lisp.html">"../M6-DJVM-shared/jvm-state"</a></span>)
+
+
+<span class="comment">;; (mv * *)
+</span>(<span class="keyword">defun</span> <span class="function-name">monitorNotifyX</span> (obj-ref notifymode s)
+  (<span class="keyword">let*</span> ((old-heap (heap s))
+         (old-obj (deref obj-ref old-heap))
+         (old-common-info (common-info old-obj))
+         (old-monitor (monitor old-common-info))
+         (owner       (owner old-monitor)))
+    (<span class="keyword">if</span> (not (equal owner (current-thread s))) <span class="comment">;; not owner by current
+</span>        (mv 'MonitorStatusError (fatalError
+                                 <span class="string">"java.lang.IllegalMonitorStateException"</span> s))
+      (mv 'MonitorStatusOwn (removeCondvarWait obj-ref notifymode s)))))
+
+
+<span class="comment">;; (mv * *)
+</span>(<span class="keyword">defun</span> <span class="function-name">classMonitorNotifyX</span> (classname notifymode s)
+  (<span class="keyword">let*</span> ((class-rep (class-by-name classname (instance-class-table s)))
+         (class-ref (class-ref class-rep)))
+    (monitorNotifyX class-ref notifymode s))) <span class="comment">;; 2 values status bit, return state.
+</span>
+
+<span class="comment">;; (mv * * *)
+</span>(<span class="keyword">defun</span> <span class="function-name">monitorExitX</span> (obj-ref s)
+  (<span class="keyword">let</span> ((monitor (obj-monitor-by-ref obj-ref s)))
+    (<span class="keyword">if</span> (not (equal (owner monitor) (current-thread s)))
+        (mv 'MonitorStatusError  <span class="string">"java.lang.IllegalMonitorStateException"</span> s)
+      (<span class="keyword">let*</span> ((new-monitor (monitor-set-depth (- (depth monitor) 1)
+                                             monitor))
+             (new-state (update-obj-monitor obj-ref new-monitor s)))
+        (<span class="keyword">if</span> (equal (depth new-monitor) 0)
+            (mv 'MonitorStatusRelease nil (removeMonitorWait obj-ref new-state))
+          (mv 'MonitorStatusOwn nil new-state))))))
+          
+
+<span class="comment">;; (mv * * *)
+</span>(<span class="keyword">defun</span> <span class="function-name">classMonitorExitX</span> (classname s)
+  (<span class="keyword">let*</span> ((class-rep (class-by-name classname (instance-class-table s)))
+         (class-ref (class-ref class-rep)))
+    (monitorExitX class-ref s))) <span class="comment">;; monitor exit return status bit, exception
+</span>                                <span class="comment">;; name, state three items. 
+</span>
+
+<span class="comment">;; (mv * *)
+</span>(<span class="keyword">defun</span> <span class="function-name">monitorEnterX</span> (obj-ref s)
+  (prog2$ (acl2::debug-print <span class="string">"try entering monitor for obj ~p0~%"</span> obj-ref)
+  (<span class="keyword">let</span> ((monitor (obj-monitor-by-ref obj-ref s)))
+    (<span class="keyword">cond</span> ((equal (owner monitor) -1) <span class="comment">;; not owner
+</span>           (<span class="keyword">let</span> ((new-monitor 
+                  (monitor-set-depth 1 (monitor-set-owner (current-thread s)
+                                                          monitor))))
+             (mv 'MonitorStatusOwn
+                 (update-obj-monitor obj-ref new-monitor s))))
+          ((equal (owner monitor) (current-thread s))
+           (<span class="keyword">let</span> ((new-monitor 
+                  (monitor-set-depth (+ (depth monitor) 1) monitor)))
+             (mv 'MonitorStatusOwn
+                 (update-obj-monitor obj-ref new-monitor s))))
+          (t (<span class="keyword">let*</span> ((old-thread-table (thread-table s))
+                    (old-thread (thread-by-id (current-thread s)
+                                              old-thread-table))
+                    (new-thread (thread-set-mdepth 1 old-thread))
+                    (new-thread-table (replace-thread-table-entry old-thread
+                                                                  new-thread
+                                                                  old-thread-table))
+                    (new-state (state-set-thread-table new-thread-table s)))
+            (mv 'MonitorStatusWaiting
+                (suspendThread (addMonitorWait (current-thread s) obj-ref
+                                               new-state)))))))))
+  
+
+  
+(<span class="keyword">defun</span> <span class="function-name">classMonitorEnterX</span> (classname s)
+  (prog2$ (acl2::debug-print <span class="string">"try entering monitor associated with class ~p0~%"</span> classname)
+          (<span class="keyword">let*</span> ((class-rep (class-by-name classname (instance-class-table s)))
+                 (class-ref (class-ref class-rep)))
+            (monitorEnterX class-ref s))))
+  
+         
+                          
+
+<span class="comment">;; we couldn't implement alarm... july 13 2002
+</span>
+<span class="comment">;; (mv * *)
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">monitorWait1X</span> (obj-ref s)
+  (mv 'MonitorStatusWaiting 
+      (suspendThread (addCondvarWait obj-ref (current-thread s) s))))
+  
+
+
+(<span class="keyword">defun</span> <span class="function-name">monitorWaitX</span> (obj-ref duration s)
+  (<span class="keyword">let</span> ((monitor (obj-monitor-by-ref obj-ref s)))
+    (<span class="keyword">if</span> (not (equal (owner monitor) (current-thread s)))
+        (mv 'MonitorStatusError 
+            (fatalError <span class="string">"java.lang.IllegalMonitorStateException"</span> s))
+      (<span class="keyword">if</span> (&gt; duration 0)
+          (monitorWait1X obj-ref (registerAlarm (current-thread s) duration 'monitorWaitAlarm))
+        <span class="comment">;; register a call back function, when alarm is on, call the call back function.
+</span>        (monitorWait1X obj-ref s)))))
+
+
+<span class="comment">;; * 
+;; don't care the monitor status error
+</span>(<span class="keyword">defun</span> <span class="function-name">classMonitorWaitX</span> (classname s)
+  (<span class="keyword">let*</span> ((class-rep (class-by-name classname (instance-class-table s)))
+         (class-ref (class-ref class-rep)))
+    (mv-let (mstatus new-s)
+            (monitorWaitX class-ref 0 s)
+            (<span class="keyword">declare</span> (ignore mstatus))
+            new-s)))
+
+
+
+
+
+
+</pre>
+  </body>
+</html>

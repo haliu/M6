@@ -1,0 +1,76 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-object-field-always-initialized.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="../consistent-state.lisp.html">"../../DJVM/consistent-state"</a></span>)
+
+(in-theory (disable isClassTerm consistent-object
+                    java-visible-portion
+                    fields deref2 rREF isArrayType
+                    class-exists? super binding bound?))
+
+(local (include-book <span class="string"><a href="base-object-field-always-initialized-support.lisp.html">"base-object-field-always-initialized-support"</a></span>))
+
+
+
+(defthm object-field-is-always-initialized
+  (implies (and (case-split (not (primitive-type? 
+                                  (get-field-type
+                                   fieldclassname
+                                   fieldname cl))))
+                (not (isArrayType (obj-type (deref2 v (heap s)))))
+                (not (bound? nil hp-init))
+                (not (bound? -1 hp-init))
+                (consistent-object-init-state 
+                 (deref2 v (heap s))
+                 cl hp-init)
+                (consistent-object (deref2 v (heap s))
+                                   (heap s)
+                                   cl))
+           (not (bound? (m6-getfield fieldclassname
+                                     fieldname
+                                     (rREF v) s)
+                        hp-init)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (fields m6-getfield consistent-object-init-state))
+           <span class="builtin">:cases</span> ((binding fieldclassname (java-visible-portion (binding (rREF
+                                                                           v)
+                                                                          (heap s))))))))
+
+
+</pre>
+  </body>
+</html>

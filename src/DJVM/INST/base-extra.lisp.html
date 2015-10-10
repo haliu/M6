@@ -1,0 +1,217 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-extra.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+
+(include-book <span class="string"><a href="../consistent-state-obj-init.lisp.html">"../../DJVM/consistent-state-obj-init"</a></span>)
+(include-book <span class="string"><a href="../consistent-state-strong.lisp.html">"../../DJVM/consistent-state-strong"</a></span>)
+(include-book <span class="string"><a href="../consistent-state-obj-init-properties-export.lisp.html">"../../DJVM/consistent-state-obj-init-properties-export"</a></span>)
+
+
+
+
+(in-theory (disable NULLp initialized-ref))
+
+(defthm len-update-nt-specific
+  (implies (&lt; i (len locals))
+           (EQUAL
+            (LEN (IF (&lt; i '0)
+                     locals
+                     (IF (EQUAL (TYPE-SIZE (TAG-OF (NTH i locals)))
+                                '1)
+                         locals
+                         (UPDATE-NTH i
+                                     '(TOPX . TOPX)
+                                     locals))))
+            (LEN locals))))
+
+(defthm thread-by-id-back-chain-consistent-state
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (equal (current-thread s) id))
+           (THREAD-BY-ID id (THREAD-TABLE s))))
+
+
+
+(defthm tag-of-tag-non-primitive-type
+  (implies (not (primitive-type? type))
+           (equal (tag-of (tag v type))
+                  'REF))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable tag tag-of ))))
+
+
+(defthm value-of-tag-is-v
+  (equal (value-of (tag v type))
+         v)
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable tag value-of))))
+
+
+(in-theory (disable deref2-init)))
+
+
+<span class="comment">;; this following case could not handled by consistent-state!! 
+;; because the intermediate state is not <a href="../consistent-state.lisp.html">consistent-state</a>
+</span>
+<span class="comment">;; ;; (defthm thread-by-id-back-chain-consistent-state
+;; ;;   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+;; ;;                 (equal (current-thread s) id))
+;; ;;            (THREAD-BY-ID id (THREAD-TABLE s))))
+</span>
+
+<span class="comment">;;(i-am-here) ;; Mon Aug  8 12:51:58 2005
+</span>
+
+(local 
+ (defthm thread-by-id-replace-entry-local
+   (implies (and (thread-by-id id tt)
+                 (equal (thread-id new)
+                        (thread-id old))
+                 new)
+            (thread-by-id id (replace-thread-table-entry
+                               old new tt)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)))))
+
+
+(defthm thread-by-id-back-chain-topx-topx
+  (implies (thread-by-id id (thread-table s))
+           (THREAD-BY-ID id (THREAD-TABLE (pushStack '(topx . topx) s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable pushStack))))
+
+(local 
+ (defthm thread-by-id-consp-replace-entry
+   (implies (and (consp (thread-call-stack (thread-by-id id tt)))
+                 (equal (thread-id new) (thread-id old))
+                 (consp (thread-call-stack new)))
+            (consp (thread-call-stack (thread-by-id id
+                                                    (replace-thread-table-entry 
+                                                        old 
+                                                        new tt)))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)))))
+
+
+(local 
+ (defthm thread-id-push-stack-of-thread
+   (equal (thread-id (push-Stack-of-thread any thread))
+          (thread-id thread))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable push-Stack-of-thread)))))
+
+
+(local 
+ (defthm consp-thread-call-stack-push-stack-of-thread
+   (consp (thread-call-stack (push-Stack-of-thread any thread)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable push-Stack-of-thread thread-call-stack)))))
+
+(defthm thread-by-id-back-chain-topx-topx-consp
+  (implies (consp (thread-call-stack (thread-by-id id (thread-table s))))
+           (consp (thread-call-stack (THREAD-BY-ID id 
+                                                   (THREAD-TABLE 
+                                                    (pushStack '(topx . topx) s))))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable pushStack))))
+
+
+
+(defthm wff-tagged-value-tag-REF
+  (WFF-TAGGED-VALUE
+   (TAG-REF (len x)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable wff-tagged-value tag-ref value-of
+                                     tag-of))))
+
+
+
+
+
+(defthm heap-init-map-s-pending-exception-no-change
+  (equal (heap-init-map (acl2::s 'pending-exception any aux))
+         (heap-init-map aux))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable heap-init-map))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(local 
+ (encapsulate ()
+   (local (include-book <span class="string"><a href="base-loader-preserve-consistent-state.lisp.html">"base-loader-preserve-consistent-state"</a></span>))
+   (defthm consistent-state-implies-not-bound-len-heap
+     (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+              (not (bound? (len (heap s)) (heap s)))))
+
+   
+   (defthm consistent-heap-array-init-state2-bound-bound-b
+     (implies (and (consistent-heap-array-init-state2 hp hp-init)
+                   (not (bound? ref hp)))
+              (not (bound? ref hp-init)))
+     <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bound?))))))
+
+
+(local  
+ (defthm consistent-state-implies-consistent-heap-array-init-state-2
+   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+            (consistent-heap-array-init-state2 (heap s) 
+                                               (heap-init-map (aux s))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a>)))))
+   
+
+(local 
+ (defthm consistent-state-implies-not-bind-len-heap-init-2
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (equal (heap-init-map (aux s)) hp-init))
+            (not (bound? (len (heap s))
+                         hp-init)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable bound? heap-init-map)
+            <span class="builtin">:restrict</span> ((consistent-heap-array-init-state2-bound-bound-b
+                        ((hp (heap s)))))))))
+
+(defthm consistent-state-implies-len-heap-new-obj
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (equal (heap-init-map (aux s)) hp-init))
+           (INITIALIZED-REF (len (heap s))
+                            hp-init))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (initialized-ref) (bound?)))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+
+
+
+
+</pre>
+  </body>
+</html>

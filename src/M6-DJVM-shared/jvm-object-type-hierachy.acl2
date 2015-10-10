@@ -1,0 +1,3 @@
+(ld "../M6-DJVM-shared/jvm.pkg")
+(certify-book "jvm-object-type-hierachy" 4 t :skip-proofs-okp t)
+

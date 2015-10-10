@@ -1,0 +1,3 @@
+(ld "../BCV/bcv.pkg")
+(ld "../DJVM/djvm.pkg")
+(certify-book "bcv-functions" 6 t :skip-proofs-okp t)

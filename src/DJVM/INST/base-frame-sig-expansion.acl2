@@ -1,0 +1,3 @@
+(ld "../../DJVM/djvm.pkg")
+(certify-book "base-frame-sig-expansion" 6 t :skip-proofs-okp t)
+

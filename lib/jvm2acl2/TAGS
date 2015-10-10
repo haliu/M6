@@ -1,0 +1,117 @@
+
+ACL2utils.java,432
+public class ACL2utils ACL2utils2,25
+    public static String JavaTypeStrToACL2TypeStr(ACL2utils.JavaTypeStrToACL2TypeStr3,50
+    private static boolean isPrimitiveType(ACL2utils.isPrimitiveType17,494
+    public static int typeSize ACL2utils.typeSize27,829
+    public static M6StackMapType[] expandTypeList(ACL2utils.expandTypeList35,985
+    public static M6StackMapType[] expandToLength(ACL2utils.expandToLength56,1448
+
+M6AccessFlags.java,159
+class M6AccessFlags M6AccessFlags3,43
+    public M6AccessFlags(M6AccessFlags.M6AccessFlags7,106
+    public String toString(M6AccessFlags.toString59,1080
+
+M6Class.java,1084
+public class M6Class M6Class39,1292
+    public M6Class(M6Class.M6Class70,2229
+    public String getName(M6Class.getName96,2819
+    public static void setKeepLntLvt(M6Class.setKeepLntLvt100,2876
+    public StringBuffer getlntdesc(M6Class.getlntdesc104,2950
+    public StringBuffer getlvtdesc(M6Class.getlvtdesc108,3014
+    public void processClassFile(M6Class.processClassFile116,3235
+    private void resolveAccessFlags(M6Class.resolveAccessFlags143,3830
+    private void resolveInterfaces(M6Class.resolveInterfaces147,3928
+    private void resolveAttributes(M6Class.resolveAttributes154,4109
+    private void resolveFields(M6Class.resolveFields164,4287
+    private void resolveMethods(M6Class.resolveMethods173,4556
+    private String booleanToACL2String(M6Class.booleanToACL2String194,5296
+    private static String cpToString(M6Class.cpToString202,5408
+    public String toString(M6Class.toString245,6726
+    private static String vectorToQuotedString(M6Class.vectorToQuotedString302,8407
+    public void setDebugMode(M6Class.setDebugMode321,8974
+
+M6ExceptionHandler.java,196
+public class M6ExceptionHandler M6ExceptionHandler4,86
+    public M6ExceptionHandler(M6ExceptionHandler.M6ExceptionHandler10,224
+    public String toString(M6ExceptionHandler.toString22,548
+
+M6Field.java,190
+public class M6Field M6Field7,137
+    public M6Field(M6Field.M6Field14,337
+    public void processField(M6Field.processField22,546
+    public String toString(M6Field.toString87,2160
+
+M6Method.java,1433
+public class M6Method M6Method35,994
+   public M6Method(M6Method.M6Method77,2155
+    public String getLntStr(M6Method.getLntStr98,2622
+    public String getLvtStr(M6Method.getLvtStr99,2672
+   private static String replaceAllandApp(M6Method.replaceAllandApp103,2725
+    private  void resolveTagInCode(M6Method.resolveTagInCode155,3744
+    public String printLineNumberTable(M6Method.printLineNumberTable173,4278
+    public String printLocalVariableTable(M6Method.printLocalVariableTable206,4922
+    private StringBuffer printLocalVariableEntry(M6Method.printLocalVariableEntry236,5534
+   public String toString(M6Method.toString258,6159
+    public static void setAbstractMode(M6Method.setAbstractMode358,8759
+    public static void setKeepLntLvt(M6Method.setKeepLntLvt362,8834
+   public void processMethod(M6Method.processMethod375,9277
+    private static LineNumberAttrInfo getLineNumberAttrInfo(M6Method.getLineNumberAttrInfo522,13561
+    private static LocalVariableAttrInfo getLocalVariableAttrInfo(M6Method.getLocalVariableAttrInfo529,13764
+    private static AttrInfo getStackMapAttrInfo(M6Method.getStackMapAttrInfo537,13983
+    private static String makeClassCP(M6Method.makeClassCP545,14143
+    private static String makeFieldCP(M6Method.makeFieldCP549,14260
+    private static String makeMethodCP(M6Method.makeMethodCP554,14412
+   private String parseInst(M6Method.parseInst572,14832
+
+M6StackMapAttrInfo.java,289
+public class M6StackMapAttrInfo M6StackMapAttrInfo6,135
+    public M6StackMapAttrInfo(M6StackMapAttrInfo.M6StackMapAttrInfo15,303
+    public M6StackMapFrame[] getStackMapFrames(M6StackMapAttrInfo.getStackMapFrames27,713
+    public String toString(M6StackMapAttrInfo.toString31,786
+
+M6StackMapFrame.java,327
+public class M6StackMapFrame M6StackMapFrame5,93
+    public M6StackMapFrame(M6StackMapFrame.M6StackMapFrame13,330
+    private String stackFrameDefaultFlags(M6StackMapFrame.stackFrameDefaultFlags47,1344
+    private void reverse(M6StackMapFrame.reverse59,1648
+    public String toString(M6StackMapFrame.toString73,1835
+
+M6StackMapType.java,318
+public class M6StackMapType M6StackMapType4,50
+    public M6StackMapType(M6StackMapType.M6StackMapType12,319
+    private M6StackMapType(M6StackMapType.M6StackMapType51,1178
+    public static M6StackMapType getTopType(M6StackMapType.getTopType55,1241
+    public String toString(M6StackMapType.toString59,1332
+
+jc.java,200
+public class jc jc4,39
+    private static String[] collectFileNames jc.collectFileNames7,91
+   public static void main(jc.main40,922
+   private static void processFiles(jc.processFiles55,1345
+
+jc2.java,205
+public class jc2{jc24,39
+    private static String[] collectFileNames jc2.collectFileNames7,91
+   public static void main(jc2.main40,922
+   private static void processFiles(jc2.processFiles55,1345
+
+jvm2acl2.java,232
+public class jvm2acl2 jvm2acl26,108
+    private static String[] collectFileNames jvm2acl2.collectFileNames9,166
+   public static void main(jvm2acl2.main41,996
+   private static void processFiles(jvm2acl2.processFiles56,1449
+
+jvm2acl2x.java,385
+public class jvm2acl2x jvm2acl2x14,424
+    private static String[] collectFileNames jvm2acl2x.collectFileNames25,790
+   public static void main(jvm2acl2x.main64,1790
+    private static String processOneFile jvm2acl2x.processOneFile130,3250
+   private static void processFiles(jvm2acl2x.processFiles165,4161
+    private static void writeToFile(jvm2acl2x.writeToFile227,6122
+
+preverify.java,235
+public class preverify preverify4,39
+    private static String[] collectFileNames preverify.collectFileNames7,98
+   public static void main(preverify.main40,929
+   private static void processFiles(preverify.processFiles57,1386

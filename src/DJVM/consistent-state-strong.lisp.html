@@ -1,0 +1,114 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>consistent-state-strong.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="consistent-state.lisp.html">"consistent-state"</a></span>)
+(include-book <span class="string"><a href="consistent-state-obj-init.lisp.html">"consistent-state-obj-init"</a></span>)
+
+
+(acl2::set-verify-guards-eagerness 2)
+
+
+
+
+
+
+(<span class="keyword">defun</span> <span class="function-name"><a href="consistent-state-strong.lisp.html">consistent-state-strong</a></span> (s)
+  (and (<a href="consistent-state.lisp.html">consistent-state</a> s)
+       (<a href="consistent-state-obj-init.lisp.html">consistent-state-obj-init</a> s)))
+
+
+
+<span class="comment">;;;
+;;; experiment, shall we leave it enabled!! 
+;;; 
+;;; Fri Aug  5 14:00:23 2005
+;;;
+</span>
+
+(in-theory (disable <a href="consistent-state-strong.lisp.html">consistent-state-strong</a> 
+                    <a href="consistent-state.lisp.html">consistent-state</a> 
+                    <a href="consistent-state-obj-init.lisp.html">consistent-state-obj-init</a>))
+
+(defthm consistent-state-strong-implies-consistent-state-f
+  (implies (<a href="consistent-state-strong.lisp.html">consistent-state-strong</a> s)
+           (<a href="consistent-state.lisp.html">consistent-state</a> s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="consistent-state-strong.lisp.html">consistent-state-strong</a>)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+
+(defthm consistent-state-strong-implies-consistent-state-obj-init-f
+  (implies (<a href="consistent-state-strong.lisp.html">consistent-state-strong</a> s)
+           (<a href="consistent-state-obj-init.lisp.html">consistent-state-obj-init</a> s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="consistent-state-strong.lisp.html">consistent-state-strong</a>)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+
+(defthm consistent-state-strong-implies-consistent-state-b
+  (implies (and (syntaxp (symbolp s))
+                (<a href="consistent-state-strong.lisp.html">consistent-state-strong</a> s))
+           (<a href="consistent-state.lisp.html">consistent-state</a> s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="consistent-state-strong.lisp.html">consistent-state-strong</a>))))
+
+
+(defthm consistent-state-strong-implies-consistent-state-obj-init-b
+  (implies (and (syntaxp (symbolp s))
+                (<a href="consistent-state-strong.lisp.html">consistent-state-strong</a> s))
+           (<a href="consistent-state-obj-init.lisp.html">consistent-state-obj-init</a> s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="consistent-state-strong.lisp.html">consistent-state-strong</a>))))
+
+
+(defthm consistent-state-strong-implied-by-b
+  (implies (and (syntaxp (not (symbolp s)))
+                (<a href="consistent-state.lisp.html">consistent-state</a> s)
+                (<a href="consistent-state-obj-init.lisp.html">consistent-state-obj-init</a> s))
+           (<a href="consistent-state-strong.lisp.html">consistent-state-strong</a> s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="consistent-state-strong.lisp.html">consistent-state-strong</a>))))
+
+</pre>
+  </body>
+</html>

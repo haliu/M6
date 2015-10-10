@@ -1,0 +1,113 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-bcv-fact-nth-opstack-specific-env-sig.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"BCV"</span>)
+(include-book <span class="string"><a href="../../BCV/typechecker.lisp.html">"../../BCV/typechecker"</a></span>)
+(include-book <span class="string"><a href="../../BCV/bcv-functions.lisp.html">"../../BCV/bcv-functions"</a></span>)
+
+(include-book <span class="string"><a href="base-bind-free.lisp.html">"base-bind-free"</a></span>)
+
+(local 
+ (defthm nth-i-cdr
+   (implies (and (syntaxp (and (equal (car i) 'QUOTE)
+                               (integerp (cdr i))))
+                 (integerp i)
+                 (&lt; 0 i))
+         (equal (nth i stk)
+                (nth (- i 1) (cdr stk))))))
+
+
+<span class="comment">;; (i-am-here)
+</span>
+(local 
+ (defthm nth-operand-stack-normalize
+  (implies (and (bind-free (acl2::default-bind-free 's 's (acl2::pkg-witness <span class="string">"DJVM"</span>))
+                           (s))
+                (isMatchingType type stk env)
+                (equal (sizeof type) 1)
+                (not (equal type 'void))
+                (integerp i)
+                (&lt; 0 i))
+         (equal (nth i stk)
+                (nth (- i 1) (popMatchingType type stk))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (popMatchingType)
+                                  (isMatchingType))))))
+
+<span class="comment">;;; export the specific version of the the generalized version to force ACL2 to
+;;; try different possibililties instead of complaining about Free variable
+;;; "type"
+</span>
+<span class="comment">;;;
+;;; notice this is almost a pattern. 
+;;;
+</span>
+(defthm nth-operand-stack-normalize-INT-env-sig
+  (implies (and (bind-free (acl2::default-bind-free 's 's (acl2::pkg-witness <span class="string">"DJVM"</span>))
+                           (s))
+                (isMatchingType 'INT stk env)
+                (integerp i)
+                (&lt; 0 i))
+         (equal (nth i stk)
+                (nth (- i 1) (popMatchingType 'INT stk))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> ((<span class="builtin">:instance</span> nth-operand-stack-normalize
+                                   (env env)
+                                   (type 'INT))))))
+
+
+(defthm nth-operand-stack-normalize-AARARRY-env-sig
+  (implies (and (bind-free (acl2::default-bind-free 's 's (acl2::pkg-witness <span class="string">"DJVM"</span>))
+                           (s))
+                (isMatchingType '(array (class <span class="string">"java.lang.Object"</span>)) stk env)
+                (integerp i)
+                (&lt; 0 i))
+         (equal (nth i stk)
+                (nth (- i 1) (popMatchingType '(array (class <span class="string">"java.lang.Object"</span>)) stk))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> ((<span class="builtin">:instance</span> nth-operand-stack-normalize
+                                   (env env)
+                                   (type '(array (class <span class="string">"java.lang.Object"</span>))))))))
+
+
+
+
+
+</pre>
+  </body>
+</html>

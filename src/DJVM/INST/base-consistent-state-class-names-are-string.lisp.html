@@ -1,0 +1,60 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-consistent-state-class-names-are-string.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="../consistent-state.lisp.html">"../../DJVM/consistent-state"</a></span>)
+(include-book <span class="string"><a href="../consistent-state-properties.lisp.html">"../../DJVM/consistent-state-properties"</a></span>)
+
+
+(local 
+ (defthm consistent-class-decls-implies-stringp
+   (implies (and (consistent-class-decls cl1 cl hp)
+                 (wff-instance-class-table cl1)
+                 (class-by-name name cl1))
+            (stringp name))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable consistent-class-decl)))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+(defthm consistent-state-class-name-is-stringp
+  (implies (and (class-by-name name (instance-class-table s))
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+           (stringp name))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+</pre>
+  </body>
+</html>

@@ -1,0 +1,147 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-good-java-type-valid-type-s.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="base-valid-type-s.lisp.html">"base-valid-type-s"</a></span>)
+(include-book <span class="string"><a href="../../BCV/bcv-functions.lisp.html">"../../BCV/bcv-functions"</a></span>)
+(include-book <span class="string"><a href="../consistent-state-to-sig-state.lisp.html">"../../DJVM/consistent-state-to-sig-state"</a></span>)
+
+
+
+<span class="comment">;; (defthm 
+;;   (CLASS-EXISTS? TYPE CL))
+;; (BCV::GOOD-JAVA-TYPE (FIX-SIG TYPE)
+;;                      CL)).
+</span>
+(<span class="keyword">defun</span> <span class="function-name">wff-cl-x</span> (cl)
+  (<span class="keyword">if</span> (endp cl) t
+    (and (stringp (classname (car cl)))
+         (wff-cl-x (cdr cl)))))
+
+
+(local 
+ (defthm stringp-class-exists-implies-good-java-type
+   (implies (and (stringp name)
+                 (class-exists? name cl))
+            (bcv::good-java-type (fix-sig name) cl))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not-induct</span> t))))
+           
+(local 
+ (defthm wff-cl-x-class-exists-implies-stringp
+   (implies (and (class-exists? name cl)
+                 (wff-cl-x cl))
+            (stringp name))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+<span class="comment">;;;
+;;; it appears that we need assertion about the cl does not contain array
+;;; classes!! 
+;;; 
+</span>
+(local 
+ (defthm valid-type-s-implies-good-java-type-lemma
+   (implies (and (wff-type-rep (fix-sig type))
+                 (wff-cl-x cl)
+                 (valid-type-s type cl mode))
+            (bcv::good-java-type (fix-sig type) cl))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (array-base-type 
+                                    classname
+                                    array-component-type) (class-exists?))
+            <span class="builtin">:do-not</span> '(generalize)))))
+
+
+
+(local 
+ (defthm fix-sig-normalize-type-rep-fix-id
+   (implies (wff-type-rep type)
+            (equal (fix-sig (normalize-type-rep type))
+                   type))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable wff-type-rep
+                                      array-component-type
+                                      isArrayType
+                                      array-base-type
+                                      fix-sig primitive-type?)))))
+
+
+(defthm valid-type-s-implies-good-java-type
+  (implies (and (wff-type-rep type)
+                (wff-cl-x cl)
+                (valid-type-s (normalize-type-rep type) cl mode))
+           (bcv::good-java-type type cl))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not-induct</span> t
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span> valid-type-s-implies-good-java-type-lemma
+                            (type (normalize-type-rep type)))))))
+
+
+
+(local 
+ (defthm consistent-class-decls-implies-wff-cl-x
+   (implies (consistent-class-decls cl1 cl hp)
+            (wff-cl-x cl1))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+
+(defthm consistent-state-implies-wff-cl-x
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (wff-cl-x (instance-class-table s))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm valid-type-strong-implies-good-java-type-specific
+  (implies (and (wff-type-rep type)
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (valid-type-strong (normalize-type-rep type) 
+                                   (instance-class-table s)))
+           (bcv::good-java-type type (instance-class-table s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not-induct</span> t
+           <span class="builtin">:in-theory</span> (disable <a href="../consistent-state.lisp.html">consistent-state</a> valid-type-s))))
+
+
+
+
+</pre>
+  </body>
+</html>

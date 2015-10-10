@@ -1,0 +1,146 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-array-facts.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="base.lisp.html">"base"</a></span>)
+(include-book <span class="string"><a href="base-consistent-state.lisp.html">"base-consistent-state"</a></span>)
+(include-book <span class="string"><a href="../../BCV/typechecker.lisp.html">"../../BCV/typechecker"</a></span>)
+
+
+
+
+(local (defthm isArrayType-in-consistent-heap-means-consistent-array-object
+  (implies (and (isArrayType (obj-type (deref2 ref hp1)))
+                (consistent-heap2 hp1 hp cl acl id))
+           (consistent-array-object (deref2 ref hp1) hp cl acl))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (rref binding deref2 obj-type)
+                                  (consistent-array-object))
+           <span class="builtin">:do-not</span> '(generalize)))))
+
+
+(local (defthm isArrayType-in-consistent-heap-means-consistent-array-object-real
+  (implies (and (isArrayType  (obj-type (deref2 ref hp)))
+                (consistent-heap hp cl acl)) 
+           <span class="comment">;; here it has a free avariable ACL if used as a forward chaining
+</span>           (consistent-array-object (deref2 ref hp) hp cl acl))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable consistent-heap)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+(defthm isArrayType-in-consistent-state-consistent-array-object
+  (implies (and (isArrayType (obj-type (deref2 v (heap s))))
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (equal (instance-class-table s) cl)
+                (equal (array-class-table s) acl))
+           (consistent-array-object (deref2 v (heap s))
+                                    (heap s)
+                                    cl acl))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a>))))
+
+
+(encapsulate ()
+  (local (include-book <span class="string"><a href="base-array.lisp.html">"base-array"</a></span>))
+  (defthm element-at-consistent-array-not-deref2-init
+    (implies (and (consistent-array-object (deref2 array-ref (heap s))
+                                           (heap s)
+                                           (instance-class-table s)
+                                           (array-class-table s))
+                  (check-ARRAY (rREF array-ref) index s) <span class="comment">;; we can assume this
+</span>                  (NOT (EQUAL (ELEMENT-AT-ARRAY INDEX (RREF ARRAY-REF) S) '-1))
+                  (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                  (not (primitive-type? (array-component-type (obj-type (deref2 array-ref (heap s)))))))
+             (not (consp (deref2-init (tag-REF (element-at-array index (rREF array-ref) s))
+                                      (heap-init-map (aux s))))))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (deref2-init tag-REF array-data
+                                                    TAG-REF-TAG 
+                                                    heap-init-map))))))
+
+(in-theory (disable TAG-REF-TAG isArrayType array-type-s deref2-init REFp
+                    reference-type-s
+                    nullp))
+
+
+(defthm isArrayType-componenent-type-not-primitive-implies-initialized
+  (implies (and (isArrayType (obj-type (deref2 v (heap s)))) 
+                (not (primitive-type? (array-component-type  
+                                       (obj-type (deref2 v (heap s))))))
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (not (equal (element-at-array index (rREF v) s) -1))
+                (check-array (rREF v) index s))
+           (NOT (CONSP (DEREF2-INIT (TAG-REF (ELEMENT-AT-ARRAY INDEX
+                                                               (rREF v)
+                                                               S))
+                                      (heap-init-map (aux s)))))))
+
+
+
+(local (in-theory (disable TAG-REF-TAG)))
+(local  (defthm tag-tag-REF-specific
+          (implies (not (primitive-type? (array-component-type (obj-type (deref2 v hp)))))
+                   (equal (tag x (array-component-type (obj-type (deref2 v hp))))
+                          (tag-REF x)))
+          <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable tag tag-REF)))))
+
+<span class="comment">;; this following is a better rule to export!! 
+</span>
+(defthm element-of-array-is-consistent-value-specific-AARARY
+  (implies (and (isArrayType (obj-type (deref2 v (heap s))))
+                (not (primitive-type? (array-component-type (obj-type (deref2 v
+                                                                              (heap s))))))
+                (check-array (rREF v) index s)
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (equal (instance-class-table s) cl)
+                (equal (heap s) hp))
+           (consistent-value-x  (tag-REF (element-at-array index (rREF v) s))
+                                cl hp))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> ((<span class="builtin">:instance</span>
+                         element-of-array-is-consistent-value-specific))
+           <span class="builtin">:in-theory</span> (disable element-of-array-is-consistent-value-specific))))
+
+
+
+
+
+
+
+</pre>
+  </body>
+</html>

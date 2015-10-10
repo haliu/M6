@@ -1,0 +1,349 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>IFEQ.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+
+(include-book <span class="string"><a href="base.lisp.html">"base"</a></span>)
+(include-book <span class="string"><a href="base-consistent-state.lisp.html">"base-consistent-state"</a></span>)
+(include-book <span class="string"><a href="base-extra.lisp.html">"base-extra"</a></span>)
+
+
+(acl2::set-verify-guards-eagerness 2)
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(include-book <span class="string"><a href="base-branch-instrs.lisp.html">"base-branch-instrs"</a></span>)
+
+(<span class="keyword">defun</span> <span class="function-name">wff-IFEQ</span> (<a href="inst.lisp.html">inst</a>)
+  (and (wff-one-arg <a href="inst.lisp.html">inst</a>)
+       (integerp (arg <a href="inst.lisp.html">inst</a>))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(include-book <span class="string"><a href="base-skip-proofs2.lisp.html">"base-skip-proofs2"</a></span>)
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">IFEQ-guard</span> (<a href="inst.lisp.html">inst</a> s)
+  (and (<a href="../consistent-state-strong.lisp.html">consistent-state-strong</a> s)
+       (wff-IFEQ <a href="inst.lisp.html">inst</a>)
+       (not (mem '*native* (method-accessflags (current-method s))))
+       (topStack-guard-strong s)
+       (INT32p (value-of (topStack s)))
+       (branch-target-exists (arg <a href="inst.lisp.html">inst</a>) (method-code (current-method s)))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">execute-IFEQ</span> (<a href="inst.lisp.html">inst</a> s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (IFEQ-guard <a href="inst.lisp.html">inst</a> s)))
+  (BRANCHIF (= (value-of (topStack s)) 0)))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">check-IFEQ</span> (<a href="inst.lisp.html">inst</a> s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (<a href="../consistent-state.lisp.html">consistent-state</a> s)))
+  (mylet* ((cframe (current-frame s))
+           (npc  (arg <a href="inst.lisp.html">inst</a>)))
+          (and (wff-IFEQ <a href="inst.lisp.html">inst</a>)
+               (topStack-guard-strong s)
+               (equal (djvm-translate-int-type (tag-of (topStack s))) 'INT)
+               (branch-target-exists npc
+                                     (method-code (current-method s))))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm branch-target-found-implies-integerp
+  (implies (and (branch-target-exists npc insts)
+                (wff-insts insts))
+           (integerp npc))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+                 
+
+(defthm consistent-state-not-method-native-topstackguard-implies-wff-instrs-f
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (wff-insts (method-code (current-method s))))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+               
+(defthm IFEQ-guard-implies-execute-IFEQ-perserve-consistency
+  (implies (IFEQ-guard <a href="inst.lisp.html">inst</a> s)
+           (<a href="../consistent-state-strong.lisp.html">consistent-state-strong</a> (execute-IFEQ <a href="inst.lisp.html">inst</a> s))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;;
+;; note our <a href="../consistent-state.lisp.html">consistent-state</a> does not assert that next instruction is within
+;; bound!! 
+;;
+;; We may need to eventually add that assertion!! 
+;; especially when we talk about invoke etc.
+;; We do have an assertion about consistent-call-linkage!! 
+;; 
+</span>
+(defthm check-IFEQ-implies-guard-succeeds
+  (implies (and (<a href="../consistent-state-strong.lisp.html">consistent-state-strong</a> s)
+               (check-IFEQ <a href="inst.lisp.html">inst</a> s))
+          (IFEQ-guard <a href="inst.lisp.html">inst</a> s)))
+
+       
+<span class="comment">;----------------------------------------------------------------------
+;;; need proofs 
+</span>
+<span class="comment">;;(i-am-here) ;; Thu Jul 28 02:11:41 2005
+</span>
+(encapsulate ()
+ (local (include-book <span class="string"><a href="base-bcv.lisp.html">"base-bcv"</a></span>))
+
+ (local 
+  (defthm bcv-target-is-safe-implies-in-range
+    (implies (and (bcv::targetistypesafe (env-sig s)
+                                         anyframe 
+                                         offset)
+                  (wff-insts (method-code (current-method s))))
+             (branch-target-exists offset (method-code (current-method s))))))
+ <span class="comment">;;
+</span> <span class="comment">;; this theorem is not necessary here!! 
+</span> <span class="comment">;;
+</span>
+ (local 
+  (in-theory (disable bcv::targetistypesafe branch-target-exists current-method)))
+                      
+ <span class="comment">;; to be moved into base-bcv!!
+</span>
+  (defthm bcv-check-IFEQ-ensures-djvm-check-IFEQ
+    (implies (and (bcv::check-IFEQ <a href="inst.lisp.html">inst</a> (env-sig s) 
+                                   (frame-sig  (current-frame s)
+                                               (instance-class-table s)
+                                               (heap s)
+                                               (heap-init-map (aux s))))
+                  (wff-IFEQ <a href="inst.lisp.html">inst</a>)
+                  (not (mem '*native* (method-accessflags (current-method s))))
+                  (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+             (djvm::check-IFEQ <a href="inst.lisp.html">inst</a> s))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable bcv::targetistypesafe 
+                                        branch-target-exists
+                                        current-method env-sig
+                                        method-code
+                                        wff-inst)))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;;(i-am-here) ;; Thu Jul 28 01:49:19 2005
+</span>
+<span class="comment">;-- BCV::check-IFEQ monotonic   -------------------------------------
+</span>
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-bcv-check-monotonic.lisp.html">"base-bcv-check-monotonic"</a></span>))
+
+   (defthm sig-check-IFEQ-on-more-general-implies-more-specific
+     (implies (and (bcv::check-IFEQ <a href="inst.lisp.html">inst</a> env1 gframe)
+                   (equal (bcv::classtableEnvironment env1) scl)
+                   (bcv::icl-scl-compatible icl scl)
+                   (bcv::good-icl icl)
+                   (bcv::good-scl scl)
+                   (bcv::consistent-sig-stack (bcv::frameStack gframe) icl)
+                   (bcv::consistent-sig-stack (bcv::frameStack sframe) icl)
+                   (bcv::consistent-sig-stack (bcv::frameStack 
+                                               (bcv::STACKFRAMEATOFFSET env1
+                                                                        (bcv::arg1 <a href="inst.lisp.html">inst</a>)))icl)
+                   (bcv::consistent-sig-locals (bcv::frameLocals gframe) icl)
+                   (bcv::consistent-sig-locals (bcv::frameLocals sframe) icl)
+                   (bcv::consistent-sig-locals (bcv::frameLocals 
+                                                (bcv::STACKFRAMEATOFFSET env1
+                                                                         (bcv::arg1 <a href="inst.lisp.html">inst</a>))) icl)
+                   (bcv::sig-frame-more-general gframe sframe env1))
+              (bcv::check-IFEQ <a href="inst.lisp.html">inst</a> env1 sframe))))
+      
+
+<span class="comment">;;;
+;;; showing the next step is monotonic is more difficult!! 
+</span>
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;-- BCV::execute-IFEQ next step  monotonic ---------------------------
+</span>
+(encapsulate ()
+  (local (include-book <span class="string"><a href="base-bcv-step-monotonic.lisp.html">"base-bcv-step-monotonic"</a></span>))
+
+  (defthm IFEQ-monotonicity
+   (implies (and (bcv::sig-frame-more-general gframe sframe env1)
+                (bcv::check-IFEQ <a href="inst.lisp.html">inst</a> env1 gframe) 
+                (bcv::check-IFEQ <a href="inst.lisp.html">inst</a> env1 sframe))
+           (bcv::sig-frame-more-general 
+            (bcv::normal-frame (bcv::execute-IFEQ <a href="inst.lisp.html">inst</a> env gframe))
+            (bcv::normal-frame (bcv::execute-IFEQ <a href="inst.lisp.html">inst</a> env sframe)) env1))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(encapsulate ()
+    (local (include-book <span class="string"><a href="base-frame-sig-expansion.lisp.html">"base-frame-sig-expansion"</a></span>))   
+    (defthm execute-IFEQ-frame-sig-is
+      (mylet* ((ns (execute-IFEQ <a href="inst.lisp.html">inst</a> s)))
+       (implies 
+        (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+             (check-IFEQ <a href="inst.lisp.html">inst</a> s))
+        (equal (frame-sig (current-frame ns)
+                          (instance-class-table ns)
+                          (heap ns)
+                          (heap-init-map (aux ns)))
+               (frame-sig (current-frame (popStack s))
+                          (instance-class-table s)
+                          (heap s)
+                          (heap-init-map (aux s))))))))
+                                                  
+
+
+(encapsulate ()
+  (local (include-book <span class="string"><a href="base-bcv-frame-sig-expansion.lisp.html">"base-bcv-frame-sig-expansion"</a></span>))
+  (defthm bcv-execute-IFEQ-is
+    (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                  (check-IFEQ <a href="inst.lisp.html">inst</a> s)
+                  (bcv::check-IFEQ <a href="inst.lisp.html">inst</a> (env-sig s) 
+                                    (frame-sig (current-frame s)
+                                               (instance-class-table s)
+                                               (heap s)
+                                               (heap-init-map (aux s)))))
+             (equal (car (bcv::execute-IFEQ
+                          <a href="inst.lisp.html">inst</a> (env-sig s) 
+                          (frame-sig (current-frame s)
+                                     (instance-class-table s)
+                                     (heap s)
+                                     (heap-init-map (aux s)))))
+                    (frame-sig (current-frame (popStack s))
+                               (instance-class-table s)
+                               (heap s)
+                               (heap-init-map (aux s)))))))
+
+
+
+<span class="comment">;--  bcv next-state is more general than djvm next-state ---------------
+</span>
+
+(encapsulate ()
+  (local (include-book <span class="string"><a href="base-next-state-more-specific.lisp.html">"base-next-state-more-specific"</a></span>))
+  (defthm next-state-no-more-general-IFEQ
+    (mylet* ((oframe (frame-sig (current-frame s)
+                                (instance-class-table s)
+                                (heap s)
+                                (heap-init-map (aux s))))
+             (ns   (execute-IFEQ <a href="inst.lisp.html">inst</a> s))
+             (nframe (frame-sig (current-frame ns)
+                                (instance-class-table ns)
+                                (heap ns)
+                                (heap-init-map (aux ns)))))
+            (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                          (bcv::check-IFEQ <a href="inst.lisp.html">inst</a> (env-sig s) oframe)
+                          (check-IFEQ <a href="inst.lisp.html">inst</a> s))
+                     (bcv::sig-frame-more-general 
+                      (mv-nth 0 (bcv::execute-IFEQ
+                                 <a href="inst.lisp.html">inst</a> 
+                                 (env-sig s)
+                                 oframe))
+                      nframe
+                      (env-sig s))))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable execute-IFEQ bcv::execute-IFEQ)))))
+
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+
+(include-book <span class="string"><a href="../../M6/m6-bytecode.lisp.html">"../../M6/m6-bytecode"</a></span>)
+(include-book <span class="string"><a href="../consistent-state-to-untag-state.lisp.html">"../../DJVM/consistent-state-to-untag-state"</a></span>)
+
+<span class="comment">;; Tue Aug  2 17:27:12 2005
+</span>
+<span class="comment">;; (encapsulate ()
+;;    (local (include-book "base-untag-state"))
+;;    (defthm equal-IFEQ-when-guard-succeeds
+;;      (implies (IFEQ-guard <a href="inst.lisp.html">inst</a> s)
+;;               (equal (untag-state (djvm::execute-IFEQ <a href="inst.lisp.html">inst</a> s))
+;;                      (m6::execute-IFEQ <a href="inst.lisp.html">inst</a> (untag-state s))))))
+</span>
+
+<span class="comment">;; (i-am-here) ;; Tue Aug  2 17:27:52 2005
+</span>
+(encapsulate ()
+   (local (include-book <span class="string"><a href="base-state-equiv.lisp.html">"base-state-equiv"</a></span>))
+   (defthm equal-IFEQ-when-guard-succeeds
+      (implies (and (state-equiv M6::m6-s DJVM::djvm-s)
+                    (IFEQ-guard <a href="inst.lisp.html">inst</a> DJVM::djvm-s))
+               (state-equiv (m6::execute-IFEQ <a href="inst.lisp.html">inst</a> M6::m6-s)
+                            (djvm::execute-IFEQ <a href="inst.lisp.html">inst</a> DJVM::djvm-s)))
+      <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize fertilize)))))
+
+
+<span class="comment">;; Tue Aug  2 17:28:59 2005
+;----------------------------------------------------------------------
+</span>
+<span class="comment">;; Mon Aug 15 21:53:41 2005
+</span>
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-method-ptr-no-change.lisp.html">"base-method-ptr-no-change"</a></span>))
+  (defthm execute-IFEQ-change-no-method-ptr
+    (equal (method-ptr (current-frame (djvm::execute-IFEQ <a href="inst.lisp.html">inst</a> s)))
+           (method-ptr (current-frame s)))))
+
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-method-no-change.lisp.html">"base-method-no-change"</a></span>))
+  (defthm deref-method-no-change-if-already-loaded-IFEQ
+    (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+             (equal (deref-method (method-ptr (current-frame s))
+                                  (instance-class-table 
+                                   (djvm::execute-IFEQ <a href="inst.lisp.html">inst</a> s)))
+                    (deref-method (method-ptr (current-frame s))
+                                  (instance-class-table s))))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(in-theory (disable check-IFEQ IFEQ-guard execute-IFEQ wff-IFEQ))</pre>
+  </body>
+</html>

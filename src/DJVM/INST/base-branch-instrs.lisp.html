@@ -1,0 +1,79 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-branch-instrs.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(include-book <span class="string"><a href="base.lisp.html">"base"</a></span>)
+(include-book <span class="string"><a href="base-consistent-state.lisp.html">"base-consistent-state"</a></span>)
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(<span class="keyword">defmacro</span> <span class="function-name">BRANCHIF</span> (<span class="keyword">cond</span>) 
+  `(<span class="keyword">if</span> ,cond 
+       (state-set-pc (arg <a href="inst.lisp.html">inst</a>) 
+                     (popStack s))
+     (ADVANCE-PC (popStack s))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(acl2::set-verify-guards-eagerness  2)
+
+
+(<span class="keyword">defun</span> <span class="function-name">branch-target-exists</span> (pc code)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-insts code)))
+  (<span class="keyword">if</span> (not (consp code)) nil
+      (or (equal (inst-offset (car code)) pc)
+          (branch-target-exists pc (cdr code)))))
+
+
+
+             
+
+</pre>
+  </body>
+</html>

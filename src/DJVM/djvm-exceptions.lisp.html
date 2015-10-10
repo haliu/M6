@@ -1,0 +1,57 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>djvm-exceptions.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="../M6-DJVM-shared/jvm-exceptions.lisp.html">"../M6-DJVM-shared/jvm-exceptions"</a></span>)
+(include-book <span class="string"><a href="../M6-DJVM-shared/jvm-exceptions-guard-verification.lisp.html">"../M6-DJVM-shared/jvm-exceptions-guard-verification"</a></span>)
+
+(<span class="keyword">defun</span> <span class="function-name">fix-exception-reference</span> (s)
+  (pushStack (cons 'REF (topStack s))
+             (popStack s)))
+
+(skip-proofs (verify-guards fix-exception-reference))
+
+
+(<span class="keyword">defun</span> <span class="function-name">raise-exception</span> (any s)
+  (fix-exception-reference (jvm::raise-exception any s)))
+
+
+(skip-proofs (verify-guards raise-exception))
+
+(in-theory (disable raise-exception))</pre>
+  </body>
+</html>

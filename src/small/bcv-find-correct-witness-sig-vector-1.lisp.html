@@ -1,0 +1,285 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>bcv-find-correct-witness-sig-vector-1.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"ACL2"</span>)
+(include-book <span class="string"><a href="bcv-model.lisp.html">"bcv-model"</a></span>)
+(include-book <span class="string"><a href="bcv-simple-model.lisp.html">"bcv-simple-model"</a></span>)
+(include-book <span class="string"><a href="generic.lisp.html">"generic"</a></span>)
+
+
+
+<span class="comment">;; (local (include-book <a href="bcv-find-correct-witness-bcv-check-pre.lisp.html">"bcv-find-correct-witness-bcv-check-pre"</a>))
+</span>
+
+
+(encapsulate () 
+  (local       
+   (defthm get-is-stack-map-sig-frame-pop-n
+     (equal (g 'is-stack-map (sig-frame-pop-n n sig-frame))
+            (g 'is-stack-map sig-frame))))
+  (local 
+   (defthm get-is-inst-sig-frame-pop-n
+     (equal (g 'is-inst (sig-frame-pop-n n sig-frame))
+            (g 'is-inst sig-frame))))
+
+   (local 
+    (defthm get-pc-sig-frame-pop-n
+      (equal (g 'pc (sig-frame-pop-n n sig-frame))
+             (g 'pc sig-frame))))
+
+   (defthm bcv-execute-step-produce-stack-map-or-aftergoto
+     (implies (and (stack-map? stack-map)
+                   (bcv-check-step-pre inst stack-map)
+                   (not (stack-map? (bcv-execute-step inst stack-map))))
+              (equal (bcv-execute-step inst stack-map) 'aftergoto))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;; Subgoal *1/9.12'4'
+;; (IMPLIES
+;;  (AND
+;;    (CONSP MERGED-CODE2)
+;;    (NOT (EQUAL INIT-FRAME 'AFTERGOTO))
+;;    (NOT (STACK-MAP? MERGED-CODE1))
+;;    (INST? MERGED-CODE1)
+;;    (EQUAL (G 'PC INIT-FRAME)
+;;           (G 'PC MERGED-CODE1))
+;;    (BCV-CHECK-STEP-PRE MERGED-CODE1 INIT-FRAME)
+;;    (SIG-FRAME-COMPATIBLE
+;;         STACK-MAP
+;;         (CDR (ASSOC-EQUAL (G 'PC INIT-FRAME)
+;;                           (COLLECT-WITNESS-MERGED-CODE-SAFE
+;;                                MERGED-CODE2
+;;                                (BCV-EXECUTE-STEP MERGED-CODE1 INIT-FRAME)))))
+;;    (MERGED-CODE-SAFE MERGED-CODE2
+;;                      (BCV-EXECUTE-STEP MERGED-CODE1 INIT-FRAME))
+;;    (WFF-CODE1 (EXTRACT-CODE MERGED-CODE2)
+;;               (+ 1 (G 'PC INIT-FRAME)))
+;;    (MEMBER STACK-MAP MERGED-CODE2)
+;;    (STACK-MAP? INIT-FRAME)
+;;    (STACK-MAP? STACK-MAP)
+;;    (EQUAL (G 'PC STACK-MAP)
+;;           (G 'PC INIT-FRAME)))
+;;  (SIG-FRAME-COMPATIBLE STACK-MAP INIT-FRAME)).
+</span>
+<span class="comment">;; we want to prove that sig-frame-compatible
+</span>
+<span class="comment">;;    (SIG-FRAME-COMPATIBLE
+;;         STACK-MAP
+;;         (CDR (ASSOC-EQUAL (G 'PC INIT-FRAME)
+;;                           (COLLECT-WITNESS-MERGED-CODE-SAFE
+;;                                MERGED-CODE2
+;;                                (BCV-EXECUTE-STEP MERGED-CODE1
+;;                                INIT-FRAME)))))
+;;
+;; is impossible when 
+;;
+;;    (WFF-CODE1 (EXTRACT-CODE MERGED-CODE2)
+;;               (+ 1 (G 'PC INIT-FRAME)))
+</span>
+
+(defthm stack-map-implies-not-sig-frame-compatible
+    (implies (stack-map? x)
+             (not (sig-frame-compatible x nil))))
+
+
+(encapsulate () 
+ (local (include-book <span class="string"><a href="bcv-if-pc-small-then-not-bound-in-witness.lisp.html">"bcv-if-pc-small-then-not-bound-in-witness"</a></span>))
+ (defthm merged-code-is-safe-implies-not-bound-smaller
+   (implies (and (merged-code-safe merged-code init-frame)
+                 (WFF-CODE1 (EXTRACT-CODE MERGED-CODE)
+                            (g 'pc (car merged-code)))
+                 (&lt; pc1 (g 'pc (car merged-code))))
+            (not (assoc-equal pc1 (collect-witness-merged-code-safe 
+                                   merged-code init-frame))))))
+
+
+(encapsulate () 
+ (local (include-book <span class="string"><a href="bcv-if-verified-then-pc-ordered.lisp.html">"bcv-if-verified-then-pc-ordered"</a></span>))
+ (local (defthm merged-code-safe-implies-pc-less-than
+          (implies (and (WFF-CODE1 (EXTRACT-CODE MERGED-CODE)
+                                   (+ 1 pc))
+                        (consp (extract-code merged-code))
+                        (merged-code-safe merged-code sig-frame))
+                   (&lt; pc 
+                      (g 'pc (car merged-code))))
+          <span class="builtin">:rule-classes</span> <span class="builtin">:linear</span>))
+
+ (defthm merged-code-safe-implies-pc-less-than-rewrite
+   (implies (and (WFF-CODE1 (EXTRACT-CODE MERGED-CODE)
+                            (+ 1 pc))
+                 (consp (extract-code merged-code))
+                 (merged-code-safe merged-code sig-frame))
+            (&lt; pc 
+               (g 'pc (car merged-code))))))
+
+
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(encapsulate ()
+ (local (include-book <span class="string"><a href="bcv-find-correct-witness-bcv-check-pre.lisp.html">"bcv-find-correct-witness-bcv-check-pre"</a></span>))             
+ (defthm wff-code1-uniqueness
+   (IMPLIES
+    (AND (WFF-CODE1 (EXTRACT-CODE MERGED-CODE4) any)
+         (MERGED-CODE-SAFE MERGED-CODE4 MERGED-CODE3))
+    (wff-code1 (extract-code merged-code4)
+               (g 'pc (car merged-code4))))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+(defthm sig-frame-compatible-reflexive
+  (SIG-FRAME-COMPATIBLE STACK-MAP STACK-MAP))
+
+
+(defthm sig-frame-compatible-pc-equal-f
+  (implies (SIG-FRAME-COMPATIBLE init-frame stack-map)
+           (equal (g 'pc init-frame) 
+                  (g 'pc stack-map)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+(defthm sig-frame-compatible-transitive
+  (implies (and (sig-frame-compatible frame1 frame2)
+                (SIG-FRAME-COMPATIBLE frame2 frame3))
+           (sig-frame-compatible frame1 frame3)))
+
+
+
+
+
+(defthm merged-code-safe-implies-merged-code-pc-is-pc
+  (implies (and (merged-code-safe merged-code init-frame)
+                (stack-map? init-frame))
+           (equal (g 'pc (car merged-code))
+                  (g 'pc init-frame)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+           <span class="builtin">:in-theory</span> (disable sig-frame-compatible inst? stack-map?
+                               bcv-check-step-pre
+                               bcv-execute-step))))
+
+
+
+(defthm collect-witness-merged-code-safe-not-consp-if-not-extract-code
+  (implies (not (consp (extract-code merged-code)))
+           (not (consp (collect-witness-merged-code-safe merged-code init-frame)))))
+
+
+
+(defthm first-stack-map-frame-is-compatible-with-the-last-frame-for-a-same-pc
+  (IMPLIES (and (merged-code-safe merged-code stack-map)
+                (stack-map? stack-map)
+                (equal (g 'pc stack-map) pc))
+           (SIG-FRAME-COMPATIBLE
+            stack-map
+            (CDR (ASSOC-EQUAL
+                  pc 
+                  (COLLECT-WITNESS-MERGED-CODE-SAFE MERGED-CODE stack-map)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+           <span class="builtin">:in-theory</span> (disable sig-frame-compatible inst? stack-map?
+                               bcv-check-step-pre
+                               bcv-execute-step))))
+
+
+<span class="comment">;; (i-am-here) ;; Mon Nov 14 16:34:29 2005
+</span>
+(defthm <span class="string">|Subgoal *1/9.12'4'|</span>
+  (IMPLIES
+   (AND
+    (CONSP MERGED-CODE2)
+    (NOT (EQUAL INIT-FRAME 'AFTERGOTO))
+    (INST? MERGED-CODE1)
+    (BCV-CHECK-STEP-PRE MERGED-CODE1 INIT-FRAME)
+    (SIG-FRAME-COMPATIBLE
+     STACK-MAP
+     (CDR (ASSOC-EQUAL (G 'PC INIT-FRAME)
+                       (COLLECT-WITNESS-MERGED-CODE-SAFE
+                        MERGED-CODE2
+                        (BCV-EXECUTE-STEP MERGED-CODE1 INIT-FRAME)))))
+    (EQUAL (G 'PC INIT-FRAME)
+           (G 'PC MERGED-CODE1))
+    (MERGED-CODE-SAFE MERGED-CODE2
+                      (BCV-EXECUTE-STEP MERGED-CODE1 INIT-FRAME))
+    (WFF-CODE1 (EXTRACT-CODE MERGED-CODE2)
+               (+ 1 (G 'PC INIT-FRAME)))
+    (MEMBER STACK-MAP MERGED-CODE2)
+    (STACK-MAP? INIT-FRAME)
+    (STACK-MAP? STACK-MAP)
+    (EQUAL (G 'PC STACK-MAP)
+           (G 'PC INIT-FRAME)))
+   (SIG-FRAME-COMPATIBLE STACK-MAP INIT-FRAME))
+ <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize fertilize)
+          <span class="builtin">:in-theory</span> (disable sig-frame-compatible inst? stack-map?
+                              <span class="comment">;; assoc-equal
+</span>                              wff-code1
+                              bcv-check-step-pre
+                              extract-code
+                              bcv-execute-step)
+          <span class="builtin">:cases</span> ((consp (extract-code merged-code2)))
+          <span class="builtin">:do-not-induct</span> t)))
+
+
+
+
+(defthm verified-implies-partial-sig-vector-compatible-with-full-vector-lemma
+   (implies (and (merged-code-safe merged-code init-frame)
+                 (consp (cdr merged-code))
+                 (wff-code1 (extract-code merged-code)
+                            (g 'pc (car merged-code)))
+                 (member stack-map merged-code)
+                 (or (stack-map? init-frame)
+                     (equal init-frame 'aftergoto))
+                 (stack-map? stack-map)
+                 (equal (g 'pc stack-map) pc))
+            (sig-frame-compatible 
+             stack-map
+             (cdr (assoc-equal pc (collect-witness-merged-code-safe 
+                                   merged-code init-frame)))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize fertilize)
+            <span class="builtin">:in-theory</span> (disable sig-frame-compatible inst? stack-map?
+                                <span class="comment">;; wff-code1
+</span>                                <span class="comment">;; assoc-equal
+</span>                                bcv-check-step-pre
+                                <span class="comment">;;extract-code
+</span>                                bcv-execute-step))))
+</pre>
+  </body>
+</html>

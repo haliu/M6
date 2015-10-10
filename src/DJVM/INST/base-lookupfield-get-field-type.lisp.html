@@ -1,0 +1,141 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-lookupfield-get-field-type.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="base.lisp.html">"base"</a></span>)
+
+
+(local (include-book <span class="string"><a href="base-consistent-object-m6-getfield.lisp.html">"base-consistent-object-m6-getfield"</a></span>))
+
+<span class="comment">;; (i-am-here) ;; Thu Jul 21 16:58:01 2005
+</span>
+
+
+
+<span class="comment">;; (local 
+;;  (defthm search-field-field-type-equal-get-field-type
+;;   (implies (and (searchfields field-ptr fields)
+;;                 (equal (field-ptr-fieldname field-ptr)
+;;                        fieldname))
+;;            (equal (get-field-type1 fieldname fields)
+;;                   (field-fieldtype 
+;;   :hints (("Goal" :do-not '(generalize)))))
+</span>
+<span class="comment">;;
+;; the difficulty lies in the fact that search field search for the exact match
+;; however get-field-type1 looks for the first match!! 
+;;
+</span>
+
+(local 
+ (defthm get-field-type1-is-fieldtype-field-decl-with-name
+   (equal (get-field-type1 fieldname field-decls)
+          (field-fieldtype (field-decl-with-name fieldname field-decls)))))
+
+
+
+(local 
+ (encapsulate ()
+   (local (include-book <span class="string"><a href="base-consistent-object-m6-getfield.lisp.html">"base-consistent-object-m6-getfield"</a></span>))
+   (defthm field-decl-with-name-equal-lookupfield-specific
+     (implies (and (lookupfield (fieldcp-to-field-ptr fieldcp) s)
+                   (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+           (EQUAL
+            (FIELD-DECL-WITH-NAME
+             (fieldcp-fieldname fieldcp)
+             (FIELDS (CLASS-BY-NAME
+                      (FIELD-CLASSNAME (LOOKUPFIELD (fieldcp-to-field-ptr fieldcp) s))
+                      (INSTANCE-CLASS-TABLE S))))
+            (LOOKUPFIELD (fieldcp-to-field-ptr fieldcp) s))))))
+
+
+
+
+(local 
+ (encapsulate () 
+   (local (include-book <span class="string"><a href="base-lookupfield-fieldname-normalize.lisp.html">"base-lookupfield-fieldname-normalize"</a></span>))
+   (defthm field-fieldtype-reduce
+     (implies (LOOKUPFIELD field-ptr s)
+              (equal (FIELD-FIELDTYPE (LOOKUPFIELD field-ptr s))
+                     (field-ptr-type field-ptr)))
+     <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (lookupfield) (LOOKUPFIELD-INV
+                                                    searchfields 
+                                                    fields
+                                                    field-fieldtype
+                                                    isClassTerm
+                                                    superclass-no-loop))
+              <span class="builtin">:do-not</span> '(generalize))))))
+
+(local 
+ (defthm field-ptr-type-fieldcp-to-ptr
+   (equal (field-ptr-type (fieldcp-to-field-ptr fieldcp))
+          (fieldcp-fieldtype fieldcp))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable fieldcp-to-field-ptr fieldcp-to-field-ptr
+                                      make-field-ptr
+                                      field-ptr-type)))))
+
+
+
+
+
+(defthm lookupfield-field-type-equal
+  (implies (and (LOOKUPFIELD (FIELDCP-TO-FIELD-PTR fieldcp) S)
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+           (equal (get-field-type 
+                   (FIELD-CLASSNAME (LOOKUPFIELD (FIELDCP-TO-FIELD-PTR fieldcp)
+                                                 S))
+                   (fieldcp-fieldname fieldcp)
+                   (instance-class-table s))
+                  (fieldcp-fieldtype fieldcp)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable lookupfield 
+                                      field-classname
+                                      fieldcp-classname
+                                      FIELDCP-TO-FIELD-PTR
+                                      field-fieldtype
+                                      fields
+                                      fieldcp-fieldtype
+                                      fieldcp-fieldname
+                                      get-field-type1))))
+                                      
+
+</pre>
+  </body>
+</html>

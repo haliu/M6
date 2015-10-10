@@ -1,0 +1,71 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-bcv-fact-isMatchingType-array.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"BCV"</span>)
+(include-book <span class="string"><a href="../../BCV/typechecker.lisp.html">"../../BCV/typechecker"</a></span>)
+(include-book <span class="string"><a href="../../BCV/bcv-functions.lisp.html">"../../BCV/bcv-functions"</a></span>)
+
+(include-book <span class="string"><a href="base-bind-free.lisp.html">"base-bind-free"</a></span>)
+
+
+
+
+(defthm ismatchingtype-aarray-implies-array-element-type-fact1
+  (implies (and (bind-free (acl2::default-bind-free 'env 'env1
+                                                    (acl2::pkg-witness
+                                                     <span class="string">"DJVM"</span>)) 
+                           (env))
+                (ismatchingtype '(array (class <span class="string">"java.lang.Object"</span>)) stk env))
+           (not (equal (arrayelementtype (car stk)) 'void))))
+
+<span class="comment">;;;
+;;; these are easy because ismatchingtype demand (array ...) or (class ...) 
+;;; for it to be possible to assignable to (array (class "java.lang.Object")) 
+;;; 
+;;; It is good to tag types like this.  
+</span>
+(defthm ismatchingtype-aarray-implies-array-element-type-size-1
+  (implies (and (bind-free (acl2::default-bind-free 'env 'env1
+                                                    (acl2::pkg-witness
+                                                     <span class="string">"DJVM"</span>)) 
+                           (env))
+                (ismatchingtype '(array (class <span class="string">"java.lang.Object"</span>)) stk env))
+           (equal (sizeof (arrayelementtype (car stk))) 1)))
+
+</pre>
+  </body>
+</html>

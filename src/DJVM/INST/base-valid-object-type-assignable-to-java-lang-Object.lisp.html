@@ -1,0 +1,79 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-valid-object-type-assignable-to-java-lang-Object.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="../../M6-DJVM-shared/jvm-object-type-hierachy.lisp.html">"../../M6-DJVM-shared/jvm-object-type-hierachy"</a></span>)
+(include-book <span class="string"><a href="../consistent-state.lisp.html">"../../DJVM/consistent-state"</a></span>)
+
+(local 
+ (defthm consistent-state-implies-obj-type-assignable-java-lang-Object-strong
+   (implies (ISARRAYTYPE type)
+            (CAR (ISASSIGNABLETO type
+                                 <span class="string">"java.lang.Object"</span> S)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable isarraytype primitive-type?)))))
+
+
+<span class="comment">;;;
+;;; because of the way that isassignableto is defined
+;;;
+;;; there is a short cut for return T when we test against "java.lang.Object"
+;;;
+;;;
+;;; This is why it is difficult to relate 
+;;;  BCV::isAssignable
+;;; to 
+;;;  DJVM::isAssignableTo !!!
+;;;
+;;; What I have proved is that those optimization is in fact safe to do!!
+;;; 
+;;;
+</span>
+(defthm consistent-state-implies-obj-type-assignable-java-lang-Object
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (ISARRAYTYPE (OBJ-TYPE (DEREF2 v  (heap s)))))
+           (CAR (ISASSIGNABLETO (OBJ-TYPE (DEREF2 v (HEAP S)))
+                                <span class="string">"java.lang.Object"</span> S)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable <a href="../consistent-state.lisp.html">consistent-state</a> isarraytype
+                                      isassignableto deref2))))
+
+</pre>
+  </body>
+</html>

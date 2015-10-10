@@ -1,0 +1,531 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-consistent-state-load-class-support.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="../consistent-state.lisp.html">"../../DJVM/consistent-state"</a></span>)
+(include-book <span class="string"><a href="../consistent-state-properties.lisp.html">"../../DJVM/consistent-state-properties"</a></span>)
+(include-book <span class="string"><a href="../../M6-DJVM-shared/jvm-bytecode.lisp.html">"../../M6-DJVM-shared/jvm-bytecode"</a></span>)
+
+
+
+(local (include-book <span class="string"><a href="base-loader-preserve-consistent-state.lisp.html">"base-loader-preserve-consistent-state"</a></span>))
+(local (include-book <span class="string"><a href="base-consistent-state-make-state.lisp.html">"base-consistent-state-make-state"</a></span>))
+
+(local 
+ (defthm consistent-heap-array-init-state3-adding-new-obj
+   (implies (and (consistent-heap-array-init-state3 hp hp-init)
+                 (not (bound? ref hp-init))
+                 (wff-internal-array obj)
+                 (or (primitive-type? (array-component-type (obj-type obj)))
+                     (array-content-initialized (array-data obj) hp-init))
+                 (valid-array-type (obj-type obj) cl acl))
+            (consistent-heap-array-init-state3 (bind ref obj hp)
+                                               hp-init))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)))))
+
+
+(local 
+ (defthm consistent-heap-array-init-state2-adding-new-obj
+   (implies (consistent-heap-array-init-state2 hp hp-init)
+            (consistent-heap-array-init-state2 (bind ref obj hp)
+                                               hp-init))))
+
+
+(local 
+ (defthm consistent-heap-array-init-state1-adding-new-obj
+   (implies (and (consistent-heap-array-init-state1 hp cl acl hp-init)
+                 (not (bound? ref hp-init))
+                 (valid-array-type (obj-type obj) cl acl))
+            (consistent-heap-array-init-state1 (bind ref obj hp)
+                                               cl acl
+                                               hp-init))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)))))
+    
+
+(local 
+ (defthm consistent-state-implies-not-bound-len-heap
+   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+            (not (bound? (len (heap s)) (heap s))))))
+
+
+(local 
+ (defthm consistent-state-implies-consistent-heap-init-state3
+   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+            (consistent-heap-array-init-state3 (heap s)
+                                               (heap-init-map (aux s))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a> consistent-heap-array-init-state)))))
+
+
+
+(local 
+ (defthm consistent-state-implies-consistent-heap-init-state2
+   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+            (consistent-heap-array-init-state2 (heap s)
+                                               (heap-init-map (aux s))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a> consistent-heap-array-init-state)))))
+
+
+(local 
+ (defthm consistent-state-implies-consistent-heap-init-state1
+   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+            (consistent-heap-array-init-state1 (heap s)
+                                               (instance-class-table s)
+                                               (array-class-table s)
+                                               (heap-init-map (aux s))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a> consistent-heap-array-init-state)))))
+    
+(local 
+ (defthm consistent-array-object-implies-wff-internal-array
+   (implies (consistent-array-object obj hp cl acl)
+            (wff-internal-array obj))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable consistent-array-object)))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+(local 
+ (defthm consistent-heap-array-init-state-adding-new-obj
+   (IMPLIES (AND (CONSISTENT-STATE S)
+                 (CONSISTENT-OBJECT OBJ (HEAP S)
+                                    (INSTANCE-CLASS-TABLE S))
+                 (CONSISTENT-ARRAY-OBJECT OBJ (HEAP S)
+                                          (INSTANCE-CLASS-TABLE S)
+                                          (ARRAY-CLASS-TABLE S))
+                 (array-content-initialized (array-data obj) (heap-init-map
+                                                              (aux s))))
+            (CONSISTENT-HEAP-ARRAY-INIT-STATE (BIND (LEN (HEAP S)) OBJ (HEAP S))
+                                              (INSTANCE-CLASS-TABLE S)
+                                              (ARRAY-CLASS-TABLE S)
+                                              (HEAP-INIT-MAP (AUX S))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable consistent-heap-array-init-state)))))
+                                           
+
+
+<span class="comment">;; (i-am-here) ;; Thu Jul 21 15:54:44 2005
+</span>
+(skip-proofs 
+ (local 
+  (defthm consistent-state-add-new-object-consistent-heap-init-state
+    (IMPLIES (AND (CONSISTENT-STATE S)
+                  (CONSISTENT-OBJECT OBJ (HEAP S)
+                                     (INSTANCE-CLASS-TABLE S)))
+             (CONSISTENT-HEAP-INIT-STATE (BIND (LEN (HEAP S)) OBJ (HEAP S))
+                                         (INSTANCE-CLASS-TABLE S)
+                                         (HEAP-INIT-MAP (AUX S)))))))
+
+<span class="comment">;;; this will be useful in showing load_class2-preserve-consistency! 
+</span>
+<span class="comment">;;; but skip all of them now. 
+</span>
+
+(local 
+ (defthm consistent-state-add-new-object-generalized-step
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (consistent-object obj hp (instance-class-table s))
+                (equal (heap s) hp)
+                (or (not (isArrayType (obj-type obj)))
+                    (and (consistent-array-object obj hp
+                                                  (instance-class-table s)
+                                                  (array-class-table s))
+                         (or (primitive-type? (array-component-type (obj-type obj)))
+                             (array-content-initialized (array-data obj) (heap-init-map
+                                                                          (aux s)))))))
+           (consistent-state-step  (state-set-heap 
+                                    (bind (len hp)
+                                          obj hp) s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (instance-class-table-inv
+                                   array-class-table-inv
+                                   boot-strap-class-okp
+                                   consistent-class-table
+                                   loader-inv wff-heap
+                                   class-loaded?
+                                   )
+                                  (consistent-array-object
+                                   BUILD-A-JAVA-VISIBLE-INSTANCE-GUARD
+                                   consistent-object))
+           <span class="builtin">:do-not-induct</span> t
+           <span class="builtin">:do-not</span> '(generalize)))))
+
+
+
+(local 
+ (defthm state-set-heap-preserve-consistency-1
+   (implies (consistent-state-step (state-set-heap hp s))
+            (<a href="../consistent-state.lisp.html">consistent-state</a> (state-set-heap hp s)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> ((<span class="builtin">:instance</span>
+                         consistent-state-step-implies-consistent-state
+                         (s (state-set-heap hp s))))))))
+
+
+
+
+
+(defthm consistent-state-add-new-object-generalized-x
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (consistent-object obj hp (instance-class-table s))
+                (equal (heap s) hp)
+                (or (not (isArrayType (obj-type obj)))
+                    (and (consistent-array-object obj hp
+                                                  (instance-class-table s)
+                                                  (array-class-table s))
+                         (or (primitive-type? (array-component-type (obj-type obj)))
+                             (array-content-initialized (array-data obj) (heap-init-map
+                                                                          (aux s)))))))
+            (<a href="../consistent-state.lisp.html">consistent-state</a>  (state-set-heap 
+                                (bind (len hp)
+                                      obj hp) s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable state-set-heap))))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(local 
+ (defthm init-array-array-consistent1
+   (IMPLIES (and (AND (INTEGERP BOUND) (&lt;= 0 BOUND))
+                 (or (primitive-type? basetype)
+                     (reference-type basetype)
+                     (Array-type? basetype)))
+            (ARRAY-OBJ-CONSISTENT1 (INIT-ARRAY BASETYPE BOUND)
+                                   BASETYPE 
+                                   hp cl))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (consistent-value default-value tag (default-value)))))))
+
+
+
+(local 
+ (defthm primitive-type-array-type-s-fact
+   (implies (PRIMITIVE-TYPE? BASETYPE)
+            (ARRAY-TYPE-S (LIST 'ARRAY BASETYPE)
+                          (INSTANCE-CLASS-TABLE S)))))
+
+
+(local 
+ (defthm valid-array-type-implies-array-type-s
+   (implies (valid-array-type type cl acl)
+            (array-type-s type cl))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable valid-array-type)))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+(local 
+ (defthm array-class-by-name-implies-assoc-equal
+   (implies (ARRAY-CLASS-BY-NAME type ACL)
+            (assoc-equal type acl))))
+
+
+<span class="comment">;; (i-am-here) 
+</span>
+(local 
+  (defthm valid-array-type-implies-array-class-exists
+    (implies (valid-array-type type cl acl)
+             (array-class-exists? type acl))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (valid-array-type bound?)
+                                    (primitive-type?))))
+    <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+(local 
+ (defthm len-init-array-fact
+   (implies (and (integerp bound)
+                 (&lt;= 0 bound))
+            (EQUAL (LEN (INIT-ARRAY BASETYPE BOUND))
+                   BOUND))))
+
+<span class="comment">;; (i-am-here) ;; Thu Jun 16 23:47:02 2005
+</span>
+(local 
+  (defthm build-an-array-intance-consistent-array-object
+    (implies (and (equal (heap s) hp)
+                  (integerp bound)
+                  (&lt;= 0 bound)
+                  (or (primitive-type? basetype) 
+                      (reference-type basetype)
+                      (Array-type? basetype))
+                <span class="comment">;;; this above hyp should be releaseable when we know 
+</span>                <span class="comment">;;; valid-array-type base-type
+</span>                <span class="comment">;;; and we know wff-instance-class-table
+</span>                  (consistent-jvp <span class="string">"java.lang.Object"</span> 
+                                  '((<span class="string">"java.lang.Object"</span>))
+                                  (instance-class-table s)
+                                  (heap s))
+                  (equal (instance-class-table s) cl)
+                  (equal (array-class-table s) acl)
+                  (valid-array-type (make-array-type basetype) cl acl))
+             (consistent-array-object (car (build-an-array-instance basetype bound s))
+                                      hp cl acl))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (isArrayType obj-type
+                                                 valid-array-type
+                                                 array-data
+                                                 wff-obj-strong
+                                                 wff-internal-array
+                                                 array-class-by-name
+                                                 consistent-array-object
+                                                 build-an-array-instance 
+                                                 common-info) 
+                                    (array-type-s
+                                     valid-array-type
+                                     consistent-jvp
+                                     primitive-type?
+                                     bound? array-class-exists?
+                                     ))))))
+
+
+
+
+(local 
+ (defthm consistent-class-decls-implies-stringp
+   (implies (and (consistent-class-decls cl1 cl hp)
+                 (wff-instance-class-table cl1)
+                 (class-by-name name cl1))
+            (stringp name))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable consistent-class-decl)))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+                
+
+(local 
+ (defthm array-type-s-implies-base-type-category
+   (implies (and (not (or (primitive-type? basetype)
+                          (reference-type basetype)
+                          (Array-Type? basetype)))
+                 (wff-instance-class-table cl)
+                 (consistent-class-decls cl cl hp))
+            (not (array-type-s (list 'ARRAY basetype) cl)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:expand</span> (array-type-s (list 'ARRAY basetype) cl)))))
+
+
+
+
+(local 
+ (defthm array-type-s-implies-base-type-category-specific
+   (implies (and (not (or (primitive-type? basetype)
+                          (reference-type basetype)
+                          (Array-Type? basetype)))
+                 (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+            (not (array-type-s (list 'ARRAY basetype) (instance-class-table s))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:expand</span> (array-type-s (list 'ARRAY basetype) 
+                                         (instance-class-table s))))))
+
+       
+
+
+(local 
+  (defthm build-an-array-intance-consistent-array-object-simplified
+    (implies (and (equal (heap s) hp)
+                  (integerp bound)
+                  (&lt;= 0 bound)
+                  <span class="comment">;(or (primitive-type? basetype) 
+</span>                  <span class="comment">;    (reference-type basetype)
+</span>                  <span class="comment">;    (Array-type? basetype))
+</span>                <span class="comment">;;; this above hyp should be releaseable when we know 
+</span>                <span class="comment">;;; valid-array-type base-type
+</span>                <span class="comment">;;; and we know wff-instance-class-table
+</span>                  (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                  (equal (instance-class-table s) cl)
+                  (equal (array-class-table s) acl)
+                  (valid-array-type (make-array-type basetype) cl acl))
+             (consistent-array-object (car (build-an-array-instance basetype bound s))
+                                      hp cl acl))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (valid-array-type)
+                                    (array-type-s
+                                     consistent-array-object
+                                     build-an-array-instance
+                                     primitive-type?
+                                     bound? array-class-exists?
+                                     ))
+             <span class="builtin">:cases</span> ((or (primitive-type? basetype) 
+                         (reference-type basetype)
+                         (Array-type? basetype)))))))
+             
+
+
+
+(local 
+ (encapsulate ()
+   (local (include-book <span class="string"><a href="base-loader-preserve-consistent-state.lisp.html">"base-loader-preserve-consistent-state"</a></span>))
+   (defthm getArrayClass-preserve-consistency
+     (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+              (<a href="../consistent-state.lisp.html">consistent-state</a> (getArrayClass any s))))))
+
+(local 
+  (defthm array-correctly-loaded-implies-valid-array-type-general
+    (implies (and (array-type? type)
+                  (not (class-loaded? 'NULL s))
+                  (jvm::array-class-correctly-loaded?
+                   (jvm::base-types type) s))
+             (valid-array-type type (instance-class-table s)
+                               (array-class-table s)))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (valid-array-type
+                                     array-base-type
+                                     class-loaded?
+                                     isArrayType)
+                                    (primitive-type?
+                                     isClassTerm))))))
+
+
+(local 
+  (defthm array-correctly-loaded-implies-valid-array-type
+    (implies (and (not (class-loaded? 'NULL s))
+                  (jvm::array-class-correctly-loaded? 
+                   (jvm::base-types (make-array-type type)) s))
+             (valid-array-type (make-array-type type) 
+                               (instance-class-table s)
+                               (array-class-table s)))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (valid-array-type))))))
+
+
+(local (in-theory (enable consistent-class-table)))
+
+
+(local 
+ (defthm consistent-state-not-class-loaded-NULL
+   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+            (not (class-loaded? 'NULL s)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a> class-loaded?)))))
+
+
+(local 
+ (defthm array-class-table-helper-inv-implies-mem
+   (implies (and (jvm::array-class-table-inv-helper l s)
+                 (mem type l))
+            (jvm::array-class-correctly-loaded? (jvm::base-types type) s))))
+             
+(local (in-theory (enable bound?))) <span class="comment">;; Sun Jun  5 00:10:01 2005
+</span>
+
+
+(local 
+ (defthm consistent-state-array-class-exists-implies-mem
+   (implies (array-class-exists? type l)
+            (mem type (jvm::all-array-sigs l)))))
+
+
+(local 
+ (defthm consistent-state-array-class-inv
+   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+            (jvm::array-class-table-inv-helper (jvm::all-array-sigs
+                                                (array-class-table s)) s))
+ <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a>)))))
+
+
+(local 
+ (defthm consistent-state-loaded-mean-correctly-loaded
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (array-class-exists? type (array-class-table s)))
+            (jvm::array-class-correctly-loaded? 
+             (jvm::base-types type) s))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+            <span class="builtin">:restrict</span> ((array-class-table-helper-inv-implies-mem
+                        ((l (jvm::all-array-sigs (array-class-table s))))))))))
+
+
+(local (in-theory (disable make-array-type)))
+
+
+(local 
+ (defthm getArrayClass-no-error-implies-loaded
+   (implies (no-fatal-error? (getArrayClass basetype s))
+            (array-class-exists? (make-array-type basetype) 
+                                 (array-class-table (getArrayClass basetype s))))))
+
+<span class="comment">;;; proof this is easy. to make it contributes to the proof of the next lemma
+;;; we really need that getArrayClass preserve the <a href="../consistent-state.lisp.html">consistent-state</a> so that we
+;;; could make use of the previous lemma
+;;;
+;;;            consistent-state-loaded-mean-correctly-loaded
+;;;
+;;; and 
+;;;           array-correctly-loaded-implies-valid-array-type-general
+;;;            
+</span>
+(in-theory (disable  JVM::BASE-TYPES-MAKE-TYPE))
+
+(local 
+ (defthm getArrayClass-implies-valid-array-type
+   (implies (and (no-fatal-error? (getArrayClass basetype s))
+                 (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+            (valid-array-type (make-array-type basetype) 
+                              (instance-class-table (getArrayClass basetype s))
+                              (array-class-table (getArrayClass basetype s))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (make-array-type 
+                                       valid-array-type
+                                       jvm::array-class-correctly-loaded? 
+                                       jvm::base-types
+                                       JVM::BASE-TYPES-MAKE-TYPE
+                                       (make-array-type)
+                                       getarrayclass
+                                       array-class-exists?))))))
+
+
+
+
+(defthm build-an-array-instance-consistent-array-object-specific
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (no-fatal-error? (getArrayClass basetype s))
+                (equal (heap (getArrayClass basetype s)) hp)
+                (equal (instance-class-table (getArrayClass basetype s)) cl)
+                (equal (array-class-table (getArrayClass basetype s)) acl)
+                (integerp bound)
+                (&lt;= 0 bound))
+           (consistent-array-object 
+            (car (build-an-array-instance basetype
+                                          bound
+                                          (getArrayClass basetype s)))
+            hp cl acl))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (consistent-array-object
+                                      getArrayClass
+                                      JVM::ARRAY-CLASS-CORRECTLY-LOADED?
+                                      array-class-exists?
+                                      make-array-type
+                                      build-an-array-instance)))))
+
+</pre>
+  </body>
+</html>

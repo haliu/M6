@@ -1,0 +1,144 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>gen-guards.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      .type {
+        /* font-lock-type-face */
+        color: #98fb98;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"ACL2"</span>)
+(include-book <span class="string">"misc/file-io"</span> <span class="builtin">:dir</span> <span class="builtin">:system</span>)
+(program)
+
+(set-state-ok t)
+(<span class="keyword">defun</span> <span class="function-name">guard-thm-fn</span> (name args state)
+
+<span class="comment">; This is adapted from ACL2 source function guard-clauses-for-fn.
+</span>
+ (<span class="keyword">let</span> ((ens (ens state))
+       (wrld (w state)))
+   (mv-let
+     (normal-guard ttree)
+     (normalize (guard name nil wrld)
+                t <span class="comment">; iff-flg
+</span>                nil <span class="comment">; type-alist
+</span>                ens wrld nil)
+     (mv-let
+       (cl-set ttree)
+       (guard-clauses-for-body (clausify (dumb-negate-lit normal-guard)
+                                         nil t wrld)
+                               (getprop name 'unnormalized-body
+                                        '(<span class="builtin">:error</span> <span class="string">"See GUARD-CLAUSES-FOR-FN."</span>)
+                                        'current-acl2-world wrld)
+                               nil <span class="comment">; stobj-optp
+</span>                               wrld ttree)
+       (<span class="keyword">declare</span> (ignore ttree))
+       (<span class="keyword">let</span> ((guard-thm-name
+              (intern-in-package-of-symbol
+               (concatenate 'string (symbol-name name) <span class="string">"$GUARD-THM"</span>)
+               name))
+             (guard-op-name
+              (intern-in-package-of-symbol
+               (concatenate 'string (symbol-name name) <span class="string">"-GUARD"</span>)
+               name)))
+         `(defthm ,guard-thm-name
+            ,(conjoin (prettyify-clause-lst cl-set nil wrld))
+            <span class="builtin">:rule-classes</span> ((<span class="builtin">:forward-chaining</span>
+                            <span class="builtin">:trigger-terms</span>
+                            ((,guard-op-name ,@args))))))))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">defpredicate-fn</span> (name args rest)
+ `(<span class="keyword">progn</span> (<span class="keyword">defun</span> ,name ,args ,@rest)
+         (defthm ,(intern-in-package-of-symbol
+                   (concatenate 'string (symbol-name name) <span class="string">"$FORWARD"</span>)
+                   name)
+           (implies (,name ,@args)
+                    ,(car (last rest)))
+           <span class="builtin">:hints</span> ((<span class="string">"Goal"</span>
+                    <span class="builtin">:in-theory</span>
+                    (union-theories (theory 'ground-zero)
+                                    '(,name))))
+           <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)))
+
+(<span class="keyword">defmacro</span> <span class="function-name">defpredicate</span> (name args <span class="type">&amp;rest</span> rest)
+ (defpredicate-fn name args rest))
+
+(<span class="keyword">defmacro</span> <span class="function-name">guard-thm</span> (<span class="type">&amp;rest</span> args)
+ `(value-triple ',args))
+
+(<span class="keyword">defun</span> <span class="function-name">guard-forms</span> (forms acc state)
+ (<span class="keyword">cond</span> ((endp forms)
+        (reverse acc))
+       (t (guard-forms (cdr forms)
+                       (<span class="keyword">let</span> ((form (car forms)))
+                         (<span class="keyword">if</span> (and (consp form)
+                                  (eq (car form) 'guard-thm))
+                             (cons (guard-thm-fn (cadr form)
+                                                 (cddr form)
+                                                 state)
+                                   acc)
+                           acc))
+                       state))))
+
+(<span class="keyword">defun</span> <span class="function-name">write-guards-fn</span> (infile outfile state)
+ (<span class="keyword">let</span> ((ctx 'write-guards))
+   (er-let* ((forms (read-list infile ctx state)))
+            (<span class="keyword">let</span> ((pkg-form (car forms)))
+              (<span class="keyword">if</span> (and (consp pkg-form)
+                       (eq (car pkg-form) 'in-package)
+                       (eql (length pkg-form) 2)
+                       (equal (cadr pkg-form)
+                              (current-package state)))
+                  (write-list (guard-forms forms (list pkg-form) state)
+                              outfile ctx state)
+                (er soft 'write-guards
+                    <span class="string">"Need to be in the package matching the first form of ~
+                     ~x0,which should be an IN-PACKAGE form."</span>
+                    infile))))))
+
+(<span class="keyword">defmacro</span> <span class="function-name">write-guards</span> (infile outfile)
+ `(write-guards-fn ,infile ,outfile state))</pre>
+  </body>
+</html>

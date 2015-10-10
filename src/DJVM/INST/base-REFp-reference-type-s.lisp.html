@@ -1,0 +1,95 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-REFp-reference-type-s.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="base-consistent-state.lisp.html">"base-consistent-state"</a></span>)
+
+
+(local (defthm REFp-not-NULLp-implies-consistent-object
+  (implies (and (REFp v (heap s))
+                (not (NULLp v))
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+           (consistent-object (deref2 v (heap s)) (heap s)
+                              (instance-class-table s)))))
+
+
+(local (defthm consistent-object-obj-heap-cl
+  (implies (and (consistent-object obj hp cl)
+                (not (isArrayType (obj-type obj))))
+           (reference-type-s (obj-type obj) cl))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (consistent-object) (isClassTerm))))))
+
+
+(local (defthm consistent-object-obj-heap-cl-specific
+  (implies (and (consistent-object obj (heap s) (instance-class-table s))
+                (not (isArrayType (obj-type obj))))
+           (reference-type-s (obj-type obj) (instance-class-table s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (consistent-object) (isClassTerm))))))
+
+
+
+
+(local (defthm consistent-array-object-consistent-state
+  (implies (and (not (NULLp v))
+                (REFp v (heap s))
+                (isArrayType (obj-type (deref2 v (heap s))))
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+           (consistent-array-object
+            (deref2 v (heap s))
+            (heap s)
+            (instance-class-table s)
+            (array-class-table s)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+(local (defthm consistent-array-object-implies-reference-type-s
+  (implies (consistent-array-object obj hp cl acl)
+           (reference-type-s (obj-type obj) cl))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable consistent-array-object)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+(defthm obj-type-deref-consistent-state
+    (implies (and (not (NULLp v))
+                  (REFp v (heap s))
+                  (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+             (reference-type-s (obj-type (deref2 v (heap s)))
+                               (instance-class-table s)))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:cases</span> ((isArrayType (obj-type (deref2 v (heap s)))))
+             <span class="builtin">:in-theory</span> (disable NULLp reference-type-s REFp))))
+</pre>
+  </body>
+</html>

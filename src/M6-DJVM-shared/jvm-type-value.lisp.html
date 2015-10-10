@@ -1,0 +1,372 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>jvm-type-value.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      .variable-name {
+        /* font-lock-variable-name-face */
+        color: #eedd82;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"JVM"</span>)
+(include-book <span class="string"><a href="jvm-class-table.lisp.html">"../M6-DJVM-shared/jvm-class-table"</a></span>)
+
+(include-book <span class="string">"ordinals/e0-ordinal"</span> <span class="builtin">:dir</span> <span class="builtin">:system</span>)
+(set-well-founded-relation e0-ord-&lt;)
+
+(acl2::set-verify-guards-eagerness 2)
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;; (defconst *primitive-types* '(char int float double long boolean byte))
+</span>
+
+<span class="comment">;; (defun primitive-type? (type)
+;;   (mem type *primitive-types*))
+</span>
+
+<span class="comment">;; (defun array-type? (type-sig)
+;;   (and (true-listp type-sig)
+;;        (equal (length type-sig) 2)
+;;        (equal (car type-sig) 'ARRAY)))
+</span>
+
+<span class="comment">;; (defun reference-type (type)
+;;   (or (stringp type)
+;;       (array-type? type)))
+</span>
+
+<span class="comment">;; (defun default-value (type)
+;;   (cond ((equal type 'BYTE)  0)
+;;         ((equal type 'SHORT) 0)
+;;         ((equal type 'INT)   0)
+;;         ((equal type 'LONG)  0)
+;;         ((equal type 'FLOAT) "0.0")
+;;         ((equal type 'DOUBLE) "0.0");
+;;         ((equal type 'CHAR)   0)
+;;         ((equal type 'BOOLEAN) nil)
+;;         ((reference-type type) -1) ;; use -1 as null pointer.
+;;         ((array-type? type) -1)    ;;
+;;         (t 'NOT-DEFINED))) 
+</span>
+<span class="comment">;; ;----------------------------------------------------------------------
+</span>
+<span class="comment">;; (defun array-base-type (array-type)
+;;   (declare (xargs :guard (array-type? array-type)))
+;;   (nth 1 array-type))
+</span>
+
+<span class="comment">;; (defun type-size (type-desc)
+;;   (if (or (equal type-desc 'LONG)
+;;           (equal type-desc 'DOUBLE))
+;;       2
+;;     1))
+</span>
+<span class="comment">;; ;----------------------------------------------------------------------
+;; ;; (acl2::set-verify-guards-eagerness 0)
+</span>
+<span class="comment">;; (defun wff-type-rep (type-rep)
+;;   (or (primitive-type? type-rep)
+;;       (and (consp type-rep)
+;;            (or (and (equal (car type-rep) 'class)
+;;                     (equal (len type-rep) 2)
+;;                     (stringp (cadr type-rep))) 
+;;                ;; Tue Apr  6 18:33:46 2004. Modified to 
+;;                ;; prevent (class 'uninitializedThis. 
+;;                (and (array-type? type-rep)
+;;                     (wff-type-rep (array-base-type type-rep)))))))
+</span>               
+
+<span class="comment">;; (defun normalize-type-rep (type-rep)
+;;   (declare (xargs :guard (wff-type-rep type-rep)))
+;;   (if (primitive-type? type-rep)
+;;       type-rep
+;;     (if (consp type-rep)
+;;         (cond ((equal (car type-rep) 'class)
+;;                (cadr type-rep))
+;;               ((Array-Type? type-rep) 
+;;                (make-array-type (normalize-type-rep 
+;;                                  (array-base-type type-rep))))
+;;               (t type-rep))
+;;       type-rep)))
+</span>
+<span class="comment">;; (defun wff-type-reps (type-reps)
+;;   (if (not (consp type-reps)) t
+;;     (and (wff-type-rep (car type-reps))
+;;          (wff-type-reps (cdr type-reps)))))
+</span>
+<span class="comment">;; (defun normalize-type-reps (types)
+;;   (declare (xargs :guard (wff-type-reps types)))
+;;   (if (not (consp types))
+;;       nil
+;;     (cons (normalize-type-rep (car types))
+;;           (cdr types))))
+</span>
+<span class="comment">;;; moved to jvm-class-table.lisp
+</span>
+<span class="comment">;; Wed Mar 31 11:33:50 2004
+</span>
+<span class="comment">;;
+;; Wed Mar 31 11:39:52 2004. fixed to add guard and so that it guard verifies!!
+;;
+</span>
+<span class="comment">;; transform the type generated by jvm2acl2 into runtime type specific
+;; used in the class-loader constant-pool primitives. 
+;----------------------------------------------------------------------
+</span>
+(acl2::set-verify-guards-eagerness 2)
+
+(<span class="keyword">defun</span> <span class="function-name">primitive-array?</span> (array-type)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (array-type? array-type)))
+  (primitive-type? (array-base-type array-type)))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;; (defconst *array-implemented-interfaces* 
+;;   '("java.lang.Clone" "java.lang.Serializeable"))
+</span>
+<span class="comment">;; Tue Mar  8 12:10:52 2005. in CLDC JVM array implement no interfaces. 
+</span>
+(<span class="keyword">defconst</span> <span class="variable-name">*array-implemented-interfaces*</span> '())
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">isClassType</span> (t1)
+  (stringp t1)) 
+<span class="comment">;; FIXED  10/28/03 for the wrong assumption in isJavaAssignmentCompatible
+;; originally t1 was expected to be (class &lt;something&gt;)
+;; 
+</span>
+(<span class="keyword">defun</span> <span class="function-name">isArrayType</span> (t1)
+  (and (true-listp t1) 
+       <span class="comment">;;; to match with array-type? definition !! Thu Oct 21 17:05:38 2004
+</span>       (equal (len t1) 2)
+       (equal (car t1) 'array)))
+
+
+<span class="comment">;; (defun isArrayType (t1)
+;;   (and (consp t1)
+;;        (equal (len t1) 2)
+;;        (equal (car t1) 'array)))
+</span>
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;;; anything relate to expressing some guard of the shared operations ends up
+;;; here. 
+</span>
+<span class="comment">;;;; however we will not move 
+</span>
+
+<span class="comment">;; (defun wff-tagged-value (tagged-value)
+;;   (declare (xargs :verify-guards t))
+;;   (and (consp tagged-value)
+;;        (equal (len tagged-value) 1))) 
+</span>
+<span class="comment">;; (defun tag-of (tagged-value)
+;;   (declare (xargs :guard (wff-tagged-value tagged-value)))
+;;   (car tagged-value)) 
+</span>
+<span class="comment">;; (defun value-of (tagged-value)
+;;   (declare (xargs :guard (wff-tagged-value tagged-value)))
+;;   (cdr tagged-value))
+</span>
+<span class="comment">;; ;----------------------------------------------------------------------
+</span>
+<span class="comment">;; ;; Need a reference type predicate: 
+;; (defun wff-REFp (ref)
+;;   (declare (xargs :verify-guards t))
+;;   ;; when we assert globally syntax correct.  we need assert wff-tagged-value
+;;   ;; and appropriate wff-REFp like predicate.
+;;   (and (wff-tagged-value ref)
+;;        (equal (tag-of ref) 'REF)
+;;        (integerp (value-of ref))))
+;;        ;; we probably do not to assert (integerp (value-of ref))
+;;        ;; because we never only use those as key into heap. 
+</span>
+
+<span class="comment">;; (defun rREF (ref)
+;;   (declare (xargs :guard (wff-REFp ref)))
+;;   ;; make sure it is only called after we can establish ref is a wff-REFp
+;;   (cdr ref))
+</span>
+<span class="comment">;; ;; only called on wff-REFp
+</span>
+<span class="comment">;; (defun NULLp (ref)
+;;   (declare (xargs :verify-guards t))
+;;   (and (wff-REFp ref)
+;;        (equal (rREF ref) -1)))
+</span>
+<span class="comment">;;;; things like above over. because they are concerned with value being
+;;;; properly tagged!!
+</span>
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">wff-array-type</span> (arraytype)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:verify-guards</span> t))
+  (and (true-listp arraytype) 
+       <span class="comment">;; modified to match isArrayType and array-type?
+</span>       <span class="comment">;; Thu Oct 21 17:06:34 2004
+</span>       (equal (car arraytype) 'ARRAY)
+       (equal (len arraytype) 2)))
+
+
+<span class="comment">;; (defun wff-array-type (arraytype)
+;;   (declare (xargs :verify-guards t))
+;;   (and (consp arraytype)
+;;        (equal (car arraytype) 'ARRAY)
+;;        (equal (len arraytype) 2)))
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">array-component-type</span> (arraytype)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-array-type arraytype)))
+  (cadr arraytype))
+
+
+
+<span class="comment">;; (defun primitive-type (type)
+;;   (declare (xargs :verify-guards t))
+;;   (or (equal type 'INT)
+;;       (equal type 'ADDR) ;; different from jvm's definition. WHY?
+;;       (equal type 'BYTE) 
+;;       (equal type 'LONG)
+;;       (equal type 'SHORT)
+;;       (equal type 'CHAR)));; ARRAY-type MAY NEED THIS
+;;                              ;; need to deal with LONG, etc.  
+</span>
+(<span class="keyword">defun</span> <span class="function-name">primitive-opvalue-type</span> (type) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:verify-guards</span> t))
+   (or (equal type 'INT)
+       (equal type 'ADDR)
+       (equal type 'LONG)))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;; (mutual-recursion 
+;;  (defun reference-type-s (type cl)
+;;    ;; why reference-type-s should it just be reference-type
+;;    ;; this recursive.
+;;    (declare (xargs :guard (wff-instance-class-table cl)
+;;                    :measure (cons (+ (acl2-count type) 1) 1)))
+;;    (or (equal type 'NULL) ;; never used. ;; we represent NULL with (REF . -1)
+;;        (array-type-s type cl)
+;;        (class-exists? type cl)))
+</span> 
+<span class="comment">;;  (defun array-type-s (type cl)
+;;    (declare (xargs :guard (wff-instance-class-table cl)
+;;                    :measure (cons (+ (acl2-count type) 1) 0)))
+;;    (and (wff-array-type type)
+;;         (or (primitive-type (array-component-type type))
+;;             ^^^^^^^^^^^^^^^^ ??? primitive-type? 
+;;             (reference-type-s (array-component-type type) cl))
+;;;            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+;;; We also need to assert that array-component-type is not null!! 
+;;;
+</span>
+
+(mutual-recursion 
+ (<span class="keyword">defun</span> <span class="function-name">reference-type-s</span> (type cl)
+   <span class="comment">;; why reference-type-s should it just be reference-type
+</span>   <span class="comment">;; this recursive.
+</span>   (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-instance-class-table cl)
+                   <span class="builtin">:measure</span> (cons (+ (acl2-count type) 1) 1)))
+   (or (equal type 'NULL) <span class="comment">;; never used. ;; we represent NULL with (REF . -1)
+</span>       (array-type-s type cl)
+       (class-exists? type cl)))
+ 
+ (<span class="keyword">defun</span> <span class="function-name">array-type-s</span> (type cl)
+   (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-instance-class-table cl)
+                   <span class="builtin">:measure</span> (cons (+ (acl2-count type) 1) 0)))
+   (and (wff-array-type type)
+        (or (primitive-type? (array-component-type type))
+            (and (reference-type-s (array-component-type type) cl)
+                 (not (equal (array-component-type type) 'NULL)))))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">wff-type-desc</span> (type-desc)
+  (or <span class="comment">;; (primitive-type? type-desc)
+</span>      <span class="comment">;; Fri Oct 22 11:26:14 2004
+</span>      <span class="comment">;; Only used in wff-class-obj
+</span>      (isClassType type-desc)
+      (isArrayType type-desc)))
+<span class="comment">;;
+</span>
+
+<span class="comment">;; (defun wff-type-desc (type-desc)
+;;   (or ;; (primitive-type? type-desc)
+;;       (isClassType type-desc)
+;;       (isArrayType type-desc)))
+;; ;;
+</span>
+(<span class="keyword">defun</span> <span class="function-name">classname-classtype</span> (ctype)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (isClassType ctype)))
+  ctype) <span class="comment">;; FIXED  10/28/03. see above fix for isClassType
+</span>
+(<span class="keyword">defun</span> <span class="function-name">compound</span> (x)
+  (consp x))
+
+<span class="comment">;; (defun isJavaLangObject (type)
+;;   (equal type '(class  "java.lang.Object")))
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">isJavaLangObject</span> (type)
+   (equal type <span class="string">"java.lang.Object"</span>))
+
+<span class="comment">; -- used only on arrayType
+</span>(<span class="keyword">defun</span> <span class="function-name">component-type</span> (aArrayType)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (isArrayType aArrayType)))
+  (cadr aArrayType))
+
+
+<span class="comment">;;; from consistent-state.lisp
+</span>
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;----------------------------------------------------------------------
+</span></pre>
+  </body>
+</html>

@@ -1,0 +1,218 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-bcv-valid-local-index-facts.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="base.lisp.html">"base"</a></span>)
+(include-book <span class="string"><a href="base-consistent-state.lisp.html">"base-consistent-state"</a></span>)
+(include-book <span class="string"><a href="base-locals.lisp.html">"base-locals"</a></span>)
+
+
+<span class="comment">;; (include-book "arithmetic/top-with-meta" :dir :system)
+</span>
+
+<span class="comment">;; we will want consistent-locals 
+</span>
+<span class="comment">;;(local (include-book <a href="base-bcv.lisp.html">"base-bcv"</a>))
+</span>
+
+(local 
+ (defthm nth-i-cons-is
+   (implies (and (&lt;= 0 i)
+                 (integerp i))
+            (equal (nth i (cons x l))
+                   (<span class="keyword">if</span> (&gt; i 0)
+                       (nth (- i 1) l)
+                     x)))))
+
+
+
+
+(local 
+ (defthm if-out-of-range-implies-nil
+   (implies (and (&gt;= i (len (locals-sig locals cl hp hp-init method-ptr)))
+                 (integerp i)
+                 (consistent-locals locals cl hp))
+            (equal (nth i (locals-sig locals cl hp hp-init method-ptr))
+                   nil))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable tag-of wff-REFp shift1slot category1
+                                      shift2slot)))))
+
+
+<span class="comment">;;;
+;;; the problem is nth -1 return the first element!! 
+;;;
+</span>
+(local 
+ (defthm equal-minus-one-minus-one-plus-negative-two
+   (equal (+ -1 -1 i)
+          (+ -2 i))))
+
+
+<span class="comment">;; (local 
+;;  (defthm len-l-fact
+;;    (&gt;= (len l) 0)))
+</span>
+(local 
+ (defthm fix-sig-never-bcv-top
+   (not (equal (fix-sig any) 'topx))))
+
+(local 
+ (defthm consistent-value-x-not-equal-value-sig-top
+   (implies (CONSISTENT-VALUE-X v CL HP)
+            (not (equal (value-sig v cl hp hp-init method-ptr)
+                        'topx)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable consistent-value-x consistent-value)))))
+
+
+(local 
+ (defthm consistent-value-x-facts
+   (implies (and (NOT (PRIMITIVE-TYPE? (TAG-OF ACL2::LOCALS1)))
+                 (NOT (EQUAL (TAG-OF ACL2::LOCALS1) 'REF)))
+            (not (CONSISTENT-VALUE-X ACL2::LOCALS1 CL HP)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable consistent-value-x
+                                      wff-tagged-value
+                                      tag-of
+                                      wff-REFp
+                                      value-of
+                                      consistent-value)))))
+
+
+<span class="comment">;; (i-am-here) ;; Sat May 21 19:22:18 2005
+</span>
+(local 
+ (defthm nth-i-cons-is-2
+   (implies (and (&lt;= 0 i)
+                 (not (equal i 0))
+                 (integerp i))
+            (equal (nth i (cons x l))
+                   (nth (- i 1) l)))))
+
+
+
+
+
+
+(local 
+ (defthm not-valid-locals-implies-top
+   (implies (and (not (valid-local-index i locals))
+                 (&lt;= 0 i)
+                 (consistent-locals locals cl hp)
+                 (integerp i)
+                 (&lt; i (len (locals-sig locals cl hp hp-init
+                                       method-ptr))))
+            (equal (nth i (locals-sig locals cl hp hp-init method-ptr))
+                   'topx))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+            <span class="builtin">:in-theory</span> (enable value-sig)))))
+
+
+(local 
+ (defthm top-is-not-assignable-into-any-thing
+   (implies (not (equal type 'topx))
+            (not (bcv::isAssignable 'topx type env)))))
+ 
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;;; the proof for the following is twisted
+;;; 
+;;; by cases: if i is within the range, if not valid-local-index, we know 
+;;;           nth i reduce to bcv::top, thus not possible to be assignable to 'reference
+;;;
+</span>
+<span class="comment">;; (i-am-here) ;;  Sat May 21 19:09:18 2005
+</span>
+
+(local 
+ (defthm isAssignable-implies-valid-local-index
+   (implies  (and (bcv::isAssignable (nth i 
+                                          (locals-sig locals cl hp hp-init
+                                                      method-ptr))  
+                                     'reference
+                                     env)
+                  (integerp i)
+                  (&lt;= 0 i)
+                  (consistent-locals locals cl hp))
+             (valid-local-index i locals))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (valid-local-index))
+            <span class="builtin">:do-not-induct</span> t
+            <span class="builtin">:cases</span> ((&gt;= i (len (locals-sig locals cl hp hp-init
+                                           method-ptr))))))))
+
+
+
+<span class="comment">;; specific version
+</span>
+(defthm isAssignable-reference-implies-valid-local-index-specific
+   (implies  (and (bcv::isAssignable (nth i (locals-sig 
+                                             (locals (current-frame s))
+                                             (instance-class-table s)
+                                             (heap s)
+                                             (heap-init-map (aux s))
+                                             (method-ptr (current-frame s))))
+                                     'reference
+                                     (env-sig s))
+                  (integerp i)
+                  (&lt;= 0 i)
+                  (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+             (valid-local-index i (locals (current-frame s))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (valid-local-index bcv::isAssignable))
+            <span class="builtin">:use</span> ((<span class="builtin">:instance</span> isAssignable-implies-valid-local-index
+                             (locals (locals (current-frame s)))
+                             (cl (instance-class-table s))
+                             (hp (heap s))
+                             (hp-init (heap-init-map (aux s)))
+                             (method-ptr (method-ptr (current-frame s)))
+                             (env (env-sig s)))))))
+
+
+
+
+
+
+<span class="comment">;
+; expect other similiar theorem. 
+;
+;----------------------------------------------------------------------
+</span>
+</pre>
+  </body>
+</html>

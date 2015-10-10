@@ -1,0 +1,1426 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-consistent-state-lookupfield-support.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="../../M6-DJVM-shared/jvm-linker.lisp.html">"../../M6-DJVM-shared/jvm-linker"</a></span>)
+(include-book <span class="string"><a href="../../M6-DJVM-shared/jvm-class-table.lisp.html">"../../M6-DJVM-shared/jvm-class-table"</a></span>)
+(include-book <span class="string"><a href="../../M6-DJVM-shared/jvm-object-type-hierachy.lisp.html">"../../M6-DJVM-shared/jvm-object-type-hierachy"</a></span>)
+(include-book <span class="string"><a href="../consistent-state.lisp.html">"../../DJVM/consistent-state"</a></span>)
+
+
+(local 
+ (defthm searchfields-in-wff-class-fields
+   (implies (and (wff-class-fields fields)
+                 (searchfields field-ptr fields))
+            (wff-field (searchfields field-ptr fields)))))
+
+
+(local 
+  (defthm consistent-state-wff-class-rep-strong-specific
+    (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                  (class-by-name name (instance-class-table s)))
+             (wff-class-rep-strong (class-by-name name (instance-class-table
+                                                        s))))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (wff-class-rep-strong) ())))))
+ 
+
+(local 
+ (defthm wff-class-fields-wff-class-rep-strong
+   (implies (wff-class-rep-strong class-rep)
+            (wff-class-fields (fields class-rep)))))
+
+(local (in-theory (disable fields)))
+
+
+(defthm consistent-state-field-found-wff-field-rep 
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (lookupField field-ptr s))
+           (wff-field (lookupField field-ptr s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+           <span class="builtin">:in-theory</span> (e/d () (wff-field 
+                               <a href="../consistent-state.lisp.html">consistent-state</a>
+                               fields)))))
+
+<span class="comment">;;;
+</span>
+(in-theory (disable wff-field))
+
+(local 
+ (in-theory (disable java-visible-portion field-classname
+                     FIELDCP-TO-FIELD-PTR
+                     field-fieldname
+                     classname
+                     binding bound?)))
+
+
+
+(local 
+ (defthm searchfields-found-correct-field
+   (implies (searchfields field-ptr fields)
+            (equal (field-fieldname (searchfields field-ptr fields))
+                   (field-ptr-fieldname field-ptr)))))
+ 
+
+
+(local (in-theory (disable obj-type)))
+
+
+
+(local 
+ (defthm consistent-fields-search-fields-implies-bound?
+   (implies (and (consistent-fields fields field-decls cl hp)
+                 (searchfields field-ptr field-decls))
+            (bound? (field-ptr-fieldname field-ptr) fields))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable field-ptr-fieldname field-fieldname bound?)))))
+                    
+
+
+
+
+(local 
+ (defthm superclass-chain-no-loop-class-n-implies-superclass-no-loop1
+   (implies (superclass-chain-no-loop-class-n any cl seen)
+            (SUPERCLASS-NO-LOOP1 any cl seen))))
+
+
+(local 
+ (defthm class-hierachy-consistent-2-aux-implies-bound-superclass-chain-no-loop
+   (implies (and (class-hierachy-consistent2-aux cl1 cl)
+                 (class-by-name name cl1))
+            (superclass-chain-no-loop-class-n name cl nil))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bound? classname)))))
+
+
+(local 
+ (defthm consistent-state-implies-superclass-no-loop
+   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+            (SUPERCLASS-NO-LOOP1 any
+                                 (INSTANCE-CLASS-TABLE S)
+                                 nil))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> 
+            <span class="builtin">:in-theory</span> (enable consistent-class-hierachy
+                               class-hierachy-consistent2)
+            <span class="builtin">:cases</span> ((class-by-name any (instance-class-table s)))))))
+
+
+
+
+(local 
+  (defthm consistent-state-super-is-empty-implies-java-lang-Object
+    (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                  (not (equal 
+                        (super (class-by-name 
+                                name 
+                                (instance-class-table s))) <span class="string">""</span>)))
+             (not (equal name <span class="string">"java.lang.Object"</span>)))))
+
+
+(local 
+ (<span class="keyword">defun</span> <span class="function-name">lookupfield-jvp-induct</span> (field-ptr jvp s)
+   (<span class="keyword">declare</span> (xargs <span class="builtin">:measure</span>
+                   (lookupfield-measure field-ptr s)))
+   (<span class="keyword">if</span> (not (lookupfield-inv field-ptr s))
+       (prog2$ (cw <span class="string">"lookupfield-inv violated~%"</span>)
+               jvp)
+     (mylet*
+      ((classname (field-ptr-classname field-ptr))
+       (class-rep
+        (class-by-name classname
+                       (instance-class-table s)))
+       (super (super class-rep)))
+      (<span class="keyword">if</span>
+          (not (isclassterm class-rep))
+          nil
+        (<span class="keyword">let</span>
+            ((field-rep (deref-field field-ptr s)))
+          (<span class="keyword">if</span>
+              (not (equal field-rep nil))
+              field-rep
+            (<span class="keyword">if</span>
+                (equal super <span class="string">""</span>)
+                nil
+              (lookupfield-jvp-induct
+               (make-field-ptr super
+                               (field-ptr-fieldname field-ptr)
+                               (field-ptr-type field-ptr))
+               (cdr jvp)
+               s)))))))))
+
+
+(local 
+ (defthm bound?-bound?-cons
+   (implies (bound? x alist)
+            (bound? x (cons (cons key value) alist)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bound?)))))
+  
+
+(local 
+ (defthm searchFields-implies-equal-field-classname-equal
+   (implies (searchFields field-ptr fields)
+            (equal (field-classname (searchFields field-ptr fields))
+                   (field-ptr-classname field-ptr)))))
+
+(local 
+ (defthm consistent-jvp-implies-bound?
+   (implies (consistent-jvp name jvp cl hp)
+            (bound? name jvp))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bound?)))))
+
+
+(local 
+ (defthm field-class-name-lookupfield-is-bounded
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (lookupField field-ptr s)
+                 (consistent-jvp (field-ptr-classname field-ptr)
+                                 jvp (instance-class-table s) (heap s)))
+            (bound? (field-classname (lookupField field-ptr s))
+                    jvp))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+            <span class="builtin">:in-theory</span> (e/d () (<a href="../consistent-state.lisp.html">consistent-state</a> 
+                                isClassTerm
+                                class-exists?))
+            <span class="builtin">:induct</span> (lookupfield-jvp-induct field-ptr jvp s)))))
+
+
+<span class="comment">;;; field-classname ...
+;;; ;;;
+</span>
+
+
+<span class="comment">;;;
+;;; now we showed that class name from lookup-field,  exists in the object
+;;; we need to show that a field of that fieldname can in fact be found in 
+;;;
+;;; binding of that class name in the JVP!
+;;;
+</span>
+
+<span class="comment">;; Subgoal *1/3''
+;; (IMPLIES
+;;      (AND (CONSP JVP)
+;;           (NOT (EQUAL ANY (CAAR JVP)))
+;;           (NOT (CONSISTENT-JVP (SUPER (CLASS-BY-NAME "java.lang.Object" CL))
+;;                                (CDR JVP)
+;;                                CL HP))
+;;           (CONSP (CAR JVP))
+;;           (ALISTP (CDR JVP))
+;;           (EQUAL (+ 1 (LEN (CDR JVP))) 1)
+;;           (EQUAL NAME "java.lang.Object")
+;;           (CONSISTENT-IMMEDIDATE-INSTANCE "java.lang.Object" (CAR JVP)
+;;                                           CL HP)
+;;           (ASSOC-EQUAL ANY (CDR JVP)))
+;;      (CONSISTENT-FIELDS (CDR (ASSOC-EQUAL ANY (CDR JVP)))
+;;                         (FIELDS (CLASS-BY-NAME ANY CL))
+;;                         CL HP)).
+;;
+;;
+</span>
+(local 
+ (defthm len-1-not-assoc-equal
+   (implies (equal (len l) 1)
+            (not (assoc-equal any (cdr l))))))
+
+
+(local 
+ (defthm consistent-immedidate-instance-implies-consistent-fields
+   (implies (CONSISTENT-IMMEDIDATE-INSTANCE name name-and-fields CL HP)
+            (consistent-fields (cdr name-and-fields)
+                               (fields (class-by-name name cl))
+                               cl hp))))
+
+(local 
+ (defthm consistent-immedidate-instance-implies-equal-caar
+   (implies (CONSISTENT-IMMEDIDATE-INSTANCE name (CAR JVP)
+                                            CL HP)
+            (equal (caar jvp) name))))
+
+
+(local 
+ (defthm consistent-jvp-fields-field-decls-consistent
+   (implies (and (consistent-jvp name jvp cl hp)
+                 (bound? any jvp))
+            (consistent-fields (binding any jvp)
+                               (fields (class-by-name any cl))
+                               cl
+                               hp))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (bound? binding)
+                                   (consistent-immedidate-instance
+                                    consistent-fields))))))
+
+
+<span class="comment">;; all we want consistent-fields
+;;  is because we want to show that fields are in fact bounded!! 
+</span>
+<span class="comment">;; (local 
+;;  (defthm consistent-fields-search-fields-implies-bound?
+;;    (implies (and (consistent-fields fields field-decls cl hp)
+;;                  (searchfields field-ptr field-decls))
+;;             (bound? (field-ptr-fieldname field-ptr) fields))
+;;    :hints (("Goal" :in-theory (enable field-ptr-fieldname field-fieldname bound?)))))
+;;
+;; The second hyp                  (bound? any jvp)) here
+;; will be relieved by                     
+;;       field-class-name-lookupfield-is-bounded
+;;
+</span>
+
+(defthm consistent-jvp-binding-alistp
+  (implies (consistent-jvp name jvp cl hp)
+           (alistp (binding any jvp)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable binding))))
+
+
+<span class="comment">;;; need expansion to consistent-jvp
+;;;
+</span>
+<span class="comment">;;
+;; need to fix consistent-fields to make the above possible!! 
+;; Thu Jun  9 13:33:15 2005. fixed. 
+</span>
+<span class="comment">;; The following is still difficult!! 
+;;
+</span>
+<span class="comment">;; ;; (local 
+;; ;;  (defthm field-class-name-lookupfield-is-bounded
+;; ;;    (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+;; ;;                  (lookupField field-ptr s)
+;; ;;                  (consistent-jvp (field-ptr-classname field-ptr)
+;; ;;                                  jvp (instance-class-table s) (heap s)))
+;;;;;;;;;;;;;;;;;;;;;;;;  Here we expect a consistent-jvp from ptr-classname
+;;;;;;;;;;;;;;;;;;;;;;;; 
+;; ;;             (bound? (field-classname (lookupField field-ptr s))
+;; ;;                     jvp))
+;; ;;    :hints (("Goal" :do-not '(generalize)
+;; ;;             :in-theory (e/d () (<a href="../consistent-state.lisp.html">consistent-state</a> 
+;; ;;                                 isClassTerm
+;; ;;                                 class-exists?))
+;; ;;             :induct (lookupfield-jvp-induct field-ptr jvp s)))))
+;;;;;
+;;;;;
+;;;;; In the real scenario, we have consistent-jvp from a name. 
+;;;;; We know real (obj-type obj) is assignable to name!! 
+;;;;; 
+;;;;; We need the following theorem. 
+;;;;;
+;;;;; 
+;;;;; 
+</span>
+
+(local 
+ (<span class="keyword">defun</span> <span class="function-name">get-jvp</span> (name jvp)
+   (<span class="keyword">if</span> (not (consp jvp)) nil
+     (<span class="keyword">if</span> (not (consp (car jvp))) nil
+       (<span class="keyword">if</span> (equal (car (car jvp)) name) jvp
+         (get-jvp name (cdr jvp)))))))
+
+
+(local 
+ (defthm isAssignable-consistent-jvp-consistent-jvp
+   (implies (and (consistent-jvp name1 jvp1 (instance-class-table s)
+                                 (heap s))
+                 (car (isSuperClass1 name1 name2 s seen)))
+            (consistent-jvp name2 (get-jvp name2 jvp1) 
+                            (instance-class-table s)
+                            (heap s)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () 
+                                   (consistent-immedidate-instance))))))
+
+
+<span class="comment">;;;; Fri Jun 10 12:26:41 2005. Fri Jun 10 12:26:42 2005
+;;;; 
+</span>
+(local 
+ (defthm interface-loaded-from-wff-class-rep-static-strong-implies
+   (implies (and (wff-class-rep-static-strong class-desc)
+                 (class-is-loaded-from-helper class-rep class-desc)
+                 (isInterface class-rep))
+            (equal (super class-rep) <span class="string">"java.lang.Object"</span>))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable isInterface)))))
+                 
+
+
+(local 
+ (defthm if-exists-then-loaded-from-some-class-file
+   (implies (and (class-by-name name cl) 
+                 (class-table-is-loaded-from cl scl))
+            (class-is-loaded-from-helper 
+             (class-by-name name cl)
+             (mv-nth 1 (class-by-name-s name scl))))))
+
+(local 
+ (defthm consistent-state-implies-class-table-is-loaded-from
+   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+            (class-table-is-loaded-from (instance-class-table s)
+                                        (env-class-table (env s))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a>)))))
+
+
+(local 
+ (defthm
+   wff-static-class-table-strong-implies-exists-implies-wff-static-class-rep-strong
+   (implies (and (wff-static-class-table-strong scl)
+                 (car (class-by-name-s name scl)))
+            (wff-class-rep-static-strong (mv-nth 1 (class-by-name-s name
+                                                                    scl))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (wff-class-rep-static-strong))))))
+
+
+(local 
+ (defthm isInterface-implies-class-by-name
+   (implies (isInterface (class-by-name name cl))
+            (class-by-name name cl))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable isInterface)))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+(local 
+ (defthm if-class-loaded-from-implies-car-class-by-name-s
+   (implies (and (class-is-loaded-from-helper class-rep
+                                              (mv-nth 1 (class-by-name-s name
+                                                                         scl)))
+                 (isInterface class-rep))
+            (car (class-by-name-s name scl)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable isInterface)))))
+
+
+(local 
+ (defthm consistent-state-implies-wff-static-class-table-strong
+   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+            (wff-static-class-table-strong (env-class-table (env s))))))
+
+
+<span class="comment">;;; Fri Jun 10 14:06:17 2005. 
+</span>
+<span class="comment">;;;; don't care too much about the use hints now. 
+;;;; this is a twisted proof anyway. 
+;;;;
+</span>
+(local 
+ (defthm consistent-state-implie-super-of-interface-is-java-lang-Object
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (isInterface (class-by-name name (instance-class-table s))))
+            (equal (super (class-by-name name (instance-class-table s)))
+                   <span class="string">"java.lang.Object"</span>))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (<a href="../consistent-state.lisp.html">consistent-state</a>
+                                       WFF-CLASS-REP-STATIC-STRONG
+                                       JVM::WFF-STATIC-CP-OK-S))
+            <span class="builtin">:use</span> ((<span class="builtin">:instance</span> 
+                   interface-loaded-from-wff-class-rep-static-strong-implies
+                   (class-rep  (class-by-name name (instance-class-table s)))
+                   (class-desc (mv-nth 1 (class-by-name-s name (env-class-table
+                                                                (env s))))))
+                  (<span class="builtin">:instance</span> if-class-loaded-from-implies-car-class-by-name-s
+                             (class-rep (class-by-name name
+                                                       (instance-class-table
+                                                        s)))
+                             (scl (env-class-table (env s)))))))))
+
+
+<span class="comment">;;;; we should be able to prove this .... 
+;;;; However this may be an implementation specific detail not required of 
+;;;; the JVM. 
+;;;;
+;;;; In fact, this is also independent of our proof (??)  No this is not
+;;;; true. Our particular definition of of isAssignableTo has a short cut that
+;;;; reject the possibility that some interface is assignable to some classs
+;;;; other than "java.lang.Object"
+;;;;
+;;;; We may want to fix the isAssignableTo definition?? 
+;;;; Fri Jun 10 12:32:36 2005
+</span>
+(local 
+ (defthm consistent-state-implies-super-java-lang-Object-empty
+   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+            (equal (super (class-by-name <span class="string">"java.lang.Object"</span>
+                                         (instance-class-table s)))
+                   <span class="string">""</span>))))
+
+
+
+
+(local 
+ (defthm lookupfield-java-lang-Object-in-java-lang-Object
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (lookupfield (make-field-ptr <span class="string">"java.lang.Object"</span> anyname anytype) s))
+            (equal (field-classname (lookupfield (make-field-ptr
+                                                  <span class="string">"java.lang.Object"</span> anyname
+                                                  anytype) s))
+                   <span class="string">"java.lang.Object"</span>))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (<a href="../consistent-state.lisp.html">consistent-state</a>))))))
+
+
+                            
+
+(local 
+ (defthm consistent-class-decl-implies-not-field
+   (implies (and (consistent-class-decl class-rep cl hp)
+                 (isInterface class-rep))
+            (equal (searchfields field-ptr (fields class-rep)) nil))))
+
+(local 
+ (defthm consistent-state-consistent-class-decls
+   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+            (consistent-class-decls (instance-class-table s)
+                                    (instance-class-table s)
+                                    (heap s)))))
+
+
+(local 
+ (defthm consistent-class-decls-bound?-implies-consistent-class-decl
+   (implies (and (consistent-class-decls cl1 cl hp)
+                 (class-by-name name cl1))
+            (consistent-class-decl (class-by-name name cl1) cl hp))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable consistent-class-decl)))))
+ 
+(local 
+ (defthm not-class-by-name-not-interface
+   (implies (not (class-by-name name cl1))
+            (not (isInterface (class-by-name name cl1))))))
+
+
+(local 
+ (defthm consistent-state-isInterface-implies-consistent-class-decl
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (isInterface (class-by-name name (instance-class-table s))))
+            (consistent-class-decl (class-by-name name (instance-class-table
+                                                        s))
+                                   (instance-class-table s)
+                                   (heap s)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (<a href="../consistent-state.lisp.html">consistent-state</a> 
+                                       consistent-class-decl isInterface))
+            <span class="builtin">:cases</span> ((class-by-name name (instance-class-table s)))))))
+
+
+(local 
+ (defthm consistent-class-decl-implies-not-field-specific
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (isInterface (class-by-name (field-ptr-classname field-ptr) (instance-class-table s))))
+            (equal (searchfields field-ptr (fields (class-by-name
+                                                    (field-ptr-classname
+                                                     field-ptr)
+                                                    (instance-class-table s))))
+                   nil))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (<a href="../consistent-state.lisp.html">consistent-state</a> consistent-class-decl))
+            <span class="builtin">:use</span> ((<span class="builtin">:instance</span> consistent-class-decl-implies-not-field
+                             (class-rep (class-by-name (field-ptr-classname
+                                                        field-ptr)
+                                                       (instance-class-table
+                                                        s)))
+                             (cl (instance-class-table s))
+                             (hp (heap s))))))))
+
+
+(local 
+ (defthm lookupfield-in-interface-resulting-in-java-lang-Object
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (lookupfield field-ptr s)
+                 (isInterface (class-by-name (field-ptr-classname field-ptr)
+                                             (instance-class-table s))))
+            (equal (field-classname (lookupfield field-ptr s))
+                   <span class="string">"java.lang.Object"</span>))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+            <span class="builtin">:in-theory</span> (e/d () (<a href="../consistent-state.lisp.html">consistent-state</a>
+                                isClassTerm))))))
+
+
+(local 
+ (defthm lookupfield-implies-not-interface
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (lookupfield field-ptr s)
+                 <span class="comment">;; the following assertion added. 
+</span>                 (not (equal (field-classname (lookupfield field-ptr s))
+                             <span class="string">"java.lang.Object"</span>)))
+            (not (isInterface (class-by-name (field-ptr-classname field-ptr)
+                                             (instance-class-table s)))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (<a href="../consistent-state.lisp.html">consistent-state</a>))))))
+
+
+
+
+
+<span class="comment">;;;; which we know java.lang.Object is a super of every possible class...
+</span>
+
+<span class="comment">;;; Originally, we miss the hyps that 
+;;;;
+;;;;  (equal (field-classname (lookupfield field-ptr s))
+;;;;         "java.lang.Object")
+;;;;
+;;; this depends on the fact the java.lang.Object does not has any field!! 
+;;; Thu Jun  9 19:03:11 2005
+;;; 
+</span>
+(local 
+ (defthm consistent-state-implies-interface-only-assignable-to
+   (implies (and (not (equal name2 <span class="string">"java.lang.Object"</span>))
+                 (not (equal name1 name2))
+                 (ISINTERFACE (CLASS-BY-NAME NAME1 (INSTANCE-CLASS-TABLE S)))
+                 (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+            (not (car (isSuperClass1 name1 name2 s nil))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (<a href="../consistent-state.lisp.html">consistent-state</a>))
+            <span class="builtin">:expand</span> (isSuperClass1 name1 name2 s nil)))))
+
+
+(local 
+ (defthm not-array-not-assignable-to-array
+   (implies (and (not (isArrayType name1))
+                 (isArrayType name2)
+                 (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+            (not (car (isAssignableTo name1 name2 s))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (<a href="../consistent-state.lisp.html">consistent-state</a>))))))
+
+
+
+(local 
+ (defthm
+   class-hierachy-consistent1-class-n-implies-not-java-lang-Object-super-bounded
+   (implies 
+    (and (class-hierachy-consistent1-class-n name cl)
+         (not (equal name <span class="string">"java.lang.Object"</span>)))
+    (isClassTerm (class-by-name (super (class-by-name name cl))
+                                       cl)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isClassTerm)))))
+
+(local 
+ (defthm
+   class-hierachy-consistent1-aux-implies-bounded-class-hierachy-consistent1-class-n
+   (implies (and (class-hierachy-consistent1-aux cl1 cl)
+                 (isClassTerm (class-by-name name cl1)))
+            (class-hierachy-consistent1-class-n name cl))))
+
+
+(local 
+ (defthm consistent-state-implies-class-hierachy-consistent1-aux
+   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+            (class-hierachy-consistent1-aux (instance-class-table s)
+                                            (instance-class-table s)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable consistent-class-hierachy)))))
+
+
+
+
+
+(local 
+ (defthm consistent-state-implies-not-equal-java-lang-Object-super-bounded
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (not (equal name <span class="string">"java.lang.Object"</span>))
+                 (isClassTerm (class-by-name name (instance-class-table s))))
+            (isClassTerm (class-by-name (super (class-by-name name
+                                                              (instance-class-table s)))
+                                        (instance-class-table s))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (consistent-class-hierachy)
+                                   (class-hierachy-consistent1-class-n
+                                    <a href="../consistent-state.lisp.html">consistent-state</a>
+                                    isClassTerm))
+            <span class="builtin">:use</span> ((<span class="builtin">:instance</span>
+                   class-hierachy-consistent1-aux-implies-bounded-class-hierachy-consistent1-class-n
+                   (cl1 (instance-class-table s))
+                   (cl (instance-class-table s))))))))
+
+
+
+
+
+<span class="comment">;;;
+;;; should be facts about consistent-class-hierachy ... 
+;;;
+</span>
+
+(local 
+ (defthm not-loaded-isSuperClass-of
+   (implies (and (not (isClassTerm (class-by-name name (instance-class-table
+                                                        s))))
+                 (not (equal name <span class="string">"java.lang.Object"</span>))
+                 (not (equal name1 name))
+                 (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+            (not (car (isSuperClass1 name1 name s seen))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (class-loaded?) (isClassTerm <a href="../consistent-state.lisp.html">consistent-state</a>))))))
+
+
+(local 
+ (defthm consistent-class-decls-implies-not-string-not-bound
+   (implies (and (consistent-class-decls cl1 cl hp)
+                 (not (stringp name)))
+            (not (class-by-name name cl1)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (classname) 
+                                   (wff-class-rep-strongx))))))
+                                      
+                                       
+(local 
+ (defthm consistent-state-impies-array-type-not-loaded-in-instance-table
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (isArrayType name2))
+            (not (isClassTerm (class-by-name name2 (instance-class-table s)))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a>)
+                                   ())
+            <span class="builtin">:use</span> ((<span class="builtin">:instance</span>
+                   consistent-class-decls-implies-not-string-not-bound
+                   (cl1 (instance-class-table s))
+                   (cl (instance-class-table s))
+                   (name name2)
+                   (hp (heap s))))))))
+
+
+
+
+
+(local 
+ (defthm consistent-state-not-isSuperClass-Array
+   (implies (and (not (equal name1 name2))
+                 (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (isArrayType name2))
+            (NOT (CAR (ISSUPERCLASS1 NAME1 name2
+                                     S NIL))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (<a href="../consistent-state.lisp.html">consistent-state</a> isClassTerm))))))
+
+
+
+(local 
+ (defthm not-interface-implies-isAssignable-reduce-to-isSuperClass
+   (implies (and (not (isInterface (class-by-name name2 (instance-class-table
+                                                         s))))
+                 (not (equal name1 name2))
+                 (not (equal name2 <span class="string">"java.lang.Object"</span>))
+                 (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (not (primitive-type? name1))
+                 (not (isArrayType name1)))
+            (equal (car (isAssignableTo name1 name2 s))
+                   (car (isSuperClass1 name1 name2 s nil))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (primitive-type?
+                                       <a href="../consistent-state.lisp.html">consistent-state</a>
+                                       isSuperClass1))))))
+
+<span class="comment">;;; the problem is that isSuperClass1 check no-fatal-error?...
+;;; and isAssignableTo don't on some corner cases. 
+</span>
+
+
+<span class="comment">;;; not a trivial proof. Should be correct. Thu Jun  9 15:55:25 2005
+;;;
+;;; need a separate book? 
+</span>
+
+
+(local 
+ (defthm lookupfield-implies-not-interface-specific
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (lookupfield (fieldcp-to-field-ptr fieldcp) s)
+                 (not (equal (field-classname 
+                              (lookupfield (fieldcp-to-field-ptr
+                                            fieldcp) s))
+                             <span class="string">"java.lang.Object"</span>)))
+            (not (isInterface (class-by-name (fieldCP-classname fieldcp)
+                                             (instance-class-table s)))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (fieldcp-to-field-ptr
+                                    make-field-ptr
+                                    field-ptr-classname)
+                                   (<a href="../consistent-state.lisp.html">consistent-state</a>))
+            <span class="builtin">:use</span> ((<span class="builtin">:instance</span> lookupfield-implies-not-interface
+                             (field-ptr (fieldcp-to-field-ptr fieldcp))))))))
+
+(local 
+ (defthm consistent-jvp-bound?-java-lang-Object
+   (implies (consistent-jvp name jvp cl hp)
+            (bound? <span class="string">"java.lang.Object"</span> jvp))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bound?)))))
+
+
+
+<span class="comment">;; (local 
+;;  (defthm field-fieldname-search-fields
+;;    (implies (searchfields field-ptr fields)
+;;             (equal (field-fieldname (searchfields field-ptr fields))
+;;                    (field-ptr-fieldname field-ptr)))))
+</span>
+
+(local 
+ (defthm field-fieldname-reduce
+   (implies (LOOKUPFIELD field-ptr s)
+            (equal (FIELD-FIELDNAME (LOOKUPFIELD field-ptr s))
+                   (field-ptr-fieldname field-ptr)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (LOOKUPFIELD-INV
+                                       searchfields 
+                                       <a href="../consistent-state.lisp.html">consistent-state</a>
+                                       field-fieldname 
+                                       isClassTerm
+                                       superclass-no-loop))
+            <span class="builtin">:do-not</span> '(generalize)))))
+
+
+<span class="comment">;;; diverged too much without disable <a href="../consistent-state.lisp.html">consistent-state</a>
+;;;
+</span>
+<span class="comment">;; 1. Simplifying the clause
+;;      ((NOT (LOOKUPFIELD FIELD-PTR S))
+;;       (EQUAL (FIELD-FIELDNAME (LOOKUPFIELD FIELD-PTR S))
+;;              (FIELD-PTR-FIELDNAME FIELD-PTR)))
+;; 2. Rewriting (to simplify) the atom of the first literal,
+;;      (LOOKUPFIELD FIELD-PTR S),
+;; 3. Attempting to apply (:DEFINITION LOOKUPFIELD) to
+;;      (LOOKUPFIELD FIELD-PTR S)
+;; 4. Rewriting (to simplify) the body,
+;;      (IF (LOOKUPFIELD-INV JVM::FIELD-PTR JVM::S)
+;;          (IF (ISCLASSTERM #)
+;;              (# # JVM::S JVM::FIELD-PTR)
+;;              'NIL)
+;;          'NIL),
+;;    under the substitution
+;;      JVM::S : S
+;;      JVM::FIELD-PTR : FIELD-PTR
+;; 5. Rewriting (to simplify) the second argument,
+;;      (IF (ISCLASSTERM (CLASS-BY-NAME # #))
+;;          ((LAMBDA # #)
+;;           (DEREF-FIELD JVM::FIELD-PTR JVM::S)
+;;           JVM::S JVM::FIELD-PTR)
+;;          'NIL),
+;;    under the substitution
+;;      JVM::S : S
+;;      JVM::FIELD-PTR : FIELD-PTR
+;; 6. Rewriting (to simplify) the first argument,
+;;      (ISCLASSTERM (CLASS-BY-NAME (FIELD-PTR-CLASSNAME JVM::FIELD-PTR)
+;;                                  (INSTANCE-CLASS-TABLE JVM::S))),
+;;    under the substitution
+;;      JVM::S : S
+;;      JVM::FIELD-PTR : FIELD-PTR
+;; 7. Attempting to apply (:REWRITE 
+;;                         CONSISTENT-STATE-IMPIES-ARRAY-TYPE-NOT-LOADED-IN-INSTANCE-TABLE)
+;; to
+;;      (ISCLASSTERM (CLASS-BY-NAME (FIELD-PTR-CLASSNAME FIELD-PTR)
+;;                                  (INSTANCE-CLASS-TABLE S)))
+;; 8. Rewriting (to establish) the atom of the first hypothesis,
+;;      (CONSISTENT-STATE S),
+;;    under the substitution
+;;      S : S
+;;      NAME2 : (FIELD-PTR-CLASSNAME FIELD-PTR)
+;; 9. Attempting to apply (:DEFINITION CONSISTENT-STATE) to
+</span>
+
+<span class="comment">;; (local 
+</span>
+<span class="comment">;;  (defthm field-fieldname-reduce
+;;    (implies (LOOKUPFIELD (FIELDCP-TO-FIELD-PTR FIELDCP) s)
+;;             (equal (FIELD-FIELDNAME (LOOKUPFIELD (FIELDCP-TO-FIELD-PTR FIELDCP) s))
+;;                    (fieldcp-fieldname fieldcp)))))
+</span>
+
+<span class="comment">;; (local 
+;;  (defthm field-fieldname-reduce2
+;;    (implies (searchfields (fieldcp-to-field-ptr fieldcp) fields)
+;;             (equal (FIELD-FIELDNAME (searchfields (fieldcp-to-field-ptr
+;;                                                    fieldcp) fields))
+;;                    (fieldcp-fieldname fieldcp))))))
+</span>
+
+(defthm reduce-field-ptr-field-name
+  (equal (FIELD-PTR-FIELDNAME (FIELDCP-TO-FIELD-PTR FIELDCP))
+         (fieldcp-fieldname fieldcp))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable fieldcp-fieldname field-ptr-fieldname
+                                     make-field-ptr
+                                     fieldcp-to-field-ptr))))
+
+
+
+<span class="comment">;; (local 
+;;  (defthm consistent-fields-search-fields-implies-bound?
+;;    (implies (and (consistent-fields fields field-decls cl hp)
+;;                  (searchfields field-ptr field-decls))
+;;             (bound? (field-ptr-fieldname field-ptr) fields))
+;;    :hints (("Goal" :in-theory (enable field-ptr-fieldname field-fieldname bound?)))))
+</span>
+(include-book <span class="string"><a href="base-bind-free.lisp.html">"base-bind-free"</a></span>)
+
+
+<span class="comment">;;; need rework!!! 
+;;; Thu Jun  9 21:47:15 2005
+;;; 
+</span>
+<span class="comment">;; (local 
+;;  (defthm consistent-fields-search-fields-implies-bound?-specific
+;;    (implies (and (consistent-fields fields field-decls cl hp)
+;;                  (searchfields (fieldcp-to-field-ptr fieldcp) field-decls))
+;;             (bound? (fieldcp-fieldname fieldcp) fields))
+;;    :hints (("Goal" :in-theory (e/d (field-ptr-fieldname 
+;;                                     fieldcp-fieldname
+;;                                     field-fieldname
+;;                                     make-field-ptr
+;;                                     bound?) ())
+;;             :use ((:instance consistent-fields-search-fields-implies-bound?
+;;                              (field-ptr (fieldcp-to-field-ptr fieldcp))))))))
+</span>
+
+(local 
+ (defthm consistent-fields-search-fields-implies-bound?-specific-further
+   (implies (and (bind-free (acl2::default-bind-free 's 's (acl2::pkg-witness <span class="string">"DJVM"</span>)))
+                 (consistent-fields (binding name jvp)
+                                    (fields 
+                                     (class-by-name name (instance-class-table s)))
+                                    (instance-class-table s)
+                                    (heap s))
+                 (searchfields (make-field-ptr
+                                   name
+                                   (fieldcp-fieldname fieldcp)
+                                   (fieldcp-fieldtype fieldcp))
+                               (fields
+                                (class-by-name name (instance-class-table s)))))
+            (bound? (fieldcp-fieldname fieldcp) (binding name jvp)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (make-field-ptr
+                                    field-ptr-fieldname)
+                                   (searchfields consistent-fields))
+            <span class="builtin">:use</span> ((<span class="builtin">:instance</span>
+                   consistent-fields-search-fields-implies-bound?
+                   (cl (instance-class-table s))
+                   (hp (heap s))
+                   (fields (binding name jvp))
+                   (field-decls  (fields 
+                                    (class-by-name name (instance-class-table
+                                                         s))))
+                   (field-ptr 
+                    (make-field-ptr
+                     name
+                     (fieldcp-fieldname fieldcp)
+                     (fieldcp-fieldtype fieldcp)))))))))
+
+
+(local 
+ (defthm search-fields-normalize-ptr-no-change
+   (equal (searchfields (make-field-ptr (field-ptr-classname field-ptr)
+                                         (field-ptr-fieldname field-ptr)
+                                         (field-ptr-type field-ptr))
+                         fields)
+          (searchfields field-ptr 
+                        fields))))
+
+
+(local 
+  (defthm lookupfield-found-in-fact-found
+    (implies (and (lookupfield field-ptr s)
+                  (equal (field-ptr-fieldname field-ptr) fieldname)
+                  (equal (field-ptr-type field-ptr) fieldtype))
+             (equal (searchfields (make-field-ptr 
+                                   (field-classname (lookupfield field-ptr s))
+                                   fieldname
+                                   fieldtype)
+                                  (fields (class-by-name 
+                                           (field-classname 
+                                            (lookupfield field-ptr s))
+                                           (instance-class-table s))))
+                    (lookupfield field-ptr s)))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (<a href="../consistent-state.lisp.html">consistent-state</a>
+                                        searchfields))
+             <span class="builtin">:do-not</span> '(generalize)))))
+
+
+<span class="comment">;; (local 
+;;  (defthm lookupfield-found-in-fact-found
+;;    (implies (lookupfield field-ptr s)
+;;             (equal (searchfields field-ptr 
+;;                                  (fields (class-by-name 
+;;                                           (field-classname 
+;;                                            (lookupfield field-ptr s))
+;;                                           (instance-class-table s))))
+;;                    (lookupfield field-ptr s)))
+;;    :hints (("Goal" :in-theory (e/d () (<a href="../consistent-state.lisp.html">consistent-state</a>
+;;                                        searchfields))
+;;             :do-not '(generalize)))))
+</span>
+
+<span class="comment">;;;
+;;; this is wrong!! 
+;;;
+</span>
+
+(local 
+ (defthm lookupfield-found-in-fact-found-addition
+   (implies (and (lookupfield field-ptr s)
+                 (equal (field-classname (lookupfield field-ptr s)) 
+                        <span class="string">"java.lang.Object"</span>)
+                 (equal (field-ptr-fieldname field-ptr) fieldname)
+                 (equal (field-ptr-type field-ptr) fieldtype))
+            (equal (searchfields (make-field-ptr 
+                                  <span class="string">"java.lang.Object"</span> 
+                                  fieldname
+                                  fieldtype)
+                                 (fields (class-by-name 
+                                          <span class="string">"java.lang.Object"</span>
+                                          (instance-class-table s))))
+                   (lookupfield field-ptr s)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> lookupfield-found-in-fact-found))))
+
+
+
+
+
+
+
+<span class="comment">;; field-class-name-lookupfield-is-bounded
+</span>
+(local 
+ (defthm bound?-bound-get-jvp
+   (implies (bound? name (get-jvp any jvp))
+            (bound? name jvp))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bound?)))))
+
+
+(local 
+ (defthm field-class-name-lookupfield-is-bounded-general
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (lookupField field-ptr s)
+                 (consistent-jvp (field-ptr-classname field-ptr)
+                                 (get-jvp (field-ptr-classname field-ptr) jvp)
+                                 (instance-class-table s) (heap s)))
+            (bound? (field-classname (lookupField field-ptr s))
+                    jvp))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+            <span class="builtin">:in-theory</span> nil
+            <span class="builtin">:use</span> ((<span class="builtin">:instance</span> field-class-name-lookupfield-is-bounded
+                             (jvp (get-jvp (field-ptr-classname field-ptr)
+                                           jvp)))
+                  (<span class="builtin">:instance</span> bound?-bound-get-jvp
+                             (name (field-classname (lookupField field-ptr s)))
+                             (any (field-ptr-classname field-ptr))))))))
+
+(local 
+ (defthm isAssignable-consistent-jvp-consistent-jvp-specific
+  (implies (and (consistent-jvp (obj-type obj) (java-visible-portion obj) (instance-class-table s)
+                                (heap s))
+                (car (isSuperClass1 (obj-type obj) name2 s nil)))
+           (consistent-jvp name2 (get-jvp name2 (java-visible-portion obj))
+                           (instance-class-table s)
+                           (heap s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> ((<span class="builtin">:instance</span> isAssignable-consistent-jvp-consistent-jvp
+                                   (name1 (obj-type obj))
+                                   (jvp1 (java-visible-portion obj))
+                                   (seen nil)))))))
+                            
+
+(defthm field-ptr-classname-reduce
+   (equal (FIELD-PTR-CLASSNAME (FIELDCP-TO-FIELD-PTR FIELDCP))
+          (fieldcp-classname fieldcp))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable fieldcp-classname
+                                      fieldcp-to-field-ptr))))
+
+
+
+(defthm field-ptr-fieldname-reduce
+  (equal (field-ptr-fieldname (FIELDCP-TO-FIELD-PTR FIELDCP))
+         (fieldcp-fieldname fieldcp))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable fieldcp-classname fieldcp-to-field-ptr))))
+
+
+(defthm field-ptr-fieldtype-reduce
+  (equal (field-ptr-type (FIELDCP-TO-FIELD-PTR FIELDCP))
+         (fieldcp-fieldtype fieldcp))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable fieldcp-classname fieldcp-to-field-ptr))))
+
+
+(local 
+ (defthm java-lang-Object-lookup-field-if-found-then-found-in-java-lang-Object
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (EQUAL (FIELDCP-CLASSNAME FIELDCP)
+                        <span class="string">"java.lang.Object"</span>)
+                 (lookupField (FIELDCP-TO-FIELD-PTR FIELDCP) s))
+            (EQUAL (FIELD-CLASSNAME (lookupField (FIELDCP-TO-FIELD-PTR FIELDCP) s))
+                   <span class="string">"java.lang.Object"</span>))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (<a href="../consistent-state.lisp.html">consistent-state</a>))))))
+
+<span class="comment">;;; do not export this!!! 
+</span>
+<span class="comment">;; (i-am-here) ;; Mon Jun 13 18:50:12 2005
+</span>
+
+
+(local 
+ (defthm wff-obj-strong-java-visible-portion-alistp
+   (implies (WFF-OBJ-STRONG OBJ)
+            (alistp (java-visible-portion obj)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable wff-obj-strong)))))
+
+
+<span class="comment">;; (i-am-here)
+</span>
+(local 
+ (defthm
+   consistent-object-and-field-found-in-lookup-implies-jvm-field-access-guard-lemma
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (consistent-object obj (heap s) (instance-class-table s))
+                 (not (isArrayType (obj-type obj)))
+                <span class="comment">;; need to strengthen GUARD 
+</span>                <span class="comment">;; and check for <a href="GETFIELD.lisp.html">GETFIELD</a> ;; Thu Jun  9 15:43:06 2005
+</span>                <span class="comment">;; done!! 
+</span>                (car (isAssignableTo (obj-type obj) (fieldCP-classname fieldcp) s))
+                (lookupField (fieldcp-to-field-ptr fieldCP) s))
+           (jvm::jvp-access-field-guard (field-classname 
+                                         (lookupField (fieldcp-to-field-ptr
+                                                       fieldCP) s))
+                                        (FIELD-FIELDNAME
+                                         (LOOKUPFIELD (FIELDCP-TO-FIELD-PTR
+                                                       fieldcp) s))
+                                        (java-visible-portion obj)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (consistent-object
+                                   jvm::jvp-access-field-guard) 
+                                  (<a href="../consistent-state.lisp.html">consistent-state</a>
+                                   lookupfield
+                                   field-ptr-fieldname
+                                   field-ptr-classname
+                                   field-ptr-type
+                                   fieldcp-fieldtype
+                                   fieldcp-fieldname
+                                   isAssignableTo
+                                   isClassTerm
+                                   fieldcp-classname
+                                   ))
+           <span class="builtin">:cases</span> ((equal (field-classname (lookupfield 
+                                            (fieldcp-to-field-ptr fieldCP) s))
+                          <span class="string">"java.lang.Object"</span>)))
+          (<span class="string">"Subgoal 2"</span> <span class="builtin">:cases</span> ((equal (obj-type obj)
+                                      (fieldcp-classname fieldcp))
+                               (equal (fieldcp-classname fieldcp) <span class="string">"java.lang.Object"</span>))))))
+                                    
+
+
+
+(local 
+ (defthm consistent-array-object-implies-consistent-jvp-java-lang-Object
+   (implies (consistent-array-object obj hp cl acl)
+            (consistent-jvp <span class="string">"java.lang.Object"</span> (java-visible-portion obj) cl
+                            hp))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+(local 
+ (defthm consistent-jvp-implies-bound-specific
+   (implies (consistent-jvp type jvp cl hp)
+            (bound? type jvp))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+(local 
+ (defthm consistent-array-object-bound-java-lang-Object
+   (implies (consistent-array-object obj (heap s) (instance-class-table s) 
+                                     (array-class-table s))
+            (bound? <span class="string">"java.lang.Object"</span> (java-visible-portion obj)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable consistent-jvp
+                                       consistent-array-object)))))
+
+
+                                       
+
+<span class="comment">;;; this above tooks Time:  
+;;; 71.64 seconds (prove: 71.64, print: 0.00, other: 0.00)
+;;; by simplification!! 
+</span>
+
+<span class="comment">;; consistent-jvp-binding-alistp
+</span>
+(local 
+ (defthm consistent-jvp-binding-alistp-specific
+   (implies (and (bind-free (acl2::default-bind-free 's 's (acl2::pkg-witness <span class="string">"DJVM"</span>)))
+                 (consistent-jvp any jvp (instance-class-table s) (heap s)))
+            (alistp (binding any jvp)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> ((<span class="builtin">:instance</span> consistent-jvp-binding-alistp 
+                                    (cl (instance-class-table s))
+                                    (hp (heap s))
+                                    (name any)))))))
+
+
+
+
+(local 
+ (defthm consistent-jvp-fields-field-decls-consistent-specific
+   (implies (and (consistent-jvp any jvp cl hp)
+                 (bound? any jvp))
+            (consistent-fields (binding any jvp)
+                               (fields (class-by-name any cl))
+                               cl
+                               hp))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> ((<span class="builtin">:instance</span>
+                          consistent-jvp-fields-field-decls-consistent
+                          (name <span class="string">"java.lang.Object"</span>)))))))
+
+
+(local 
+ (defthm consistent-state-ipmlies-consistent-heap2
+   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+            (consistent-heap2 (heap s) (heap s)
+                              (instance-class-table s)
+                              (array-class-table s) 0))))
+
+
+(defthm consistent-heap2-implies-isArrayType-is-consistent-array-object
+  (implies (and (consistent-heap2 hp1 hp cl acl id)
+                (isArrayType (obj-type (binding v hp1))))
+           (consistent-array-object (binding v hp1) hp cl acl))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (binding)
+                              (consistent-array-object)))))
+
+(defthm isArrayType-implies-consistent-array-object-strong
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (isArrayType (obj-type (deref2 v (heap s)))))
+           (consistent-array-object (deref2 v (heap s))
+                                    (heap s) (instance-class-table s)
+                                    (array-class-table s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (deref2 
+                                   consistent-heap consistent-heap)
+                                  (consistent-array-object
+                                   obj-type
+                                   isArrayType
+                                   consistent-heap2-implies-isArrayType-is-consistent-array-object
+                                   <a href="../consistent-state.lisp.html">consistent-state</a>
+                                   binding
+                                   nullp))
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span>
+                  consistent-heap2-implies-isArrayType-is-consistent-array-object
+                  (hp1 (heap s)) 
+                  (hp (heap s))
+                  (v (cdr v))
+                  (cl (instance-class-table s))
+                  (acl (array-class-table s))
+                  (id 0))))))
+
+
+
+<span class="comment">;;; (i-am-here) ;;; Mon Jun 20 14:47:43 2005
+</span>
+<span class="comment">;;;; Really don't want to touch this. 
+;;;; 
+;;;; We later can prove if an arraytype is assignable to ...
+;;;; then we can prove lookupfield from that type could never succeed!! 
+</span>
+(local 
+ (defthm
+  consistent-object-and-field-found-in-lookup-implies-jvm-field-access-guard-lemma2
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (consistent-object obj (heap s) (instance-class-table s))
+                (isArrayType (obj-type obj))
+                (equal (fieldcp-classname fieldcp) <span class="string">"java.lang.Object"</span>)
+                (consistent-array-object obj
+                                         (heap s) (instance-class-table s)
+                                         (array-class-table s))
+                <span class="comment">;; need to strengthen GUARD 
+</span>                <span class="comment">;; and check for <a href="GETFIELD.lisp.html">GETFIELD</a> ;; Thu Jun  9 15:43:06 2005
+</span>                <span class="comment">;; done!! 
+</span>                (car (isAssignableTo (obj-type obj) (fieldCP-classname fieldcp) s))
+                (lookupField (fieldcp-to-field-ptr fieldCP) s))
+           (jvm::jvp-access-field-guard (field-classname (lookupField (fieldcp-to-field-ptr fieldCP) s))
+                                        (fieldcp-fieldname fieldCP)
+                                        (java-visible-portion obj)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (consistent-object
+                                   jvm::jvp-access-field-guard) 
+                                  (<a href="../consistent-state.lisp.html">consistent-state</a>
+                                   consistent-array-object
+                                   lookupfield
+                                   consistent-jvp
+                                   field-ptr-fieldname
+                                   field-ptr-classname
+                                   field-ptr-type
+                                   fieldcp-fieldtype
+                                   fieldcp-fieldname
+                                   isAssignableTo
+                                   isClassTerm
+                                   fieldcp-classname
+                                   ))))))
+
+
+(in-theory (disable REFp jvm::jvp-access-field-guard consistent-object))
+
+<span class="comment">;;; we want to normalize the (field-fieldname (lookupfield ...))  to be ...
+</span>
+<span class="comment">;; (defthm field-fieldname-reduce
+;;   (implies (LOOKUPFIELD field-ptr s)
+;;            (equal (FIELD-FIELDNAME (LOOKUPFIELD field-ptr s))
+;;                   (field-ptr-fieldname field-ptr)))
+;;   :hints (("Goal" :in-theory (e/d (lookupfield) (LOOKUPFIELD-INV
+;;                                                  searchfields 
+;;                                                  fields
+;;                                                  field-fieldname 
+;;                                                  isClassTerm
+;;                                                  superclass-no-loop))
+;;            :do-not '(generalize))))
+</span>
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-lookupfield-fieldname-normalize.lisp.html">"base-lookupfield-fieldname-normalize"</a></span>))
+
+  (defthm field-fieldname-reduce
+    (implies (LOOKUPFIELD field-ptr s)
+             (equal (FIELD-FIELDNAME (LOOKUPFIELD field-ptr s))
+                    (field-ptr-fieldname field-ptr))))
+
+  (defthm field-fieldtype-reduce
+    (implies (LOOKUPFIELD field-ptr s)
+             (equal (FIELD-FIELDTYPE (LOOKUPFIELD field-ptr s))
+                    (field-ptr-type field-ptr)))))
+
+
+(defthm
+  consistent-object-and-field-found-in-lookup-implies-jvm-field-access-guard-weak
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (consistent-object obj (heap s) (instance-class-table s))
+                (or (not (isArrayType (obj-type obj)))
+                    (and (equal (fieldcp-classname fieldcp) <span class="string">"java.lang.Object"</span>)
+                         (consistent-array-object obj (heap s)
+                                                  (instance-class-table s)
+                                                  (array-class-table s))))
+                <span class="comment">;; need to strengthen GUARD 
+</span>                <span class="comment">;; and check for <a href="GETFIELD.lisp.html">GETFIELD</a> ;; Thu Jun  9 15:43:06 2005
+</span>                <span class="comment">;; done!! 
+</span>                (car (isAssignableTo (obj-type obj) (fieldCP-classname fieldcp) s))
+                (lookupField (fieldcp-to-field-ptr fieldCP) s))
+           (jvm::jvp-access-field-guard (field-classname 
+                                         (lookupField (fieldcp-to-field-ptr
+                                                       fieldCP) s))
+                                        (fieldcp-fieldname fieldcp)
+                                        (java-visible-portion obj)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d ()
+                                  (<a href="../consistent-state.lisp.html">consistent-state</a>
+                                   consistent-object
+                                   jvm::jvp-access-field-guard
+                                   lookupfield
+                                   field-ptr-fieldname
+                                   field-ptr-classname
+                                   field-ptr-type
+                                   fieldcp-fieldtype
+                                   fieldcp-fieldname
+                                   isAssignableTo
+                                   isClassTerm
+                                   fieldcp-classname
+                                   ))
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span>
+                  consistent-object-and-field-found-in-lookup-implies-jvm-field-access-guard-lemma2)
+                 (<span class="builtin">:instance</span> 
+                  consistent-object-and-field-found-in-lookup-implies-jvm-field-access-guard-lemma)))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;;; proved before. export for base-consistent-object-m6-getfield.lisp!! 
+;;;
+</span>
+(defthm java-lang-Object-lookup-field-if-found-then-found-in-java-lang-Object
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (EQUAL (FIELDCP-CLASSNAME FIELDCP)
+                       <span class="string">"java.lang.Object"</span>)
+                (lookupField (FIELDCP-TO-FIELD-PTR FIELDCP) s))
+           (EQUAL (FIELD-CLASSNAME (lookupField (FIELDCP-TO-FIELD-PTR FIELDCP) s))
+                  <span class="string">"java.lang.Object"</span>))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (<a href="../consistent-state.lisp.html">consistent-state</a>)))))
+
+
+
+<span class="comment">;; (defthm consistent-state-implies-java-lang-Object-not-fields
+;;   (IMPLIES (AND (EQUAL (FIELDCP-CLASSNAME FIELDCP)
+;;                        "java.lang.Object")
+;;          (NOT (SEARCHFIELDS (FIELDCP-TO-FIELD-PTR FIELDCP)
+;;                             (FIELDS (CONS L1 L2))))).
+</span>
+
+(defthm consistent-state-implies-java-lang-Object-not-fields
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (not (fields (class-by-name <span class="string">"java.lang.Object"</span> (instance-class-table s))))))
+
+
+(defthm searchfields-in-nil-nil
+  (not (searchfields field-ptr nil)))
+
+
+(defthm consistent-state-lookupfield-fail-if-array-type-assignable-into
+  (implies (and  (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (isArrayType typ1) 
+                 (car (isAssignableTo typ1 (fieldcp-classname fieldcp) s)))
+           (not (lookupField (fieldcp-to-field-ptr fieldcp) s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (<a href="../consistent-state.lisp.html">consistent-state</a> 
+                                      isClassTerm
+                                      fieldcp-classname)))))
+
+
+
+(defthm
+  consistent-object-and-field-found-in-lookup-implies-jvm-field-access-guard
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (consistent-object obj (heap s) (instance-class-table s))
+                (car (isAssignableTo (obj-type obj) (fieldCP-classname fieldcp) s))
+                (lookupField (fieldcp-to-field-ptr fieldCP) s))
+           (jvm::jvp-access-field-guard (field-classname 
+                                         (lookupField (fieldcp-to-field-ptr
+                                                       fieldCP) s))
+                                        (fieldcp-fieldname fieldcp)
+                                        (java-visible-portion obj)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d ()
+                                  (<a href="../consistent-state.lisp.html">consistent-state</a>
+                                   consistent-array-object
+                                   consistent-object
+                                   jvm::jvp-access-field-guard
+                                   lookupfield
+                                   isArrayType
+                                   field-ptr-fieldname
+                                   field-ptr-classname
+                                   field-ptr-type
+                                   fieldcp-fieldtype
+                                   fieldcp-fieldname
+                                   isAssignableTo
+                                   isClassTerm
+                                   fieldcp-classname
+                                   ))
+           <span class="builtin">:cases</span> ((isArrayType (obj-type obj))))))
+
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;; (i-am-here) ;; Tue Jun 21 16:02:00 2005
+</span>
+
+<span class="comment">;; make this exportable also!! 
+</span>
+(defthm consistent-state-implie-super-of-interface-is-java-lang-Object
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (isInterface (class-by-name name (instance-class-table s))))
+            (equal (super (class-by-name name (instance-class-table s)))
+                   <span class="string">"java.lang.Object"</span>))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (<a href="../consistent-state.lisp.html">consistent-state</a>
+                                       WFF-CLASS-REP-STATIC-STRONG
+                                       JVM::WFF-STATIC-CP-OK-S)))))
+
+
+</pre>
+  </body>
+</html>

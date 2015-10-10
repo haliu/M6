@@ -1,0 +1,79 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>djvm-heap.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(acl2::set-verify-guards-eagerness 2)
+<span class="comment">;;(include-book "../M6-DJVM-shared/jvm-heap")
+</span>(include-book <span class="string"><a href="djvm-type-value.lisp.html">"../DJVM/djvm-type-value"</a></span>)
+(include-book <span class="string"><a href="djvm-obj.lisp.html">"../DJVM/djvm-obj"</a></span>)
+(include-book <span class="string"><a href="consistent-state.lisp.html">"../DJVM/consistent-state"</a></span>)
+
+
+<span class="comment">;; (defun deref2 (ref hp)
+;;   (declare (xargs :guard (and (wff-Heap hp)
+;;                               (Valid-REFp ref hp))))
+;;   ;; never deref2 a non pointer. 
+;;   ;; ensure our owm implementation is right. 
+</span>              
+<span class="comment">;;   (binding (rREF ref) hp))
+;;
+;; appeared in djvm-type-value.lisp
+</span>
+<span class="comment">;; (defun wff-heap-strong (hp)
+;;   (and (wff-heap hp)
+;;        (if (not (consp hp)) t  
+;;          (and (wff-obj-strong (cdar hp))
+;;               (wff-heap-strong (cdr hp))))))
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">deref2-init</span> (v hp-init)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-Refp v)
+                              (wff-heap-init-map-strong hp-init)
+                              (bound? (rREF v) hp-init))))
+                                                            
+  (binding (rREF v) hp-init))
+</pre>
+  </body>
+</html>

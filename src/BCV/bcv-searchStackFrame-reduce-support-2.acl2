@@ -1,0 +1,2 @@
+(ld "../BCV/bcv.pkg")
+(certify-book "bcv-searchStackFrame-reduce-support-2" 5 t :skip-proofs-okp t)

@@ -1,0 +1,2 @@
+(ld "../../DJVM/djvm.pkg")
+(certify-book "base-fatal-errorflag-not-earsed" 6 t :skip-proofs-okp t)

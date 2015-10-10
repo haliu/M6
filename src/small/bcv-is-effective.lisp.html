@@ -1,0 +1,483 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>bcv-is-effective.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"ACL2"</span>)
+(include-book <span class="string"><a href="jvm-model.lisp.html">"jvm-model"</a></span>)
+(include-book <span class="string"><a href="djvm-model.lisp.html">"djvm-model"</a></span>)
+(include-book <span class="string"><a href="bcv-simple-model.lisp.html">"bcv-simple-model"</a></span>)
+(include-book <span class="string"><a href="bcv-model.lisp.html">"bcv-model"</a></span>)
+(include-book <span class="string"><a href="generic.lisp.html">"generic"</a></span>)
+(include-book <span class="string"><a href="state-equiv-def.lisp.html">"state-equiv-def"</a></span>)
+
+<span class="comment">;; in this example, the only difference between djvm-s and a jvm-s is that
+;; jvm-s does not contain the stack map annotations not jvm-s checks for such
+;; annotations. 
+;;
+;; m-step does not check whether preconditions are met!! 
+;;
+</span>
+
+
+<span class="comment">;;
+;; usually we would assert class-table-equiv is pairwise method-equiv
+;; However this is not the property that we really want, 
+;; 
+;; We want all method defined in djvm-method, looking up the method in the
+;; jvm-class-table, we get a method-equiv method! 
+;;
+</span>
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(encapsulate () 
+ (local (include-book <span class="string"><a href="bcv-simple-check-implies-djvm-check.lisp.html">"bcv-simple-check-implies-djvm-check"</a></span>))
+ (defthm <a href="bcv-simple-check-implies-djvm-check.lisp.html">bcv-simple-check-implies-djvm-check</a>
+   (implies (and (<a href="consistent-state.lisp.html">consistent-state</a> djvm-s)
+                 (bcv-simple-check-step-pre (next-inst djvm-s) 
+                                            (extract-sig-frame
+                                             (TOPX (G 'CALL-STACK DJVM-S))
+                                             (G 'METHOD-TABLE DJVM-S))))
+            (djvm-check-step djvm-s))))
+
+
+<span class="comment">;; (encapsulate () 
+;;  (local (include-book <a href="bcv-simple-check-implies-djvm-check.lisp.html">"bcv-simple-check-implies-djvm-check"</a>))
+;;  (defthm <a href="bcv-simple-check-implies-djvm-check.lisp.html">bcv-simple-check-implies-djvm-check</a>
+;;    (implies (bcv-simple-check-step-pre (next-inst djvm-s) 
+;;                                        (extract-sig-frame
+;;                                         (TOPX (G 'CALL-STACK DJVM-S))
+;;                                         (G 'METHOD-TABLE DJVM-S)))
+;;             (djvm-check-step djvm-s))))
+;; Sat Nov 19 15:08:28 2005
+;;
+;; wrong conjecture! 
+</span>
+
+(encapsulate () 
+ (local (include-book <span class="string"><a href="djvm-check-succeed-implies-jvm-equiv-state.lisp.html">"djvm-check-succeed-implies-jvm-equiv-state"</a></span>))
+ (defthm <a href="djvm-check-succeed-implies-jvm-equiv-state.lisp.html">djvm-check-succeed-implies-jvm-equiv-state</a>
+   (implies (and (state-equiv jvm-s djvm-s)
+                 (djvm-check-step djvm-s))
+            (state-equiv (m-step jvm-s)
+                         (djvm-step djvm-s)))))
+
+
+(encapsulate () 
+ (local (include-book <span class="string"><a href="bcv-simple-check-monotonic.lisp.html">"bcv-simple-check-monotonic"</a></span>))
+ (defthm bcv-simple-check-step-pre-bcv-simple-check-step-pre
+   (implies (and (sig-frame-compatible frame1 frame2)
+                 (bcv-simple-check-step-pre inst frame2))
+            (bcv-simple-check-step-pre inst frame1))))
+
+<span class="comment">;;;
+;;; this following are top level properties. 
+;;;
+</span>
+(encapsulate () 
+ (local (include-book <span class="string"><a href="bcv-simple-method-implies-bcv-simple-check-step-pre.lisp.html">"bcv-simple-method-implies-bcv-simple-check-step-pre"</a></span>))
+ (defthm method-verified-implies-bcv-simple-check-step-pre-on-recorded-signature-lemma                 
+   (implies (and (bcv-simple-method method method-table)
+                 (integerp pc)
+                 (&lt;= 0 pc)
+                 (&lt; pc (len (g 'code method)))
+                 (equal inst (nth pc (g 'code method)))
+                 (member inst (g 'code method)))
+            (bcv-simple-check-step-pre inst 
+                                       (cdr (assoc-equal pc (g 'sig-vector method)))))))
+
+
+(encapsulate () 
+  (local (include-book <span class="string"><a href="bcv-succeed-implies-bcv-simple-succeed.lisp.html">"bcv-succeed-implies-bcv-simple-succeed"</a></span>))
+  (defthm <a href="bcv-succeed-implies-bcv-simple-succeed.lisp.html">bcv-succeed-implies-bcv-simple-succeed</a>
+    (implies (and (bcv-method method method-table)
+                  (equal method (binding (g 'method-name method)
+                                         method-table))
+                  (bcv-verified-method-table method-table))
+             (bcv-simple-method
+              (s 'sig-vector
+                 (collect-witness-bcv-method
+                  method method-table)
+                 method)
+              method-table))))
+
+<span class="comment">;;; the above lemma is the most difficult one! Tue Nov 29 10:23:10 2005
+</span>
+
+(defthm method-verified-implies-bcv-simple-check-step-pre-on-recorded-signature                 
+  (implies (and (bcv-method method method-table)
+                (equal method (binding (g 'method-name method) method-table))
+                (bcv-verified-method-table method-table)
+                (integerp pc)
+                (&lt;= 0 pc)
+                (&lt; pc (len (g 'code method)))
+                (equal inst (nth pc (g 'code method)))
+                (member inst (g 'code method)))
+           (bcv-simple-check-step-pre inst 
+                                      (cdr (assoc-equal pc 
+                                                        (collect-witness-bcv-method method method-table)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable collect-witness-bcv-method
+                                      bcv-verified-method-table
+                                      bcv-method
+                                      bcv-simple-method)
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span>
+                  method-verified-implies-bcv-simple-check-step-pre-on-recorded-signature-lemma
+                  (method (s 'sig-vector 
+                             (collect-witness-bcv-method method method-table) method))))
+           <span class="builtin">:do-not-induct</span> t)))
+
+
+ 
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(encapsulate () 
+ (local (include-book <span class="string"><a href="djvm-is-safe.lisp.html">"djvm-is-safe"</a></span>))
+ (defthm method-table-does-not-change
+   (equal (g 'method-table (djvm-step st))
+          (g 'method-table st))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(encapsulate () 
+  (local (include-book <span class="string"><a href="djvm-is-safe.lisp.html">"djvm-is-safe"</a></span>))
+
+  (defthm djvm-step-preserve-consistent-state
+    (implies (<a href="consistent-state.lisp.html">consistent-state</a> st)
+             (<a href="consistent-state.lisp.html">consistent-state</a> (djvm-step st))))
+
+  (defthm djvm-run-preserve-consistent-state
+    (implies (<a href="consistent-state.lisp.html">consistent-state</a> st)
+             (<a href="consistent-state.lisp.html">consistent-state</a> (djvm-run st any)))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+
+(in-theory (disable state-equiv 
+                    m-step
+                    djvm-step
+                    djvm-check-step
+                    bcv-simple-check-step-pre
+                    next-inst
+                    extract-sig-frame
+                    <a href="consistent-state.lisp.html">consistent-state</a>
+                    bcv-verified-method-table
+                    bcv-simple-method))
+
+
+<span class="comment">;; (i-am-here) ;; Fri Nov 18 22:24:27 2005
+</span>
+(defthm consistent-state-implies-pc-in-range
+  (implies (<a href="consistent-state.lisp.html">consistent-state</a> djvm-s)
+           (pc-in-range djvm-s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="consistent-state.lisp.html">consistent-state</a>))))
+
+<span class="comment">;;;
+;;; Sat Nov 19 14:56:39 2005 need to extend the <a href="consistent-state.lisp.html">consistent-state</a> definition!! 
+;;; to assert that PC is in range! 
+;;;
+;;; Will need to redo that bcv-simple-check-step-pre will ensure that!! 
+;;;
+</span>
+
+(defthm consistent-state-implies-bcv-method
+  (implies (<a href="consistent-state.lisp.html">consistent-state</a> djvm-s)
+           (bcv-method (cdr (assoc-equal (g 'method-name (car (g 'call-stack djvm-s)))
+                                         (g 'method-table djvm-s)))
+                       (g 'method-table djvm-s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="consistent-state.lisp.html">consistent-state</a> current-method) (bcv-method)))))
+
+
+
+
+
+(defthm consistent-state-implies-sig-frame-compatible
+  (implies (<a href="consistent-state.lisp.html">consistent-state</a> djvm-s)
+           (SIG-FRAME-COMPATIBLE
+            (EXTRACT-SIG-FRAME (CAR (G 'CALL-STACK DJVM-S))
+                               (G 'METHOD-TABLE DJVM-S))
+            (CDR (ASSOC-EQUAL (G 'PC (CAR (G 'CALL-STACK DJVM-S)))
+                              (COLLECT-WITNESS-BCV-METHOD
+                               (CDR (ASSOC-EQUAL (G 'METHOD-NAME
+                                                    (CAR (G 'CALL-STACK DJVM-S)))
+                                                 (G 'METHOD-TABLE DJVM-S)))
+                               (G 'METHOD-TABLE DJVM-S))))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="consistent-state.lisp.html">consistent-state</a> current-method) (bcv-method)))))
+
+
+(defthm consistent-state-method-name-equal
+  (implies (<a href="consistent-state.lisp.html">consistent-state</a> djvm-s)
+           (equal (G 'METHOD-NAME
+                     (CDR (ASSOC-EQUAL (G 'METHOD-NAME
+                                          (CAR (G 'CALL-STACK DJVM-S)))
+                                       (G 'METHOD-TABLE DJVM-S))))
+                  (g 'method-name (car (g 'call-stack djvm-s)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="consistent-state.lisp.html">consistent-state</a> current-method) (bcv-method)))))
+
+(defthm in-range-then-member
+  (implies (and (&lt;= 0 pc)
+                (&lt; pc (len l)))
+           (member (nth pc l) l)))
+
+
+
+(defthm pc-in-range-implies-member
+  (implies (pc-in-range djvm-s)
+           (member (nth (g 'pc (car (g 'call-stack djvm-s)))
+                        (g 'code (cdr (assoc-equal
+                                       (g 'method-name (car (g 'call-stack
+                                                               djvm-s)))
+                                       (g 'method-table djvm-s)))))
+                   (g 'code (cdr (assoc-equal (g 'method-name (car (g
+                                                                    'call-stack djvm-s)))
+                                              (g 'method-table djvm-s))))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable pc-in-range))))
+
+
+(defthm consistent-state-implies-pc-in-range-f
+  (implies (<a href="consistent-state.lisp.html">consistent-state</a> djvm-s)
+           (pc-in-range djvm-s)))
+
+
+(defthm pc-in-range-f-pc-f
+  (implies (pc-in-range djvm-s)
+           (integerp (g 'pc (car (g 'call-stack djvm-s)))))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+(defthm pc-in-range-f-pc-b
+  (implies (pc-in-range djvm-s)
+           (integerp (g 'pc (car (g 'call-stack djvm-s))))))
+
+
+
+(defthm pc-in-range-f-pc-f-2
+  (implies (pc-in-range djvm-s)
+           (&lt;= 0 (g 'pc (car (g 'call-stack djvm-s)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable pc-in-range)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+(defthm pc-in-range-f-pc-b-2
+  (implies (pc-in-range djvm-s)
+           (&lt;= 0 (g 'pc (car (g 'call-stack djvm-s)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable pc-in-range))))
+
+
+
+(defthm pc-in-range-f-pc-f-3
+  (implies (pc-in-range djvm-s)
+           (&lt; (g 'pc (car (g 'call-stack djvm-s)))
+              (len (g 'code 
+                      (cdr (assoc-equal 
+                            (g 'method-name 
+                               (car (g 'call-stack djvm-s)))
+                            (g 'method-table djvm-s)))))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable pc-in-range)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+(defthm pc-in-range-f-pc-b-3
+  (implies (pc-in-range djvm-s)
+           (&lt; (g 'pc (car (g 'call-stack djvm-s)))
+              (len (g 'code 
+                      (cdr (assoc-equal 
+                            (g 'method-name 
+                               (car (g 'call-stack djvm-s)))
+                            (g 'method-table djvm-s))))))))
+
+
+
+(defthm bcv-simple-check-succeed-in-consistent-state
+  (implies (and (CONSISTENT-STATE DJVM-S)
+                (bcv-verified-method-table (g 'method-table djvm-s)))
+           (BCV-SIMPLE-CHECK-STEP-PRE (NEXT-INST DJVM-S)
+                                      (EXTRACT-SIG-FRAME (CAR (G 'CALL-STACK DJVM-S))
+                                                         (G 'METHOD-TABLE
+                                                            DJVM-S))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> 
+           <span class="builtin">:in-theory</span> (e/d (next-inst)
+                           (pc-in-range bcv-method
+                                        sig-frame-compatible
+                                        bcv-simple-check-step-pre-bcv-simple-check-step-pre
+                                        collect-witness-bcv-method))
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span> bcv-simple-check-step-pre-bcv-simple-check-step-pre
+                            (frame1 (EXTRACT-SIG-FRAME (CAR (G 'CALL-STACK DJVM-S))
+                                                       (G 'METHOD-TABLE
+                                                          DJVM-S)))
+                            (frame2 (cdr (assoc-equal 
+                                          (g 'pc (car (g 'call-stack djvm-s)))
+                                          (collect-witness-bcv-method 
+                                           (binding (g 'method-name 
+                                                       (car (g 'call-stack djvm-s)))
+                                                    (g 'method-table djvm-s))
+                                           (g 'method-table djvm-s)))))
+                            (inst (next-inst djvm-s)))))))
+
+
+<span class="comment">;;; we need <a href="consistent-state.lisp.html">consistent-state</a> to assert pc-in-range!!
+;;; currently this assertion is missing. Fri Nov 18 18:54:26 2005
+;;; 
+</span>
+
+<span class="comment">;;----------------------------------------------------------------------
+</span>
+(defthm djvm-check-succeed-in-consistent-state
+  (implies (and (CONSISTENT-STATE DJVM-S)
+                (bcv-verified-method-table (g 'method-table djvm-s)))
+           (djvm-check-step djvm-s)))
+
+
+
+(defthm verified-program-execute-safely-lemma
+  (implies (and (CONSISTENT-STATE DJVM-S)
+                (STATE-EQUIV JVM-S DJVM-S)
+                (BCV-VERIFIED-METHOD-TABLE (G 'METHOD-TABLE DJVM-S)))
+           (STATE-EQUIV (M-STEP JVM-S)
+                        (DJVM-STEP DJVM-S))))
+
+
+
+(defthm verified-program-executes-safely
+  (implies (and (<a href="consistent-state.lisp.html">consistent-state</a> djvm-s)
+                (state-equiv jvm-s djvm-s)
+                (bcv-verified-method-table (g 'method-table djvm-s)))
+           (state-equiv (m-run jvm-s n)
+                        (djvm-run djvm-s n))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;; (i-am-here);; Mon May 22 15:30:10 2006
+</span>
+
+(defthm method-name-equal-state-equiv
+  (implies (state-equiv jvm-s djvm-s)
+           (equal (g 'method-name (topx (g 'call-stack jvm-s)))
+                  (g 'method-name (topx (g 'call-stack djvm-s)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable state-equiv))))
+
+
+(defthm class-table-equiv-max-stack-equal
+  (implies (and (class-table-equiv jvm-cl djvm-cl)
+                (bound? name djvm-cl))
+           (equal (max-stack (binding name jvm-cl))
+                  (max-stack (binding name djvm-cl)))))
+
+
+
+(defthm max-stack-binding-same-name
+  (implies (and (state-equiv jvm-s djvm-s)
+                (bound? name (g 'method-table djvm-s)))
+           (equal (max-stack (binding name (g 'method-table jvm-s)))
+                  (max-stack (binding name (g 'method-table djvm-s)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable state-equiv)
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span> class-table-equiv-max-stack-equal
+                            (jvm-cl  (g 'method-table jvm-s))
+                            (djvm-cl (g 'method-table djvm-s)))))))
+
+
+(defthm consistent-state-implies-bound-method-name
+  (implies (and (<a href="consistent-state.lisp.html">consistent-state</a> stx)
+                (equal (g 'method-table stx) stx-cl))
+           (bound? (g 'method-name (topx (g 'call-stack stx)))
+                   stx-cl))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="consistent-state.lisp.html">consistent-state</a>))))
+
+
+(defthm op-stack-equal-state-equiv
+  (implies (state-equiv jvm-s djvm-s)
+           (equal (g 'op-stack (topx (g 'call-stack jvm-s)))
+                  (g 'op-stack (topx (g 'call-stack djvm-s)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable state-equiv))))
+
+
+(local 
+ (defthm all-method-verified1-bcv-verified-method1
+   (iff (all-method-verified1 mt mtable)
+        (bcv-verified-method-table1 mt mtable))))
+
+(defthm consistent-state-implies-bcv-verified-method-table
+   (implies (<a href="consistent-state.lisp.html">consistent-state</a> stx)
+            (bcv-verified-method-table (g 'method-table stx)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="consistent-state.lisp.html">consistent-state</a> bcv-verified-method-table)))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+(defthm consistent-state-implies-all-method-verified
+  (implies (<a href="consistent-state.lisp.html">consistent-state</a> stx)
+           (all-method-verified (g 'method-table stx)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="consistent-state.lisp.html">consistent-state</a>)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+
+(encapsulate ()
+  (local (include-book <span class="string"><a href="djvm-is-safe.lisp.html">"djvm-is-safe"</a></span>))
+  (defthm verified-program-never-overflow-operand-stack-in-m
+    (implies (and (<a href="consistent-state.lisp.html">consistent-state</a> stx)
+                  (state-equiv st stx))
+             (&lt;= (len (g 'op-stack (topx (g 'call-stack (m-run st n)))))
+                 (max-stack (binding (g 'method-name 
+                                        (topx (g 'call-stack (m-run st n))))
+                                     (g 'method-table st)))))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable binding topx max-stack bound?
+                                        m-run djvm-run all-method-verified)
+             <span class="builtin">:use</span> ((<span class="builtin">:instance</span>
+                    verified-program-never-overflow-operand-stack-in-djvm
+                    (st stx))
+                   (<span class="builtin">:instance</span> method-name-equal-state-equiv
+                              (jvm-s (m-run st n))
+                              (djvm-s (djvm-run stx n)))
+                   (<span class="builtin">:instance</span> verified-program-executes-safely
+                               (jvm-s st)
+                               (djvm-s stx))
+                   (<span class="builtin">:instance</span> op-stack-equal-state-equiv
+                              (jvm-s (m-run st n))
+                              (djvm-s (djvm-run stx n)))
+                   (<span class="builtin">:instance</span> max-stack-binding-same-name
+                              (name (g 'method-name 
+                                       (topx (g 'call-stack (m-run st n)))))
+                              (jvm-s (m-run st n))
+                              (djvm-s (djvm-run stx n))))))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+</pre>
+  </body>
+</html>

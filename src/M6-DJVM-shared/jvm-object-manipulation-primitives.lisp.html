@@ -1,0 +1,818 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>jvm-object-manipulation-primitives.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"JVM"</span>)
+(include-book <span class="string"><a href="jvm-class-table.lisp.html">"../M6-DJVM-shared/jvm-class-table"</a></span>)
+(include-book <span class="string"><a href="jvm-state.lisp.html">"../M6-DJVM-shared/jvm-state"</a></span>)
+(include-book <span class="string"><a href="jvm-class-hierachy-aux.lisp.html">"../M6-DJVM-shared/jvm-class-hierachy-aux"</a></span>)
+(include-book <span class="string"><a href="jvm-obj.lisp.html">"../M6-DJVM-shared/jvm-obj"</a></span>)
+(include-book <span class="string"><a href="jvm-frame-manipulation-primitives.lisp.html">"../M6-DJVM-shared/jvm-frame-manipulation-primitives"</a></span>)
+
+(acl2::set-verify-guards-eagerness 2)
+<span class="comment">;;; Still problematic!! guard verification!! 
+;;; Tue Jan 13 14:36:57 2004
+</span>
+<span class="comment">;-------------------------------------------------
+; Primitives for building an java-visible-portion
+;-------------------------------------------------
+</span>
+<span class="comment">;; (defun array-type? (type-sig)
+;;   (and (true-listp type-sig)
+;;        (equal (length type-sig) 2)
+;;        (equal (car type-sig) 'ARRAY)))
+</span>
+
+<span class="comment">;; (defun reference-type (type)
+;;   (or (stringp type)
+;;       (array-type? type)))
+</span>
+<span class="comment">;; ;; Does not handle floating point constant properly.
+;; ;; ACL2 has no support for floating numbers directly.
+</span>
+<span class="comment">;; (defun default-value (type)
+;;   (cond ((equal type 'BYTE)  0)
+;;         ((equal type 'SHORT) 0)
+;;         ((equal type 'INT)   0)
+;;         ((equal type 'LONG)  0)
+;;         ((equal type 'FLOAT) "0.0")
+;;         ((equal type 'DOUBLE) "0.0");
+;;         ((equal type 'CHAR)   0)
+;;         ((equal type 'BOOLEAN) nil)
+;;         ((array-type? type) -1)
+;;         ((reference-type type) -1) ;; use -1 as null pointer.
+;;         (t 'NOT-DEFINED))) 
+;;
+</span>
+<span class="comment">;;; moved to jvm-type-value.lisp
+</span>
+(<span class="keyword">defun</span> <span class="function-name">make-field-value-pair</span> (field-name value)
+  (cons field-name value))
+
+
+(<span class="keyword">defun</span> <span class="function-name">make-immediate-field-bindings</span> (class-name field-bindings)
+  (cons class-name field-bindings))
+
+
+<span class="comment">;; initialization will actually fill in default values for those
+;; fields. however in build-class-fields-bindings
+</span>
+(<span class="keyword">defun</span> <span class="function-name">build-class-fields-bindings</span> (class-fields)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-class-fields class-fields)))
+  (<span class="keyword">if</span> (endp class-fields)
+      nil
+    (<span class="keyword">let*</span> ((field (car class-fields))
+           (field-name (field-fieldname field))
+           (field-type (field-fieldtype field)))
+    (cons (make-field-value-pair field-name (default-value field-type))
+          (build-class-fields-bindings (cdr class-fields))))))
+  
+<span class="comment">;; too much efforts in defining those guard checks!! 
+;; (acl2::set-verify-guards-eagerness 0)
+</span>
+(<span class="keyword">defun</span> <span class="function-name">build-immediate-instance-data-guard</span> (class-name s)
+  (and (wff-state s)
+       (wff-class-table (class-table s))
+       (wff-instance-class-table (instance-class-table s))
+       (wff-class-rep (class-by-name class-name
+                                     (instance-class-table s)))
+       (wff-class-fields (fields (class-by-name
+                                  class-name
+                                  (instance-class-table s))))))
+
+(<span class="keyword">defun</span> <span class="function-name">build-immediate-instance-data</span> (class-name S)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (build-immediate-instance-data-guard class-name s)))
+  (<span class="keyword">let*</span> ((dcl (instance-class-table S))
+         (field-bindings 
+          (build-class-fields-bindings 
+           (fields (class-by-name class-name dcl)))))
+    (mv (make-immediate-field-bindings class-name field-bindings) S)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">build-a-java-visible-instance-data-guard</span> (class-names s)
+  (<span class="keyword">if</span> (not (consp class-names))
+      t
+    (and (build-immediate-instance-data-guard (car class-names) s)
+         (build-a-java-visible-instance-data-guard (cdr class-names) s))))
+        
+(<span class="keyword">defun</span> <span class="function-name">build-a-java-visible-instance-data</span> (class-names S)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (build-a-java-visible-instance-data-guard class-names s)))
+  (<span class="keyword">if</span> (not (consp class-names))
+      (mv nil S)
+    (mv-let (immediate-instance-data new-S)
+            (build-immediate-instance-data (car class-names) S)
+          (mv-let (remaining-instance-data new-S2)
+                  (build-a-java-visible-instance-data (cdr class-names) new-S)
+              (mv (cons immediate-instance-data remaining-instance-data)
+                   new-S2)))))
+
+(<span class="keyword">defun</span> <span class="function-name">make-java-lang-Object-java-visible-part</span> (s)
+  (mv (list (cons <span class="string">"java.lang.Object"</span> nil))
+      s))
+
+<span class="comment">;------------
+;; contains definition of collect-superclass-list and 
+;; it's termination argument.
+</span>
+<span class="comment">;; assume all superclasses are loaded already.
+</span>
+<span class="comment">;; forget about guard verification for now!! 
+;;; Tue Jan 13 17:43:11 2004
+</span>
+<span class="comment">;;(acl2::set-verify-guards-eagerness 0) 
+</span>
+<span class="comment">;; many guard will not be verified. 
+;;
+</span> 
+<span class="comment">;; This part will be shared, thus we make it guard verify correctly!
+</span>
+<span class="comment">;;; Tue Jan 13 20:09:15 2004. The guard is complicated!!
+;;;; Let's first write out consistent-state, we could use that as a guard. 
+</span>
+
+<span class="comment">;(i-am-here)
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">build-a-java-visible-instance-guard</span> (classname S)
+  (and (wff-state s)
+       (wff-class-table (class-table s))
+       (wff-env (env s))
+       (wff-instance-class-table (instance-class-table s))
+       (wff-static-class-table (external-class-table s))
+       (equal (collect-superclass-list classname (instance-class-table s))
+              (collect-superclassname classname (external-class-table s)))
+       <span class="comment">;; Wed Jun 23 17:58:02 2004. modified 
+</span>       <span class="comment">;; need to move definition of collect-superclassname to here. 
+</span>       (build-a-java-visible-instance-data-guard
+        (collect-superclass-list classname
+                                 (instance-class-table s)) s)))
+
+<span class="comment">;;; Tue Jul  6 11:57:15 2004
+;;; I could add a no-fatal-error assertion here. 
+;;; then I have to add it everywhere, which is a pain.
+</span>
+(<span class="keyword">defun</span> <span class="function-name">build-a-java-visible-instance</span> (classname S)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (build-a-java-visible-instance-guard classname S)))
+  (mylet* ((cl (instance-class-table S))
+           (classnames (collect-superclass-list classname cl)))
+    (<span class="keyword">if</span> (equal classname <span class="string">"java.lang.Object"</span>)
+        (make-java-lang-Object-java-visible-part S)
+      (build-a-java-visible-instance-data classnames S))))
+  
+
+
+<span class="comment">;;;
+;;; Wed Mar 31 12:52:20 2004
+</span>
+(<span class="keyword">defun</span> <span class="function-name">jvp-access-field-guard</span> (classname fieldname obj)
+  (and (alistp obj)
+       (bound? classname obj)
+       (alistp (binding classname obj))
+       (bound? fieldname (binding classname obj))))
+
+(<span class="keyword">defun</span> <span class="function-name">jvp-setfield</span> (classname fieldname value obj) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (jvp-access-field-guard classname fieldname obj)))
+  (bind classname 
+        (bind fieldname value
+              (binding classname obj))
+        obj))   <span class="comment">;; about how to change the java-visible-portion.
+</span>
+(<span class="keyword">defun</span> <span class="function-name">jvp-getfield</span> (classname fieldname obj)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (jvp-access-field-guard classname fieldname obj)))
+  (binding fieldname 
+           (binding classname obj)))
+
+<span class="comment">;;; Wed Mar 31 12:54:02 2004. Very weak guard!! 
+;;; WE can make it stronger, but it potentially will introduce changes to guard
+;;; of other functions!! 
+;;;
+</span>
+<span class="comment">;;; (acl2::set-verify-guards-eagerness 2)
+</span>
+(<span class="keyword">defun</span> <span class="function-name">build-common-info</span> (of-class)
+  (make-common-info 0 (new-monitor) of-class)) <span class="comment">;; ha code is same 
+</span>
+(<span class="keyword">defun</span> <span class="function-name">build-INSTANCE-specific-info</span> ()
+  (make-INSTANCE-specific-info))
+
+<span class="comment">;; add accessor to ... 
+</span>(<span class="keyword">defun</span> <span class="function-name">build-an-instance</span> (classname S)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (build-a-java-visible-instance-guard classname S)))
+  (mv-let (java-visible-portion new-S) 
+          (build-a-java-visible-instance classname S)
+          (<span class="keyword">let</span> ((commoninfo           (build-common-info classname))
+                (specificinfo         (build-INSTANCE-specific-info)))
+            (mv (make-object commoninfo specificinfo java-visible-portion)  new-S))))
+
+<span class="comment">;; so far only deal with building one instance 
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">build-ARRAY-specific-info</span> (the-internal-array bound)
+  (list 'specific-info 'ARRAY the-internal-array bound))
+
+<span class="comment">;; Tue Jan  6 14:15:30 2004. we seem to changed the specific info
+;; representation.
+</span>
+(<span class="keyword">defun</span> <span class="function-name">array-type</span> (array-obj) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-internal-array array-obj)))
+  (obj-type array-obj))
+
+
+(<span class="keyword">defun</span> <span class="function-name">array-bound</span> (array-obj) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-internal-array array-obj)))
+  (<span class="keyword">let</span> ((array-specific-info (specific-info array-obj)))
+    (nth 3 array-specific-info)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">array-data</span> (array-obj)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-internal-array array-obj)))
+  (<span class="keyword">let</span> ((array-specific-info (specific-info array-obj)))
+    (nth 2 array-specific-info)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">element-at-guard</span> (index array-obj)
+  (mylet* ((bound (array-bound array-obj)))
+    (and (integerp index)
+         (wff-internal-array array-obj)
+         (integerp bound)
+         (&lt;= 0 index)
+         (&lt; index bound))))
+
+(<span class="keyword">defun</span> <span class="function-name">element-at</span> (index array)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (element-at-guard index array)))
+  (nth index (array-data array)))
+
+
+<span class="comment">;; (defun element-at (index array)
+;;   (nth index (array-data array)))
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">init-array</span> (type count)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (integerp count)
+                              (&gt;= count  0))))
+  (<span class="keyword">if</span> (zp count)
+      nil
+      (cons (default-value type) (init-array type (- count 1)))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">make-array</span> (type bound data S)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (build-a-java-visible-instance-guard
+                               <span class="string">"java.lang.Object"</span> s))))
+  (mv-let (java-visible-portion new-S)
+          (build-a-java-visible-instance <span class="string">"java.lang.Object"</span> S)
+          (<span class="keyword">let*</span> ((common-info (build-common-info type))
+                 (specific-info (build-ARRAY-specific-info data bound)))
+            (mv (make-object common-info specific-info java-visible-portion) new-S))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">set-element-at-guard</span> (index array S)
+  (and (element-at-guard index array)
+       (build-a-java-visible-instance-guard <span class="string">"java.lang.Object"</span> s)))
+
+(<span class="keyword">defun</span> <span class="function-name">set-element-at</span> (index value array S)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (set-element-at-guard index array s)))
+  (make-array (array-type array)
+              (array-bound array)
+              (update-nth index value (array-data array))
+              S))
+
+(<span class="keyword">defun</span> <span class="function-name">build-an-array-instance</span> (element-type length S)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (build-a-java-visible-instance-guard <span class="string">"java.lang.Object"</span> s)
+                              (integerp length)
+                              (&gt;= length 0))))
+  (<span class="keyword">let</span> ((array-type (make-array-type element-type))
+        (array-data (init-array element-type length)))
+    (make-array array-type length array-data S)))
+
+
+<span class="comment">;; make a change here. don't want to introduce exception here.  let's assume
+;; once this is called, length is guaranteed to be correct. 
+;; all possible exception should be thrown before it call this function.
+</span>
+
+<span class="comment">;; (acl2::set-verify-guards-eagerness 0)
+;;
+;; delayed!! fix this later. Tue Jan 13 22:08:01 2004 
+;; update-trace should be make guard t!!
+;;
+</span>
+<span class="comment">;; (defthm build-a-java-visible-instance-guard-implies-perserve-wff-state
+;;   (implies (and (build-a-java-visible-instance-guard "java.lang.Object" s)
+;;                 (wff-state s))
+;;            (wff-state (mv-nth 1 (build-a-java-visible-instance
+;;                                  "java.lang.Object" s)))))
+</span>
+<span class="comment">;; (defthm build-a-java-visible-instance-guard-implies-perserve-wff-heap
+;;   (implies (and (build-a-java-visible-instance-guard "java.lang.Object" s)
+;;                 (wff-heap (heap s)))
+;;            (wff-heap (heap (mv-nth 1 (build-a-java-visible-instance
+;;                                       "java.lang.Object" s))))))
+</span>
+(defthm BUILD-A-JAVA-VISIBLE-INSTANCE-DATA-does-not-change-s
+  (equal (mv-nth 1 (build-a-java-visible-instance-data anylist s))
+         s))
+
+(defthm build-a-java-visible-instance-does-not-change-s
+  (equal (mv-nth 1 (build-a-java-visible-instance any s))
+         s))
+
+<span class="comment">;; (defthm update-trace-does-not-change
+;;   (and (equal (thread-table (update-trace addr s))
+;;               (thread-table s))
+;;        (equal (class-table (update-trace addr s))
+;;               (class-table s))
+;;        (equal (pc (update-trace addr s))
+;;               (class-table s))
+;;
+;; Just expand update-trace into make-state !! 
+;;
+</span>
+
+(defthm wff-state-implies-pc-numberp
+  (implies (wff-state s)
+           (integerp (pc s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable wff-state pc)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+
+<span class="comment">;; (defthm wff-state-state-set-pc
+;;   (implies (integerp pc) ;; 
+;;            (wff-state (make-state pc cid hp tt cl env ef aux)))
+;;   :hints (("Goal" :in-theory (e/d (make-state wff-state)))))
+;;
+;; Sun May  8 16:16:24 2005
+</span>
+
+(defthm wff-state-state-set-pc
+  (implies (integerp pc)
+           (wff-state (make-state pc cid hp tt cl env ef aux)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (make-state wff-state)))))
+
+<span class="comment">;; (i-am-here) ;; Sun May  8 16:24:37 2005
+</span>
+(<span class="keyword">defun</span> <span class="function-name">new-array</span> (element-type length S)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (build-a-java-visible-instance-guard <span class="string">"java.lang.Object"</span> s)
+                              (integerp length)
+                              (&gt;= length 0)
+                              (wff-state s)
+                              (wff-heap (heap s))
+                              (wff-thread-table (thread-table s))
+                              (current-frame-guard s)
+                              (wff-call-frame (current-frame s)))
+                  <span class="builtin">:guard-hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (update-trace)
+                                                        (build-a-java-visible-instance
+                                                         collect-superclass-list
+                                                         ))))))
+    (mv-let (the-object new-s)
+            (build-an-array-instance element-type length S)
+            (<span class="keyword">let*</span> ((old-heap (heap new-s))
+                   (addr     (alloc old-heap))
+                   (new-heap (bind addr the-object old-heap)))
+              (pushStack addr (update-trace addr (state-set-heap new-heap new-s))))))
+
+<span class="comment">;;; This new-array is M6 specific!! 
+;;;
+;;; if for DJVM we need properly TAG it. 
+;;;
+</span>
+<span class="comment">;; whenever we create a new object, we update-the trace.
+;; .... M6, DJVM specific ... No. They should share the same implementation!!
+</span>
+(<span class="keyword">defun</span> <span class="function-name">set-element-at-array-guard</span> (index array-ref s)
+  (and (wff-state s)
+       (wff-heap (heap s))
+       (bound? array-ref (heap s))
+       (set-element-at-guard 
+        index (binding array-ref (heap s)) s)))
+
+
+<span class="comment">;; (defun set-element-at-array (index value array-ref s)
+;;   (declare (xargs :guard (set-element-at-array-guard index array-ref s)))
+;;   (let* ((old-heap (heap s))
+;;          (old-array-obj (binding array-ref old-heap)))
+;;     (mv-let (new-array-obj new-s)
+;;             (set-element-at index value old-array-obj s)
+;;             (let* ((new-heap (bind array-ref new-array-obj old-heap)))
+;;               (state-set-heap new-heap new-s)))))
+;; ;; we don't update the trace if there is only a write.
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">set-element-at-array</span> (index value array-ref s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (set-element-at-array-guard index array-ref s)))
+  (<span class="keyword">let*</span> ((old-heap (heap s))
+         (old-array-obj (binding array-ref old-heap)))
+    (mv-let (new-array-obj new-s)
+            (set-element-at index value old-array-obj s)
+            (<span class="keyword">let*</span> ((new-heap (bind array-ref new-array-obj old-heap)))
+              (state-set-heap new-heap new-s)))))
+
+<span class="comment">;; we don't update the trace if there is only a write. ??? 
+;;
+</span>
+<span class="comment">;;;; Sat May  7 21:23:38 2005!!! potential bug. 
+;;;; the old-heap should be from new-s!! 
+;;;; 
+;;;; But we can prove that when set-element-at-array-guard succeeds
+;;;; build-an-array-instance does not change state!! 
+;;;; 
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">set-array-content-guard</span> (obj-refs array-ref s offset)
+  (and (integerp offset)
+       (<span class="keyword">if</span> (not (consp obj-refs))
+           t
+         (and (set-element-at-array-guard offset array-ref s)
+              (set-array-content-guard (cdr obj-refs) array-ref 
+                                       (set-element-at-array offset 
+                                                             (car obj-refs)
+                                                             array-ref s) 
+                                       (+ offset 1))))))
+                                     
+
+
+<span class="comment">;; (defun set-array-content-guard (obj-refs array-ref s offset)
+;;   (and (integerp offset)
+;;        (if (not (consp obj-refs))
+;;            t
+;;          (and (set-element-at-array-guard offset array-ref s)
+;;               (set-array-content-guard (cdr obj-refs) array-ref 
+;;                                        (set-element-at-array offset 
+;;                                                              (car obj-refs)
+;;                                                              array-ref s) 
+;;                                        (+ offset 1))))))
+;;; modified to make it easier!!                                     
+</span>                                     
+(<span class="keyword">defun</span> <span class="function-name">set-array-content1</span> (obj-refs array-ref s offset)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (set-array-content-guard obj-refs array-ref s offset)))
+  (<span class="keyword">if</span> (not (consp obj-refs))
+      s
+    (set-array-content1 (cdr obj-refs) array-ref 
+                        (set-element-at-array offset (car obj-refs) 
+                                              array-ref s)
+                        (+ offset 1))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">set-array-content</span> (obj-refs array-ref s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (set-array-content-guard obj-refs array-ref s 0)))
+  (set-array-content1 obj-refs array-ref s 0))
+
+
+<span class="comment">;;  another definition will be 
+</span>
+
+<span class="comment">;; (defun multiarray-measure (counts length)
+;;   (if (zp length)
+;;       (cons (cons (+ (len counts) 1) 0) 0)
+;;     (cons (cons (+ (len counts) 1) 0) (+ length 1))))
+</span>
+
+
+<span class="comment">;; (mutual-recursion 
+;;  (defun make-multiarray1 (array-type counts s)
+;;    (declare (xargs :measure (multiarray-measure counts 0)))
+;;    (if (endp counts)
+;;        (pushStack -1 s)  
+;;      ;; with the array-ref on the top of the stack
+;;      (mv-let (obj-refs s1)
+;;              (make-multiarray2 (array-base-type array-type)
+;;                                (cdr counts) 
+;;                                (car counts) 
+;;                                s)
+;;              ;; first create all elements of the array
+;;              (let* ((s2 (new-array (array-base-type array-type) 
+;;                                    (car counts)
+;;                                    s1))
+;;                     (array-ref (topStack s2))
+;;                     (s3 (set-array-content obj-refs array-ref s2)))
+;;                s3))))
+</span>
+<span class="comment">;;  (defun make-multiarray2 (array-type counts length s)
+;;    (declare (xargs :measure (multiarray-measure counts length)))
+;;    (if (zp length)
+;;        (mv nil s)
+;;      (mv-let (obj-refs new-s)
+;;              (make-multiarray2 array-type counts (- length 1) s)
+;;              (let* ((new-s2 (make-multiarray1 array-type counts new-s))
+;;                     (obj-ref (topStack new-s2)))
+;;                (mv (cons obj-ref obj-refs) (popStack new-s2)))))))
+</span>
+
+<span class="comment">;; ;; bytecode verifier would ensure the array-type is actually has more depths
+;; ;; than dim, here we check the runtime data from stack to ensure there are 
+;; (defun multiarray-stack-non-negative (dim s)
+;;   (if (zp dim)
+;;       t
+;;     (if (&lt; (topStack s) 0)
+;;         nil
+;;       (multiarray-stack-non-negative (- dim 1) (popStack s)))))
+</span>  
+
+<span class="comment">;; ;; similiar to new-array, assume exception is not thrown here.
+;; (defun new-multiarray (array-type dim s)
+;;   (if (multiarray-stack-non-negative dim s)
+;;       (m6-internal-error "new-multiarray precondition violated" s)
+;;     (let ((counts (reverse (take dim (operand-stack (current-frame s))))))
+;;       (make-multiarray1 array-type counts s))))
+</span>    
+
+
+<span class="comment">;------------------------------------------
+; Primitives for building an Generic Object 
+;------------------------------------------
+</span>
+<span class="comment">;---------------------------------------------------------------------------
+; 
+;  Build a String before class is properly loaded.  only used by Class Loader
+;  to create initial heap when loading the classs.
+;
+;----------------------------------------------------------------------------
+</span>
+<span class="comment">;; 08/19/2002
+;; because the special field appeared in the String also appeared as java
+;; visible field in String. We treat it as a generic_object.
+</span>
+(<span class="keyword">defun</span> <span class="function-name">build-STRING-specific-info</span> ()
+  (make-STRING-specific-info))
+
+(<span class="keyword">defun</span> <span class="function-name">build-a-javaString</span> (s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (build-a-java-visible-instance-guard
+                          <span class="string">"java.lang.String"</span> s)))
+  (mv-let (java-visible-portion new-S) 
+          (build-a-java-visible-instance <span class="string">"java.lang.String"</span> S)
+          (<span class="keyword">let</span> ((commoninfo           (build-common-info <span class="string">"java.lang.String"</span>))
+                (specificinfo         (build-STRING-specific-info)))
+            (mv (make-object commoninfo specificinfo java-visible-portion)  new-S))))
+
+
+<span class="comment">;  build the heap objects that represent the classes loaded.
+;
+</span>
+(<span class="keyword">defun</span> <span class="function-name">build-instanceClass-info</span> (classname) 
+  (make-INSTANCE_CLASS-specific-info classname))
+
+
+<span class="comment">; (defun build-instanceClass-info (classname) 
+;   (list 'INSTANCE_CLASS classname))
+;; FIXED for consistent-test.  10/27/03 
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">isInstanceClass?</span> (specificinfo)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-specific-info specificinfo)))
+  (wff-instance_class-specific-info specificinfo))
+ 
+(<span class="keyword">defun</span> <span class="function-name">specific-info-classname</span> (info)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-INSTANCE_CLASS-specific-info info)))
+  (caddr info))
+
+
+(<span class="keyword">defun</span> <span class="function-name">build-java-lang-Class-java-visible-part</span> (S)
+  (mv (list (cons <span class="string">"java.lang.Class"</span> nil)
+            (cons <span class="string">"java.lang.Object"</span> nil))
+      s))
+
+
+(<span class="keyword">defun</span> <span class="function-name">build-an-instanceClass</span> (classname S)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (build-a-java-visible-instance-guard
+                          <span class="string">"java.lang.Class"</span> s)))
+  (mv-let (java-visible-portion new-S)
+          (build-java-lang-Class-java-visible-part s)
+          (<span class="keyword">let</span> ((commoninfo           (build-common-info <span class="string">"java.lang.Class"</span>))
+                (specific-info        (build-instanceClass-info classname)))
+            (mv (make-object commoninfo specific-info java-visible-portion)
+                new-S))))
+                                                
+
+(<span class="keyword">defun</span> <span class="function-name">build-instanceClassArrayClass-info</span> (type-desc) 
+  (make-instanceclassarrayclass-info type-desc))
+
+(<span class="keyword">defun</span> <span class="function-name">isArrayClass?</span> (specificinfo)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-specific-info specificinfo)))
+  (wff-ARRAY-specific-info specificinfo))
+
+<span class="comment">;; may need to seperate the pacakage name out...
+;; notice this is an instance of java.lang.Class which described an array-type.
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">specific-info-array-desc</span> (info)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-specific-info info)))
+  (caddr info))
+
+(<span class="keyword">defun</span> <span class="function-name">build-instanceClassArrayClass</span> (base-type-desc S)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (build-a-java-visible-instance-guard
+                          <span class="string">"java.lang.Class"</span> s)))
+  (mv-let (java-visible-portion new-S)
+          (build-java-lang-Class-java-visible-part s)
+          (<span class="keyword">let</span> ((commoninfo   (build-common-info <span class="string">"java.lang.Class"</span>))
+                (specific-info   (build-instanceClassArrayClass-info
+                                  (make-array-type base-type-desc))))
+            (mv (make-object commoninfo specific-info java-visible-portion)
+                new-S))))
+
+
+
+<span class="comment">;--------------- build a Throwable-instance ----- 
+</span>(<span class="keyword">defun</span> <span class="function-name">build-throwable-specific-info</span> (message backtrace)
+  (make-throwable-specific-info message backtrace))
+
+(<span class="keyword">defun</span> <span class="function-name">specific-info-throwable-instance-message</span> (specific-info)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-specific-info specific-info)))
+  (nth 2 specific-info))
+
+
+<span class="comment">;;;
+;;; we could add stronger guard checking that classname does implement
+;;; throwable interface!!
+;;;
+</span>
+
+
+(<span class="keyword">defun</span> <span class="function-name">isSubClassOf</span> (c1 c2 s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-state s)
+                              (wff-class-table (class-table s))
+                              (wff-instance-class-table (instance-class-table s)))))
+  (isSubClassOf1 c1 c2 (instance-class-table s) nil))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">build-a-Throwable-instance</span> (classname s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (build-a-java-visible-instance-guard
+                               classname s)
+                              (isSubClassOf classname <span class="string">"java.lang.Throwable"</span> s))))
+  (mv-let (java-visible-portion new-s)
+          (build-a-java-visible-instance classname s)
+          (<span class="keyword">let</span> ((commoninfo (build-common-info classname))
+                (specific-info (build-throwable-specific-info -1 nil)))
+            (mv (make-object commoninfo specific-info java-visible-portion)
+                new-S))))
+
+<span class="comment">;;; That' is a special handing of throwable....
+;;; There is a runtime specific info section ...
+</span>
+<span class="comment">;  
+;-------------- above we defined how to build various objects ------- 
+;
+;        GENERIC-OBJECT
+;        ARRAY
+;        STRING
+;        INSTANCE-CLASS
+;        ARRAY-CLASS
+;        THROWABLE-instance
+;        
+;
+</span>
+<span class="comment">;-------------- next we defined a unified interface face to use them --- 
+</span>
+<span class="comment">;; assuming both c1 has been loaded (all it's superclass has been loaded. 
+</span>
+<span class="comment">;; isSubClassOf1 is defined in jvm-semantics-primitives-aux.lisp
+;; for the termination argument.
+</span>
+<span class="comment">;;; We need to chose to redefine isSubClassOf to 
+</span>
+
+<span class="comment">;; 
+;; the class of classname MUST have been loaded. 
+;; before we can call this function.
+;;
+</span>(<span class="keyword">defun</span> <span class="function-name">instantiate</span> (classname S)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (build-a-java-visible-instance-guard classname s)))
+  (<span class="keyword">cond</span> ((equal classname <span class="string">"java.lang.String"</span>) 
+         (build-a-javaString S))
+        <span class="comment">;; classname can't be string. 
+</span>        <span class="comment">;; is a Throwable class.
+</span>        ((isSubClassOf classname <span class="string">"java.lang.Throwable"</span> s) 
+         (build-a-Throwable-instance classname s))
+        (t  (build-an-instance classname s))))
+
+(defthm instantiate-wff-state
+  (implies (wff-state s)
+           (wff-state (mv-nth 1 (instantiate classname s)))))
+  
+
+        
+<span class="comment">;;; (acl2::set-verify-guards-eagerness 0)
+</span>
+<span class="comment">;; temp. after we fix the definition of update-trace to make it guard T
+</span>
+<span class="comment">;;; Wed Mar 31 13:09:43 2004
+</span>
+(defthm wff-heap-alistp
+  (implies (wff-heap hp)
+           (alistp hp))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+(<span class="keyword">defun</span>  <span class="function-name">new-instance</span> (classname S)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-state s)
+                              (wff-heap (heap s))
+                              (build-a-java-visible-instance-guard classname s))))
+  (mv-let (instance new-S)
+          (instantiate classname S)
+          (<span class="keyword">let*</span> ((heap (heap new-S))
+                 (new-addr (alloc heap))
+                 (new-heap (bind new-addr instance heap)))
+            (mv new-addr (update-trace new-addr (state-set-heap new-heap s))))))
+
+<span class="comment">;; (acl2::set-verify-guards-eagerness 2)
+</span>
+<span class="comment">;-
+;;; some short hand utilities functions. 
+;;; something wrong!! Tue Jan 13 22:38:46 2004;; need to fix wff-specific-info
+;; (acl2::set-verify-guards-eagerness 0)
+</span>
+(<span class="keyword">defun</span> <span class="function-name">type-by-class-ref</span> (class-ref s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-state s)
+                              (wff-heap (heap s))
+                              (bound? class-ref (heap s))
+                              (wff-obj-strong (deref class-ref (heap s))))))
+  (<span class="keyword">let*</span> ((class-obj (deref class-ref (heap s)))
+         (specific-info (specific-info class-obj)))
+    (<span class="keyword">if</span> (isInstanceClass? specific-info)
+        (specific-info-classname specific-info)
+      (<span class="keyword">if</span> (isArrayClass? specific-info)
+          (specific-info-array-desc specific-info)
+        nil))))<span class="comment">;; impossible
+</span>
+<span class="comment">;-------------- <a href="../common/primitives.lisp.html">primitives</a> for modifying obj ----
+; this is internal operation, assume all classes are already initialized. 
+;
+</span>
+<span class="comment">;;; (acl2::set-verify-guards-eagerness 0)
+</span>
+<span class="comment">;; Delay any state modification primitive Tue Jan 13 22:59:35 2004
+;; Currently focusing on getting <a href="../DJVM/consistent-state.lisp.html">consistent-state</a> predicate defined!
+;;
+</span>
+(<span class="keyword">defun</span> <span class="function-name">field-access-guard</span> (classname fieldname obj-ref s)
+  (and (wff-state s)
+       (wff-heap (heap s))
+       (bound? obj-ref (heap s))
+       (wff-obj (binding obj-ref (heap s)))
+       (jvp-access-field-guard classname fieldname (java-visible-portion (binding obj-ref (heap s))))))
+
+(<span class="keyword">defun</span> <span class="function-name">m6-putfield</span> (classname fieldname value obj-ref s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (field-access-guard classname fieldname obj-ref s)))
+  (<span class="keyword">let*</span> ((old-heap (heap s))
+         (old-obj  (binding obj-ref old-heap))
+         (old-jvp  (java-visible-portion old-obj))
+         (new-jvp  (jvp-setfield classname fieldname value old-jvp))
+         (new-obj  (make-object (common-info old-obj)
+                                (specific-info old-obj)
+                                new-jvp))
+         (new-heap (bind obj-ref new-obj old-heap)))
+    (state-set-heap new-heap s)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">m6-getfield</span> (classname fieldname obj-ref s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (field-access-guard classname fieldname obj-ref s)))
+  (binding fieldname 
+           (binding classname 
+                    (java-visible-portion (deref obj-ref (heap s))))))
+
+
+</pre>
+  </body>
+</html>

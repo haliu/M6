@@ -1,0 +1,186 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-load-class-normalize-assignmentcompatible.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+
+(include-book <span class="string"><a href="base.lisp.html">"base"</a></span>)
+(include-book <span class="string"><a href="base-consistent-state.lisp.html">"base-consistent-state"</a></span>)
+
+
+(local (include-book <span class="string"><a href="base-load-class-normalize-class-by-name.lisp.html">"base-load-class-normalize-class-by-name"</a></span>))
+(local (in-theory (e/d (class-exists? class-loaded?) (isClassTerm))))
+(local (include-book <span class="string"><a href="base-valid-type-s.lisp.html">"base-valid-type-s"</a></span>))
+
+(local 
+ (defthm valid-type-s-still-valid-type-s-after-resolveClassReference
+   (implies (valid-type-s any (instance-class-table s) mode)
+            (valid-type-s any (instance-class-table 
+                               (resolveClassreference name s)) mode))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)))))
+
+
+(local 
+ (defthm reference-type-s-still-reference-type-s-after-resolveClassReferenc
+   (implies (reference-type-s any (instance-class-table s))
+            (reference-type-s any (instance-class-table (resolveClassreference name s))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> ((<span class="builtin">:instance</span> valid-type-s-is
+                                    (type any)
+                                    (cl (instance-class-table s)))
+                         (<span class="builtin">:instance</span> valid-type-s-is
+                                    (type any)
+                                    (cl (instance-class-table
+                                         (resolveClassreference name s)))))))))
+
+
+(local 
+ (encapsulate () 
+      (local (include-book <span class="string"><a href="base-consistent-state-load-class.lisp.html">"base-consistent-state-load-class"</a></span>))
+      (defthm resolveClassReference-preserve-consistency
+        (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (<a href="../consistent-state.lisp.html">consistent-state</a> (resolveClassReference any s))))))
+
+
+(local 
+ (defthm consistent-class-hierachy-implied-by-consistent-state
+   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+            (CONSISTENT-CLASS-HIERACHY
+             (INSTANCE-CLASS-TABLE s)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a>)))))
+
+
+(local 
+ (defthm isJavaSubclassOf1-remains-isJavaSubclassOf-after-loading
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (isJavaSubclassOf1 from to (instance-class-table s) seen))
+            (isJavaSubclassOf1 from to 
+                               (instance-class-table 
+                                (resolveClassreference any s)) seen))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)))))
+
+
+
+(local 
+ (defthm isJavaAssignmentcompatible-remain-isJavaAssignmentCompatible-after-loading
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (isJavaAssignmentCompatible from to (instance-class-table s)))
+            (isJavaAssignmentCompatible from to  (instance-class-table 
+                                                  (resolveClassreference any
+                                                                         s))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)))))
+
+
+
+(defthm assignmentCompatible-remain-assignmentCompatible-after-loading
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (assignmentCompatible from to (instance-class-table s)))
+           (assignmentCompatible from to 
+                                 (instance-class-table 
+                                  (resolveClassreference any s)))))
+
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(local (in-theory (disable getArrayClass)))
+
+
+(local 
+ (defthm valid-type-s-still-valid-type-s-after-getArrayClass
+   (implies (valid-type-s any (instance-class-table s) mode)
+            (valid-type-s any (instance-class-table 
+                               (getArrayClass name s)) mode))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)))))
+
+
+(local 
+ (defthm reference-type-s-still-reference-type-s-after-getArrayClass
+   (implies (reference-type-s any (instance-class-table s))
+            (reference-type-s any (instance-class-table (getArrayClass name s))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> ((<span class="builtin">:instance</span> valid-type-s-is
+                                    (type any)
+                                    (cl (instance-class-table s)))
+                         (<span class="builtin">:instance</span> valid-type-s-is
+                                    (type any)
+                                    (cl (instance-class-table
+                                         (getArrayClass name s)))))))))
+
+
+(local 
+ (encapsulate () 
+      (local (include-book <span class="string"><a href="base-consistent-state-load-class.lisp.html">"base-consistent-state-load-class"</a></span>))
+      (defthm getArrayClass-preserve-consistency
+        (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (<a href="../consistent-state.lisp.html">consistent-state</a> (getArrayClass any s))))))
+
+
+
+(local 
+ (defthm isJavaSubclassOf1-remains-isJavaSubclassOf-after-loading-2
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (isJavaSubclassOf1 from to (instance-class-table s) seen))
+            (isJavaSubclassOf1 from to 
+                               (instance-class-table 
+                                (getArrayClass any s)) seen))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)))))
+
+
+
+(local 
+ (defthm isJavaAssignmentcompatible-remain-isJavaAssignmentCompatible-after-loading-2
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (isJavaAssignmentCompatible from to (instance-class-table s)))
+            (isJavaAssignmentCompatible from to  (instance-class-table 
+                                                  (getArrayClass any s))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)))))
+
+
+
+(defthm assignmentCompatible-remain-assignmentCompatible-after-loading-2
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (assignmentCompatible from to (instance-class-table s)))
+           (assignmentCompatible from to 
+                                 (instance-class-table 
+                                  (getArrayClass any s)))))
+
+
+</pre>
+  </body>
+</html>

@@ -1,0 +1,277 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-canPop1-consistent-sig-stack-consistent-value.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"BCV"</span>)
+(include-book <span class="string"><a href="../../BCV/typechecker.lisp.html">"../../BCV/typechecker"</a></span>)
+(include-book <span class="string"><a href="../../BCV/bcv-functions.lisp.html">"../../BCV/bcv-functions"</a></span>)
+
+
+<span class="comment">;; (local 
+;;  (defthm nth-canPop1-f
+;;   (implies (and (bcv::canPop1 (cons x anylist) stack env)
+;;                 (equal (bcv::sizeof x) 1)
+;;                 (&lt; 0 i)
+;;                 (integerp i))
+;;            (equal (nth i stack)
+;;                   (nth (- i 1) (cdr stack))))
+;;   :rule-classes :forward-chaining))
+</span>
+
+
+<span class="comment">;; (local (defthm consistent-sig-type-if-consistent-sig-stack
+;;   (implies (and (bcv::consistent-sig-stack stk icl)
+;;                 (equal (bcv::sizeof (car stk)) 1)
+;;                 (not (equal (car stk) 'topx))
+;;                 (consp stk))
+;;            (bcv::consistent-sig-type (car stk) icl))
+;;   :hints (("Goal" :in-theory (enable bcv::consistent-sig-stack)))))
+</span>
+
+(local (defthm consistent-sig-type-if-consistent-sig-stack-f
+  (implies (and (bcv::consistent-sig-stack stk icl)
+                (equal (bcv::sizeof (car stk)) 1)
+                (not (equal (car stk) 'topx))
+                (consp stk))
+           (bcv::consistent-sig-type (car stk) icl))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv::consistent-sig-stack)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+(local 
+ (defthm canPop1-nth1-fact-2-lemma-f
+  (implies (and (canPop1 (cons 'int anylist) stk  env)
+                (consistent-sig-stack stk icl))
+           (bcv::consistent-sig-type (car stk) icl))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+(local 
+ (defthm canPop1-consp-f
+   (implies (canPop1 (cons any anylist) stk env)
+            (consp stk))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+(defthm canPop1-nth1-fact-2
+  (implies (and (canPop1 '(int (array (class <span class="string">"java.lang.Object"</span>)))
+                         (framestack frame)  env)
+                (consistent-sig-stack (frameStack frame) icl))
+           (consistent-sig-type (nth1OperandStackIs 1 frame) icl))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable canPop1 consistent-sig-stack consistent-sig-type))))
+
+
+
+<span class="comment">;; (local 
+;;  (defthm nth-canPop1-f
+;;   (implies (and (bcv::canPop1 (cons x anylist) stack env)
+;;                 (equal (bcv::sizeof x) 1)
+;;                 (&lt; 0 i)
+;;                 (integerp i))
+;;            (equal (nth i stack)
+;;                   (nth (- i 1) (cdr stack))))
+;;   :rule-classes :forward-chaining))
+</span>
+<span class="comment">;; (local 
+;;  (defthm nth-canPop1-b
+;;   (implies (and (&lt; 0 i)
+;;                 (integerp i))
+;;            (equal (nth i stack)
+;;                   (nth (- i 1) (cdr stack))))))
+</span>
+
+(local (defthm consistent-sig-type-if-consistent-sig-stack
+  (implies (and (bcv::consistent-sig-stack stk icl)
+                (equal (bcv::sizeof (car stk)) 1)
+                (not (equal (car stk) 'topx))
+                (consp stk))
+           (bcv::consistent-sig-type (car stk) icl))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv::consistent-sig-stack)))))
+
+
+
+(local 
+ (defthm canPop1-nth1-fact-1-lemma-f
+  (implies (and (canPop1 (cons '(array (class <span class="string">"java.lang.Object"</span>)) anylist) stk  env)
+                (consistent-sig-stack stk icl))
+           (bcv::consistent-sig-type (car stk) icl))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+(local 
+ (defthm canPop1-canPop1-f
+   (implies (canPop1 (cons x anylist) stk env)
+            (canPop1 anylist (popMatchingType x stk) env))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+(local 
+ (defthm nth-canPop1
+  (implies (and (bcv::canPop1 (cons x anylist) stack icl)
+                (equal (bcv::sizeof x) 1)
+                (&lt; 0 i)
+                (integerp i))
+           (equal (nth i stack)
+                  (nth (- i 1) (popMatchingType x stack))))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+
+(local 
+ (defthm nth-canPop1-consistent-sig-type
+  (implies (and (bcv::canPop1 (cons x anylist) stack env)
+                (equal (bcv::sizeof x) 1)
+                (&lt; 0 i)
+                (integerp i))
+           (equal (consistent-sig-type (nth i stack) icl)
+                  (consistent-sig-type (nth (- i 1) (popMatchingType x stack))
+                                       icl)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable consistent-sig-type)))))
+
+
+(local 
+  (defthm canpop1-consistent-sig-type-pop
+    (implies (and (bcv::canPop1 (cons x anylist) stack env)
+                  (equal (sizeof x) 1)
+                  (not (equal (car stack) 'topx))
+                  (consistent-sig-stack stack icl))
+             (consistent-sig-stack (popMatchingType x stack) icl))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable consistent-sig-type
+                                        isMatchingType)))))
+
+
+(local 
+ (defthm canpop1-consistent-sig-type-pop-f
+   (implies (and (bcv::canPop1 (cons x anylist) stack env)
+                 (equal (sizeof x) 1)
+                 (not (equal (car stack) 'topx))
+                 (consistent-sig-stack stack icl))
+            (consistent-sig-stack (popMatchingType x stack) icl))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable consistent-sig-type isMatchingType)))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+                 
+
+(local 
+ (defthm canpop1-INT-not-top
+   (implies (bcv::canPop1 (cons 'INT anylist) stack env)
+            (not (equal (car stack) 'topx)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable consistent-sig-type)))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+
+
+<span class="comment">;; (local 
+;;  (defthm canpop1-consistent-sig-type-pop-f-specific
+;;    (implies (and (bcv::canPop1 '(INT (array (class "java.lang.Object"))) stack env)
+;;                  (consistent-sig-stack stack icl))
+;;             (consistent-sig-stack (popMatchingType 'INT stack) icl))
+;;    :hints (("Goal" :in-theory (disable consistent-sig-type isMatchingType)))))
+</span>
+
+
+(defthm canPop1-nth1-fact-1
+  (implies (and (canPop1 '(INT (array (class <span class="string">"java.lang.Object"</span>)))
+                         (framestack frame)  env)
+                (consistent-sig-stack (framestack frame) icl))
+           (bcv::consistent-sig-type (nth1OperandStackIs 2 frame) icl))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable consistent-sig-stack framestack canPop1
+                                      popMatchingType
+                                      consistent-sig-type)
+           <span class="builtin">:restrict</span> ((nth-canPop1-consistent-sig-type
+                       ((env env)))))))
+                       
+
+
+(local 
+ (defthm not-assignable-REFERENCE
+   (NOT (ISASSIGNABLE 'REFERENCE
+                      '(ARRAY (CLASS <span class="string">"java.lang.Object"</span>))
+                      ICL))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:expand</span> (ISASSIGNABLE 'REFERENCE
+                      '(ARRAY (CLASS <span class="string">"java.lang.Object"</span>))
+                      ICL)))))
+
+
+(local 
+ (defthm canPop1-array-is-isArrayType
+   (implies (and (canPop1 '((array (class <span class="string">"java.lang.Object"</span>))) stk env)
+                 (not (equal (car stk) 'NULL)))
+            (isArrayType (car stk)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable isAssignable)))))
+
+ 
+
+(local 
+ (defthm canPop1-canPop1-f-specific
+   (implies (canPop1 '(INT (array (class <span class="string">"java.lang.Object"</span>)))  stk env)
+            (canPop1 '((array (class <span class="string">"java.lang.Object"</span>)))
+                     (cdr stk) env))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+
+
+
+(local 
+ (defthm nth-canPop1-b
+  (implies (and (bcv::canPop1 (cons x anylist) stack icl)
+                (equal (bcv::sizeof x) 1)
+                (&lt; 0 i)
+                (integerp i))
+           (equal (nth i stack)
+                  (nth (- i 1) (popMatchingType x stack))))))
+
+
+<span class="comment">;; not so stable!! 
+</span>
+(defthm canPop1-nth1-fact-3-array-type
+  (implies (and  (canPop1 '(int (array (class <span class="string">"java.lang.Object"</span>)))
+                          (framestack frame)  env)
+                 (not (equal (nth1OperandStackIs 2 frame) 'NULL)))
+           (isArrayType (nth1OperandStackIs 2 frame)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isArrayType canPop1 framestack)
+           <span class="builtin">:restrict</span> ((canPop1-array-is-isArrayType
+                       ((icl icl)))))))
+
+
+</pre>
+  </body>
+</html>

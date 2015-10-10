@@ -1,0 +1,520 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>bcv-base.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"BCV"</span>)
+(include-book <span class="string"><a href="typechecker.lisp.html">"typechecker"</a></span>)
+(include-book <span class="string"><a href="typechecker-ext.lisp.html">"typechecker-ext"</a></span>)
+(include-book <span class="string"><a href="typechecker-simple.lisp.html">"typechecker-simple"</a></span>)
+(include-book <span class="string"><a href="../M6-DJVM-shared/jvm-bytecode.lisp.html">"../M6-DJVM-shared/jvm-bytecode"</a></span>)
+(include-book <span class="string"><a href="bcv-functions.lisp.html">"bcv-functions"</a></span>)
+(include-book <span class="string"><a href="bcv-good-env-encapsulate.lisp.html">"bcv-good-env-encapsulate"</a></span>)
+
+(<span class="keyword">defun</span> <span class="function-name">extract-code</span> (mergedcode)
+  (<span class="keyword">if</span> (endp mergedcode) nil
+    (<span class="keyword">cond</span>  ((isEnd (car mergedcode)) nil)
+           ((isStackMap (car mergedcode))
+            (extract-code (cdr mergedcode)))
+           ((isInstruction (car mergedcode))
+            (cons (car mergedcode) (extract-code (cdr mergedcode))))
+           (t nil))))
+
+(<span class="keyword">defun</span> <span class="function-name">is-suffix</span> (mergedcode1 mergedcode)
+  (<span class="keyword">if</span> (endp mergedcode) 
+      (equal mergedcode1 mergedcode)
+    (or (equal mergedcode1 mergedcode)
+        (is-suffix mergedcode1 (cdr mergedcode)))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">pc-wff-mergedcode1</span> (pc mergecode)
+  (<span class="keyword">if</span> (endp mergecode) nil
+    (<span class="keyword">cond</span> ((isEnd (car mergecode)) 
+           (and (integerp pc) 
+                (&lt; 0 pc)
+                (equal (nth 1 (car mergecode)) pc)
+                (endp (cdr mergecode))))
+          ((isStackMap (car mergecode))
+           (and (equal (mapOffset (getMap (car mergecode))) pc)
+                (consp (cdr mergecode))
+                (not (equal (mapFrame (getMap (car mergecode))) 'aftergoto))
+                (not (isEnd (cadr mergecode)))
+                (pc-wff-mergedcode1 pc (cdr mergecode))))
+          ((isInstruction (car mergecode))
+           (and (equal (instrOffset (car mergecode)) pc)
+                (&lt;= 1 (jvm::inst-size (car mergecode)))
+                (pc-wff-mergedcode1 (+ (JVM::inst-size (car mergecode)) pc)
+                                    (cdr mergecode))))
+          (t nil))))
+                    
+
+
+(<span class="keyword">defun</span> <span class="function-name">wff-merged-code-weak</span> (mergedcode)
+  (<span class="keyword">if</span> (endp mergedcode) nil
+    (<span class="keyword">if</span> (endp (cdr mergedcode))
+        (isEnd (car mergedcode))
+      (and (or (isStackMap (car mergedcode))
+               (isInstruction (car mergedcode)))
+           (wff-merged-code-weak (cdr mergedcode))))))
+
+(<span class="keyword">defun</span> <span class="function-name">extract-pc</span> (mergedcode)
+  (<span class="keyword">if</span> (endp mergedcode) nil
+    (<span class="keyword">cond</span> ((isEnd (car mergedcode)) nil)
+          ((isStackMap (car mergedcode))
+           (cons (mapOffset (getMap (car mergedcode)))
+                 (extract-pc (cdr mergedcode))))
+          ((isInstruction (car mergedcode))
+           (cons (instrOffset (car mergedcode))
+                 (extract-pc (cdr mergedcode))))
+          (t nil))))
+  
+
+
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">all-no-less-than</span> (x l)
+  (<span class="keyword">if</span> (endp l) t
+    (and (&lt;= x (car l))
+         (all-no-less-than x (cdr l)))))
+
+(<span class="keyword">defun</span> <span class="function-name">ordered2</span> (l)
+  (<span class="keyword">if</span> (endp l) t
+    (and (all-no-less-than (car l) (cdr l))
+         (ordered2 (cdr l)))))
+  
+
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">next-pc</span> (mergedcode)
+  (<span class="keyword">cond</span> ((isInstruction (car mergedcode)) (instrOffset (car mergedcode)))
+        ((isStackMap (car mergedcode))
+         (mapOffset (getMap (car mergedcode))))
+        (t nil)))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(defthm is-suffix-cdr 
+  (implies (and (is-suffix mergedcode1 mergedcode)
+                (consp mergedcode1))
+           (is-suffix (cdr mergedcode1) mergedcode)))
+
+
+(defthm is-suffix-membership
+  (implies (is-suffix (list* x mergedcode1) mergedcode)
+           (member x mergedcode))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+
+(defthm is-suffix-is-suffix-x
+  (implies (is-suffix (list* x mergedcode1) mergedcode)
+           (is-suffix mergedcode1  mergedcode))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+
+(defthm isEnd-implies-not-isStackMap
+  (implies (isStackmap frame)
+           (not (isEnd frame)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable isEnd isStackmap)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+(defthm isEnd-implies-not-isInstruction
+  (implies (isInstruction frame)
+           (not (isEnd frame)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable isEnd instrOffset 
+                                     isInstruction)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+
+(defthm isEnd-implies-not-isInstruction-2
+  (implies (isEnd frame)
+           (not (isInstruction frame)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable isEnd instrOffset 
+                                     isInstruction)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+(defthm isStackMap-implies-not-isInstruction
+  (implies (isInstruction frame)
+           (not (isStackMap frame)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable isStackMap instrOffset 
+                                     isInstruction)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+(defthm isEnd-implies-not-isStackMap-2
+  (implies (isEnd frame)
+           (not (isStackMap frame)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable isEnd instrOffset 
+                                     isStackMap)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+(defthm isInstruction-implies-not-isStackMap
+  (implies (isStackMap frame)
+           (not (isInstruction frame)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable isStackMap
+                                     instrOffset
+                                     isInstruction)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(defthm pc-wff-mergedcode1-implies-wff-merged-code-weak
+  (implies (pc-wff-mergedcode1 pc mergedcode)
+           (wff-merged-code-weak mergedcode))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;; concept needed to prove ... 
+</span>
+(<span class="keyword">defun</span> <span class="function-name">forward-to-next-inst</span> (mergedcode)
+  (<span class="keyword">if</span> (endp mergedcode) mergedcode
+    (<span class="keyword">if</span> (isInstruction (car mergedcode))
+        mergedcode
+      (forward-to-next-inst (cdr mergedcode)))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">next-stackframe</span> (mergedcode)
+  (<span class="keyword">if</span> (endp mergedcode) <span class="string">"impossible"</span>
+    (<span class="keyword">if</span> (endp (cdr mergedcode)) <span class="string">"impossible"</span>
+        (<span class="keyword">if</span> (isInstruction (cadr mergedcode))
+            (mapFrame (getMap (car mergedcode)))
+          (next-stackframe (cdr mergedcode))))))
+            
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">next-<a href="../DJVM/INST/inst.lisp.html">inst</a></span> (<a href="../DJVM/INST/inst.lisp.html">inst</a> mergecode)
+  (<span class="keyword">if</span> (endp mergecode) nil
+    (<span class="keyword">if</span> (endp (cdr mergecode)) nil
+      (<span class="keyword">if</span> (equal (car mergecode) <a href="../DJVM/INST/inst.lisp.html">inst</a>)
+          (cadr mergecode)
+        (next-<a href="../DJVM/INST/inst.lisp.html">inst</a> <a href="../DJVM/INST/inst.lisp.html">inst</a> (cdr mergecode))))))
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">next-<a href="../DJVM/INST/inst.lisp.html">inst</a>s</span> (<a href="../DJVM/INST/inst.lisp.html">inst</a> mergecode)
+  (<span class="keyword">if</span> (endp mergecode) nil
+    (<span class="keyword">if</span> (endp (cdr mergecode)) nil
+      (<span class="keyword">if</span> (equal (car mergecode) <a href="../DJVM/INST/inst.lisp.html">inst</a>)
+          (cdr mergecode)
+        (next-<a href="../DJVM/INST/inst.lisp.html">inst</a>s <a href="../DJVM/INST/inst.lisp.html">inst</a> (cdr mergecode))))))
+        
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">suffix</span> (frame mergedcode)
+  (<span class="keyword">if</span> (endp mergedcode) nil
+    (<span class="keyword">if</span> (equal (car mergedcode) frame)
+        mergedcode
+      (suffix frame (cdr mergedcode)))))
+
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">collect-sig-frame-at-mergecode1</span> (env mergedcode1 mergedcode stackmap)
+  (<span class="keyword">if</span> (equal mergedcode1 mergedcode) 
+      stackmap
+    (<span class="keyword">if</span> (endp mergedcode) nil
+      (<span class="keyword">if</span> (endp (cdr mergedcode)) nil
+        (<span class="keyword">if</span> (equal stackmap 'afterGoto)
+            (<span class="keyword">if</span> (isStackMap (car Mergedcode))
+                (collect-sig-frame-at-mergecode1
+                 env mergedcode1 (cdr mergedcode)
+                 (mapFrame (getMap (car mergedcode))))
+              nil)
+          (<span class="keyword">cond</span> ((isStackMap (car mergedcode))
+                 (and (frameIsAssignable stackmap 
+                                         (mapFrame (getMap (car mergedcode)))
+                                         env)
+                      (collect-sig-frame-at-mergecode1
+                       env mergedcode1 
+                       (cdr mergedcode) 
+                       (mapFrame (getMap (car mergedcode))))))
+                ((isInstruction (car mergedcode))
+                 (<span class="keyword">let</span> ((offset     (instrOffset (car MergedCode)))
+                       (instr      (car MergedCode)))
+                   (and (instructionIsTypeSafe instr env stackmap)
+                        (mv-let (NextStackFrame ExceptionStackFrame)
+                                (sig-do-inst instr env stackmap)
+                                (and (instructionSatisfiesHandlers env offset
+                                                                   ExceptionStackFrame)
+                                     (mergedCodeIsTypeSafe env (cdr MergedCode)
+                                                           NextStackFrame)
+                                     (collect-sig-frame-at-mergecode1
+                                      env 
+                                      mergedcode1
+                                      (cdr mergedcode) 
+                                      NextStackFrame))))))
+                (t nil)))))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+
+(<span class="keyword">defun</span> <span class="function-name">extract-frame-pc</span> (frames)
+  (<span class="keyword">if</span> (endp frames) nil
+    (cons (mapOffset (car frames))
+          (extract-frame-pc (cdr frames)))))
+
+(<span class="keyword">defun</span> <span class="function-name">all-strictly-less-than</span> (v l)
+  (<span class="keyword">if</span> (endp l) t
+    (and (&lt; v (car l))
+         (all-strictly-less-than v (cdr l)))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">strictly-ordered</span> (l)
+  (<span class="keyword">if</span> (endp l) t
+    (and (all-strictly-less-than (car l) (cdr l))
+         (strictly-ordered (cdr l)))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+
+(defthm car-makeStackMap-stack_map
+  (equal (car (makestackmap frame)) 'stack_map))
+
+(defthm mapFrame-list-reduce 
+  (equal (MAPFRAME (LIST pc frame))
+         frame))
+
+(defthm mapoffset-reduce 
+  (equal (MAPOFFSET (LIST pc frame))
+         pc))
+
+
+(defthm getMap-makestackmap
+  (equal (getMap (makestackmap frame))
+         frame))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">wff-stack-map-offset</span> (mergecode)
+  (<span class="keyword">if</span> (endp mergecode) t
+    (<span class="keyword">if</span> (isStackMap (car mergecode))
+        (and (not (endp (cdr mergecode)))
+             (equal (next-pc (cdr mergecode))
+                    (mapoffset (getMap (car mergecode))))
+             (wff-stack-map-offset (cdr mergecode)))
+      (wff-stack-map-offset (cdr mergecode)))))
+
+
+(defthm next-pc-expand
+  (implies (isInstruction mergedcode3)
+           (equal (NEXT-PC (CONS MERGEDCODE3 MERGEDCODE4))
+                  (instrOffset mergedcode3)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (next-pc)
+                                  (isInstruction 
+                                   isEnd 
+                                   isStackMap)))))
+
+
+(defthm next-pc-expand-2
+  (implies (isStackMap mergedcode3)
+           (equal (NEXT-PC (CONS MERGEDCODE3 MERGEDCODE4))
+                  (mapOffset (getMap mergedcode3))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (next-pc)
+                                  (isInstruction 
+                                   isEnd 
+                                   isStackMap)))))
+
+(defthm getmap-reduce
+  (equal (GETMAP (LIST* MERGEDCODE1 MERGEDCODE3 MERGEDCODE4))
+         mergedcode3))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+
+(<span class="keyword">defun</span> <span class="function-name">wff-mergedcode-instr</span> (mergedcode)
+  (<span class="keyword">if</span> (endp mergedcode) t
+    (<span class="keyword">if</span> (isStackMap (car mergedcode))
+        (and (consp (extract-code mergedcode))
+             (wff-mergedcode-instr (cdr mergedcode)))
+      (wff-mergedcode-instr (cdr mergedcode)))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+
+(<span class="keyword">defun</span> <span class="function-name">wff-stack-map-offset-2</span> (mergedcode)
+  (<span class="keyword">if</span> (endp mergedcode) t
+      (<span class="keyword">if</span> (isInstruction (car mergedcode))
+          (and (or (not (consp (cdr mergedcode)))
+                   (isEnd (cadr mergedcode))
+                   (&lt; (instrOffset (car mergedcode))
+                      (car (extract-pc (cdr mergedcode)))))
+               (wff-stack-map-offset-2 (cdr mergedcode)))
+        (wff-stack-map-offset-2 (cdr mergedcode)))))
+              
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">all-good-frames</span> (frames env)
+  (<span class="keyword">if</span> (endp frames) t
+    (and (good-frame (mapframe (getmap (car frames))) env)
+         (all-good-frames (cdr frames) env))))
+
+(<span class="keyword">defun</span> <span class="function-name">extract-frames</span> (mergedcode)
+  (<span class="keyword">if</span> (endp mergedcode) nil
+    (<span class="keyword">cond</span>  ((isEnd (car mergedcode)) nil)
+           ((isStackMap (car mergedcode))
+            (cons (car mergedcode) (extract-frames (cdr mergedcode))))
+           ((isInstruction (car mergedcode))
+            (extract-frames (cdr mergedcode)))
+           (t nil))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+                  
+(defthm pc-wff-mergedcode1-implies-wff-stack-map-offset
+  (implies (pc-wff-mergedcode1 pc mergedcode)
+           (wff-stack-map-offset mergedcode))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isInstruction isStackMap
+                                      isEnd
+                                      jvm::inst-size)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+                  
+(defthm pc-wff-mergedcode1-implies-wff-merged-code-instr
+  (implies (pc-wff-mergedcode1 pc mergedcode)
+           (wff-mergedcode-instr mergedcode))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isInstruction isStackMap
+                                      isEnd
+                                      jvm::inst-size)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+           
+
+(defthm pc-wff-mergedcode1-implies-ordered-extract-pc
+  (implies (pc-wff-mergedcode1 pc mergedcode)
+           (ordered (extract-pc mergedcode)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isInstruction isStackMap
+                                      isEnd
+                                      jvm::inst-size)
+           <span class="builtin">:do-not</span> '(generalize)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+(defthm pc-wff-mergedcode1-implies-wff-stack-map-offset-2
+  (implies (pc-wff-mergedcode1 pc mergedcode)
+           (wff-stack-map-offset-2 mergedcode))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isInstruction isStackMap
+                                      isEnd
+                                      jvm::inst-size)
+           <span class="builtin">:do-not</span> '(generalize)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">prefix</span> (mergedcode1 mergedcode)
+  (<span class="keyword">if</span> (equal mergedcode mergedcode1) nil
+    (<span class="keyword">if</span> (endp mergedcode) <span class="string">"impossible"</span>
+      (cons (car mergedcode)
+            (prefix mergedcode1 (cdr mergedcode))))))
+
+
+
+
+(defthm suffix-is-append-prefix
+  (implies (is-suffix mergedcode1 mergedcode)
+           (equal (append (prefix mergedcode1  mergedcode)
+                          mergedcode1)
+                  mergedcode)))
+                  
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">never-after-goto</span> (frames)
+  (<span class="keyword">if</span> (endp frames) t
+    (and (not (equal (mapFrame (getMap (car frames))) 'aftergoto))
+         (never-after-goto (cdr frames)))))
+
+
+(defthm pc-wff-mergedcode1-implies-never-after-goto-x
+  (implies (pc-wff-mergedcode1 pc mergedcode)
+           (never-after-goto (extract-frames mergedcode)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isStackMap
+                                      isInstruction
+                                      isEnd
+                                      jvm::inst-size)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+
+
+(defthm is-suffix-never-after-goto-x
+  (implies (and  (is-suffix mergedcode1 mergedcode2)
+                 (wff-merged-code-weak mergedcode2)
+                 (never-after-goto (extract-frames mergedcode2)))
+           (never-after-goto (extract-frames mergedcode1)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isStackMap
+                                      isInstruction
+                                      isEnd
+                                      jvm::inst-size)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+</pre>
+  </body>
+</html>

@@ -1,0 +1,351 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>m6-interpreter.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"M6"</span>)
+(include-book <span class="string"><a href="m6-bytecode.lisp.html">"../M6/m6-bytecode"</a></span>)
+
+(<span class="keyword">defun</span> <span class="function-name">m6step</span> (s) 
+  (<span class="keyword">let*</span> ((<a href="../DJVM/INST/inst.lisp.html">inst</a> (next-<a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+         (op  (<a href="../DJVM/INST/inst.lisp.html">inst</a>-opcode <a href="../DJVM/INST/inst.lisp.html">inst</a>)))
+    (<span class="keyword">if</span> (no-fatal-error? s)
+        (prog2$ (acl2::debug-print <span class="string">"thread ~p0 executing <a href="../DJVM/INST/inst.lisp.html">inst</a> ~p1~%Current pc ~p2~%"</span>
+                          (current-thread s) <a href="../DJVM/INST/inst.lisp.html">inst</a> (pc s))
+         (<span class="keyword">if</span> (equal op 'invalid-op-code) <span class="comment">;; shouldn't happen if verified.
+</span>             (fatalError  <span class="string">"impossible: opcode invalid"</span> s)
+           (<span class="keyword">if</span> (equal op 'JVM::INVALID-INST-OFFSET)
+               (fatalError  <span class="string">"impossible: fall off the method"</span> s)
+             (<span class="keyword">case</span>  op 
+               (NOP        (execute-NOP        <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (ICONST_M1  (execute-ICONST_M1  <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (ICONST_0   (execute-ICONST_0   <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (ICONST_1   (execute-ICONST_1   <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (ICONST_2   (execute-ICONST_2   <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (ICONST_3   (execute-ICONST_3   <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (ICONST_4   (execute-ICONST_4   <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (ICONST_5   (execute-ICONST_5   <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+
+               (JVM::LCONST_0   (execute-LCONST_0   <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (JVM::LCONST_1   (execute-LCONST_1   <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (JVM::LCMP       (execute-LCMP       <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+             
+               (<a href="../DJVM/INST/ACONST_NULL.lisp.html">ACONST_NULL</a> (execute-<a href="../DJVM/INST/ACONST_NULL.lisp.html">ACONST_NULL</a> <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (BIPUSH     (execute-BIPUSH     <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (SIPUSH     (execute-SIPUSH     <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (LDC        (execute-LDC        <a href="../DJVM/INST/inst.lisp.html">inst</a> s))             
+               (ILOAD      (execute-ILOAD      <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (LLOAD      (execute-LLOAD      <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (<a href="../DJVM/INST/ALOAD.lisp.html">ALOAD</a>      (execute-<a href="../DJVM/INST/ALOAD.lisp.html">ALOAD</a>      <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (ILOAD_0    (execute-ILOAD_0    <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (ILOAD_1    (execute-ILOAD_1    <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (ILOAD_2    (execute-ILOAD_2    <a href="../DJVM/INST/inst.lisp.html">inst</a> s))             
+               (ILOAD_3    (execute-ILOAD_3    <a href="../DJVM/INST/inst.lisp.html">inst</a> s))             
+               (ALOAD_0    (execute-ALOAD_0    <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (ALOAD_1    (execute-ALOAD_1    <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (ALOAD_2    (execute-ALOAD_2    <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (ALOAD_3    (execute-ALOAD_3    <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (IALOAD     (execute-IALOAD     <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (LALOAD     (execute-LALOAD     <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (<a href="../DJVM/INST/AALOAD.lisp.html">AALOAD</a>     (execute-<a href="../DJVM/INST/AALOAD.lisp.html">AALOAD</a>     <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (BALOAD     (execute-BALOAD     <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (ISTORE     (execute-ISTORE     <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (LSTORE     (execute-LSTORE     <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (<a href="../DJVM/INST/ASTORE.lisp.html">ASTORE</a>     (execute-<a href="../DJVM/INST/ASTORE.lisp.html">ASTORE</a>     <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (ISTORE_0   (execute-ISTORE_0   <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (ISTORE_1   (execute-ISTORE_1   <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (ISTORE_2   (execute-ISTORE_2   <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (ISTORE_3   (execute-ISTORE_3   <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (LSTORE_0   (execute-LSTORE_0   <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (LSTORE_1   (execute-LSTORE_1   <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (LSTORE_2   (execute-LSTORE_2   <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (LSTORE_3   (execute-LSTORE_3   <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (ASTORE_0   (execute-ASTORE_0   <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (ASTORE_1   (execute-ASTORE_1   <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (ASTORE_2   (execute-ASTORE_2   <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (ASTORE_3   (execute-ASTORE_3   <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+
+               (IASTORE    (execute-IASTORE    <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+
+               (LASTORE    (execute-LASTORE    <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (<a href="../DJVM/INST/AASTORE.lisp.html">AASTORE</a>    (execute-<a href="../DJVM/INST/AASTORE.lisp.html">AASTORE</a>    <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (BASTORE    (execute-BASTORE    <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+             
+               (CALOAD     (execute-CALOAD     <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (CASTORE    (execute-CASTORE    <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (SASTORE    (execute-SASTORE    <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (POP        (execute-POP        <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (POP2       (execute-POP2       <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (DUP        (execute-DUP        <a href="../DJVM/INST/inst.lisp.html">inst</a> s))             
+               (DUP_X1     (execute-DUP_X1     <a href="../DJVM/INST/inst.lisp.html">inst</a> s))             
+               (DUP_X2     (execute-DUP_X2     <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (DUP2       (execute-DUP2       <a href="../DJVM/INST/inst.lisp.html">inst</a> s))             
+               (DUP2_X1    (execute-DUP2_X1    <a href="../DJVM/INST/inst.lisp.html">inst</a> s))             
+               (DUP2_X2    (execute-DUP2_X2    <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (SWAP       (execute-SWAP       <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (IADD       (execute-IADD       <a href="../DJVM/INST/inst.lisp.html">inst</a> s))             
+               (LADD       (execute-LADD       <a href="../DJVM/INST/inst.lisp.html">inst</a> s))             
+               (LCMP       (execute-LCMP       <a href="../DJVM/INST/inst.lisp.html">inst</a> s))             
+               (ISUB       (execute-ISUB       <a href="../DJVM/INST/inst.lisp.html">inst</a> s))             
+               (IMUL       (execute-IMUL       <a href="../DJVM/INST/inst.lisp.html">inst</a> s))             
+               (IDIV       (execute-IDIV       <a href="../DJVM/INST/inst.lisp.html">inst</a> s))             
+               (IREM       (execute-IREM       <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (INEG       (execute-INEG       <a href="../DJVM/INST/inst.lisp.html">inst</a> s))             
+               (IINC       (execute-IINC       <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+             
+               (NEWARRAY    (execute-NEWARRAY    <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (ARRAYLENGTH (execute-ARRAYLENGTH <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+             
+             
+               (MONITORENTER (execute-MONITORENTER <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (MONITOREXIT  (execute-MONITOREXIT  <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+
+               (CHECKCAST    (execute-CHECKCAST    <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+
+               (CUSTOMCODE (execute-CUSTOMCODE <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+
+               (ISTORE_1   (execute-ISTORE_1   <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+
+               (ISTORE_2   (execute-ISTORE_2   <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+
+               (IADD       (execute-IADD       <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (NEW        (execute-NEW        <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+
+               (LDC        (execute-LDC        <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (INVOKESPECIAL  (execute-INVOKESPECIAL <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (INVOKESTATIC   (execute-INVOKESTATIC <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (INVOKEVIRTUAL   (execute-INVOKEVIRTUAL <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (INVOKEINTERFACE (execute-INVOKEINTERFACE <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (ASTORE_3     (execute-ASTORE_3   <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (ALOAD_0    (execute-ALOAD_0 <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+
+               (PUTFIELD   (execute-PUTFIELD <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (<a href="../DJVM/INST/GETFIELD.lisp.html">GETFIELD</a>   (execute-<a href="../DJVM/INST/GETFIELD.lisp.html">GETFIELD</a> <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+
+               (GETSTATIC  (execute-GETSTATIC <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (PUTSTATIC  (execute-PUTSTATIC <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+
+               (CASTORE    (execute-CASTORE   <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (PUTSTATIC  (execute-PUTSTATIC <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (IFNULL     (execute-IFNULL      <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (IFNONNULL  (execute-IFNONNULL   <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (<a href="../DJVM/INST/IFEQ.lisp.html">IFEQ</a>       (execute-<a href="../DJVM/INST/IFEQ.lisp.html">IFEQ</a>        <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (IFNE       (execute-IFNE        <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (IFLT      (execute-IFLT        <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (IFGE      (execute-IFGE        <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (IFGT      (execute-IFGT        <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (IFLE      (execute-IFLE        <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (IF_ICMPEQ  (execute-IF_ICMPEQ    <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (IF_ICMPNE  (execute-IF_ICMPNE    <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (IF_ICMPLT  (execute-IF_ICMPLT    <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (IF_ICMPGE  (execute-IF_ICMPGE    <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (IF_ICMPGT  (execute-IF_ICMPGT    <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (IF_ICMPLE  (execute-IF_ICMPLE    <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (GOTO       (execute-GOTO         <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (IRETURN    (execute-RETURN       <a href="../DJVM/INST/inst.lisp.html">inst</a> s 1))  
+               (RETURN     (execute-RETURN       <a href="../DJVM/INST/inst.lisp.html">inst</a> s 0))
+               (ARETURN    (execute-RETURN       <a href="../DJVM/INST/inst.lisp.html">inst</a> s 1))
+               (ATHROW     (execute-ATHROW       <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (JSR        (execute-JSR          <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (RET        (execute-RET          <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+               (t s)))))
+         s)))
+
+<span class="comment">#|
+(defun m6step (s) 
+  (let* ((<a href="../DJVM/INST/inst.lisp.html">inst</a> (next-<a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+         (op  (<a href="../DJVM/INST/inst.lisp.html">inst</a>-opcode <a href="../DJVM/INST/inst.lisp.html">inst</a>)))
+    (if (no-fatal-error? s)
+        (prog2$ (acl2::debug-print "executing <a href="../DJVM/INST/inst.lisp.html">inst</a> ~p0~%Current pc ~p1~%" <a href="../DJVM/INST/inst.lisp.html">inst</a> (pc s))
+         (if (equal op 'invalid-op-code) ;; shouldn't happen if verified.
+             (fatalError  "impossible: opcode invalid" s)
+           (case  op 
+             (customcode (execute-customcode <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+             (bipush     (execute-bipush <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+             (aload_0 (execute-aload_0 <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+             (invokespecial (execute-invokespecial <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+             (invokestatic  (execute-invokestatic <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+             (return   (execute-return <a href="../DJVM/INST/inst.lisp.html">inst</a> s 0))
+             (iconst_1 (execute-iconst_1 <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+             (istore_1 (execute-istore_1 <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+             (iload_0 (execute-iload_0 <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+             (iload_1 (execute-iload_1 <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+             (iload_2 (execute-iload_2 <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+             (iadd     (execute-iadd <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+             (ireturn  (execute-return <a href="../DJVM/INST/inst.lisp.html">inst</a> s 1))
+             (isub (execute-isub <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+             (ifgt (execute-ifgt <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+             (istore_2 (execute-istore_2 <a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+             (t s))))
+  s)))
+|#</span>
+
+
+(<span class="keyword">defun</span> <span class="function-name">simple-run</span> (s n)
+  (<span class="keyword">if</span> (zp n)
+      s
+    (simple-run (m6step s) (- n 1))))
+    
+(<span class="keyword">defun</span> <span class="function-name">search-measure</span> (start end)
+  (<span class="keyword">if</span> (zp (- end start))
+      0
+    (+ 1 (- end start))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">search-active-thread-in-range</span> (start end thread-table)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:measure</span> (search-measure start end)))
+  (<span class="keyword">if</span> (zp (- end start))
+      -1
+    (<span class="keyword">let</span> ((thread (thread-by-id start thread-table)))
+      (<span class="keyword">if</span> (and  (mem 'thread_active (thread-state thread))
+                (not (mem 'thread_suspended (thread-state thread))))
+          start
+        (search-active-thread-in-range (+ start 1) end thread-table)))))
+        
+
+
+(<span class="keyword">defun</span> <span class="function-name">round-robin-schedule</span> (s)
+  (<span class="keyword">let*</span> ((thread-table (thread-table s))
+         (l (len thread-table))
+         (tid (current-thread s))
+         (up  (search-active-thread-in-range (+ tid 1) l thread-table)))
+    (<span class="keyword">if</span> (not (equal up -1))
+        up
+      (<span class="keyword">let</span> ((up-warp (search-active-thread-in-range 0 (+ tid 1) thread-table)))
+        up-warp))))
+
+(<span class="keyword">defun</span> <span class="function-name">round-robin-run-measure</span> (n)
+  (<span class="keyword">if</span> (zp n)
+      0
+    (+ 1 n)))
+
+
+(acl2::set-ignore-ok t)
+
+<span class="comment">;; if there is no active thread then terminate
+</span>(<span class="keyword">defun</span> <span class="function-name">round-robin-run</span> (s n)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:measure</span> (round-robin-run-measure n)
+                  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable m6step)))))
+  (<span class="keyword">if</span> (zp n)
+      s
+    (<span class="keyword">let</span> ((cid (current-thread s)))
+      (<span class="keyword">if</span> (equal cid -1)
+          (prog2$ (acl2::debug-print <span class="string">"NO ACTIVE THREAD!~%"</span>) s)
+        (prog2$ (acl2::debug-print <span class="string">"Executing Thread ~p0 Instruction ~p1~%"</span> cid (next-inst s))
+                (<span class="keyword">let*</span> ((sn (m6step s))
+                       (nid  (round-robin-schedule sn))
+                       (ccid (current-thread sn)))
+                  (<span class="keyword">if</span> (equal nid -1)
+                      (prog2$ (acl2::debug-print <span class="string">"Continue executing ~p0~%"</span> ccid)
+                              (round-robin-run sn (- n 1)))
+                    (<span class="keyword">if</span> (not (equal nid cid))
+                        (prog2$ (acl2::debug-print 
+                                 <span class="string">"~%~%***************~%switch from THREAD ~p0 to THREAD~p1 ~%**************~%~%"</span> 
+                                 cid nid )
+                                (round-robin-run 
+                                 (loadExecutionEnvironment nid 
+                                   (storeExecutionEnvironment
+                                      (state-set-current-thread cid sn))) (- n 1)))
+                      (round-robin-run sn (- n 1))))))))))
+ 
+
+
+(<span class="keyword">defun</span> <span class="function-name">current-method</span> (s)
+  (deref-method (current-method-ptr s)
+                (instance-class-table s)))
+
+
+<span class="comment">;; ;; if there is no active thread then terminate
+;; (defun round-robin-run (s n)
+;;   (declare (xargs :measure (round-robin-run-measure n)))
+;;   (if (zp n)
+;;       s
+;;     (let ((nid (round-robin-schedule s))
+;;           (cid (current-thread       s)))
+;;       (prog2$ (acl2::debug-print "thread ~p0 selected for next round!~%" nid)
+;;        (if (equal nid -1)
+;;            (prog2$ (acl2::debug-print "NO ACTIVE THREAD!~%")
+;;                    s)
+;;          (if (equal cid -1)
+;;              (round-robin-run (loadExecutionEnvironment nid s) (- n 1))
+;;            (let ((sn (m6step s)))
+;;              (if (equal (current-thread sn) -1)
+;;                  (round-robin-run (loadExecutionEnvironment nid s) (- n 1))
+;;                (if (not (equal nid cid))
+;;                    (prog2$ (acl2::debug-print 
+;;                             "~%~%***************~%switch from THREAD ~p0 to THREAD~p1 ~%**************~%~%" 
+;;                             cid nid )
+;;                            (round-robin-run (loadExecutionEnvironment 
+;;                                             nid (storeExecutionEnvironment sn)) (- n 1)))
+;;                 (round-robin-run sn (- n 1)))))))))))
+</span>  
+
+
+      
+          
+
+(DEFMACRO TH (I)
+  (CONS 'THREAD-TABLE
+        (CONS (CONS 'ROUND-ROBIN-RUN
+                    (CONS '*S1* (CONS I 'NIL)))
+              'NIL)))
+
+
+                 
+(DEFMACRO HP (I)
+  (CONS 'HEAP
+        (CONS (CONS 'ROUND-ROBIN-RUN
+                    (CONS '*S1* (CONS I 'NIL)))
+              'NIL)))
+
+
+
+
+
+
+
+
+
+</pre>
+  </body>
+</html>

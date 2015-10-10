@@ -1,0 +1,31 @@
+DIRECTORY
+---------
+
+data 
+ |  
+ |--- cldc 
+       |
+       |--- README               -- this file
+       |
+       |--- cldc-src/            -- CLDC library source code 
+       |
+       |--- cldc-class-1/        -- .class files obtained by compile the source
+       |
+       |--- cldc-class-2/        -- .class files after running bin/preverify to  
+       |                             annotate the code with "StackMaps  
+       |
+       |--- cldc-class-3/        -- converting .class files into format readable 
+                                    to src/M6, src/BCV, src/DJVM 
+
+
+CONVERTING .class FILES TO M6 FORMAT
+------------------------------------
+
+At the top level directory:
+
+       source set-env 
+       java jvm2acl2 data/cldc/cldc-class-3/cldc  data/cldc/cldc-class-2/
+
+the data/cldc/cldc-class-3/cldc-classtable.lisp will contain all the class
+definitions
+

@@ -1,0 +1,178 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>jvm-thread-primitives.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"JVM"</span>)
+(include-book <span class="string"><a href="jvm-state.lisp.html">"../M6-DJVM-shared/jvm-state"</a></span>)
+(include-book <span class="string"><a href="jvm-thread.lisp.html">"../M6-DJVM-shared/jvm-thread"</a></span>)
+
+(acl2::set-verify-guards-eagerness 0)
+<span class="comment">;; still need to deai with this guard verification sometime. Wed Dec 24
+;; 23:41:30 2003
+</span>
+<span class="comment">;;;
+;;; Tue Jan 13 15:01:05 2004 NOT NOW: currently I am focusing on define a
+;;; <a href="../DJVM/consistent-state.lisp.html">consistent-state</a>. the guard of <a href="../DJVM/consistent-state.lisp.html">consistent-state</a> must be T.
+;;;
+;;; We plan to use <a href="../DJVM/consistent-state.lisp.html">consistent-state</a> as the guard of INSTRUCTIONS!!
+;;; 
+;;; By showing guard are not violated, we also show more. (guard verify!)
+;;; 
+</span>
+<span class="comment">;##### this few are primitives tmp inplementation
+</span>
+(<span class="keyword">defun</span> <span class="function-name">signalTimeToReschedule</span> (s) 
+  s)
+
+(<span class="keyword">defun</span> <span class="function-name">dismantleThread</span> (tid s)
+  (<span class="keyword">declare</span> (ignore tid))
+  s)
+
+
+<span class="comment">;***************************
+;; Resume thread 
+</span>
+<span class="comment">;; invariant 
+</span>(<span class="keyword">defun</span> <span class="function-name">resumeThread-inv</span> (id s)
+  (and (wff-thread-table (thread-table s))
+       (thread-exists? id (thread-table s))))
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">resumeThread</span> (id s) 
+  (<span class="keyword">let*</span> ((old-thread-table (thread-table s))
+         (old-thread       (thread-by-id id old-thread-table))
+         (old-thread-state (thread-state old-thread)))
+    (<span class="keyword">if</span> (not (resumeThread-inv id s))
+        (fatalError <span class="string">"resumeThread violate internal invariant"</span> s)
+      (<span class="keyword">if</span> (not (mem 'thread_suspended old-thread-state))
+          (fatalError <span class="string">"try to resume a thread that is not suspended before"</span> s) 
+        (<span class="keyword">let*</span> ((new-thread-state '(thread_active)) <span class="comment">;; remove all previous flags.
+</span>               (new-thread (thread-set-state new-thread-state old-thread))
+               (new-thread-table 
+                (replace-thread-table-entry old-thread new-thread
+                                            old-thread-table))
+               (new-state (state-set-thread-table new-thread-table s)))
+          (<span class="keyword">if</span> (equal (current-thread s) id)
+              <span class="comment">;; resuming itself?? 
+</span>              (fatalError <span class="string">"attempting to resuming itself"</span> s)
+            new-state))))))
+        <span class="comment">;; we don't have a RunableThread queue, instead we run according to a
+</span>        <span class="comment">;; external schedule. A thread_active flag is good enough.
+</span>        <span class="comment">;; shall we? we can always search through the thread table to find
+</span>        <span class="comment">;; which threads are active, thus runable.  
+</span>
+<span class="comment">;; let's treat error happened at this stage, as internal m6 implementation
+;; error.  someone calls start(), or resume(), the code there should check if
+;; that thread is resumable or not and throw appropriate exception. We can't
+;; rely on this resumeThread to throw appropriate exception.
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">storeExecutionEnvironment</span> (s)
+  (<span class="keyword">let*</span> ((tid        (current-thread s))
+         (old-thread-table (thread-table s))
+         (old-thread (thread-by-id tid old-thread-table))
+         (new-thread (thread-set-saved-pc (pc s)
+                                          old-thread))
+         <span class="comment">;; in our representation only pc need to be saved
+</span>         (new-thread-table (replace-thread-table-entry old-thread new-thread
+                                                       old-thread-table)))
+    (state-set-thread-table new-thread-table s)))
+
+(<span class="keyword">defun</span> <span class="function-name">loadExecutionEnvironment</span> (tid s)
+  (<span class="keyword">let*</span> ((thread-table (thread-table s))
+         (thread (thread-by-id tid thread-table))
+         <span class="comment">;; only need to restore the pc value
+</span>         (pc     (thread-saved-pc thread)))
+    (state-set-current-thread tid (state-set-pc pc s))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">suspendThread1</span> (s)
+  (<span class="keyword">let*</span> ((tid        (current-thread s))
+         (old-thread-table (thread-table s))
+         (old-thread (thread-by-id tid old-thread-table))
+         (new-thread (set-thread-state-flag 'JVM::thread_suspended  old-thread))
+         (new-thread-table (replace-thread-table-entry old-thread new-thread
+                                                       old-thread-table)))
+    (state-set-current-thread -1 (state-set-thread-table new-thread-table s))))
+
+
+<span class="comment">;; in our representation of thread, 
+</span>(<span class="keyword">defun</span> <span class="function-name">suspendThread</span> (s) <span class="comment">;; always gsuspends the current running thread.
+</span>  (<span class="keyword">let*</span> ((tid        (current-thread s))
+         (old-thread-table (thread-table s))
+         (old-thread (thread-by-id tid old-thread-table))
+         (old-thread-state (thread-state old-thread)))
+    (<span class="keyword">if</span> (not (mem 'JVM::thread_suspended old-thread-state))
+        (suspendThread1 (signalTimeToReschedule  
+                         (storeExecutionEnvironment s)))
+                          
+      (suspendThread1 s))))
+
+(<span class="keyword">defun</span> <span class="function-name">startThread</span> (tid s)
+  (<span class="keyword">let*</span> ((old-thread-table (thread-table s))
+         (old-thread (thread-by-id tid old-thread-table))
+         (new-thread (thread-set-state '(JVM::thread_suspended) old-thread))
+         (new-thread-table (replace-thread-table-entry old-thread new-thread
+                                                       old-thread-table)))
+    (state-set-thread-table new-thread-table s)))
+         
+(<span class="keyword">defun</span> <span class="function-name">stopThread</span> (s)
+  (<span class="keyword">let*</span> ((tid (current-thread s))
+         (old-thread-table (thread-table s))
+         (old-thread (thread-by-id tid old-thread-table))
+         (new-thread (thread-set-state '(thread_dead) old-thread))
+         (new-thread-table (replace-thread-table-entry old-thread new-thread
+                                                       old-thread-table))
+         (s1  (suspendThread s))
+         (s2  (state-set-thread-table new-thread-table s1))
+         <span class="comment">;;(s3  (state-set-current-thread -1 s2))
+</span>         <span class="comment">;;(s3  (state-set-current-thread -1 s2))
+</span>         (s3  (dismantleThread tid s2)))
+    s3))
+
+               
+                                                       
+    
+
+
+</pre>
+  </body>
+</html>

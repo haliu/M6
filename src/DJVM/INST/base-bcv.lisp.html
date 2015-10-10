@@ -1,0 +1,260 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-bcv.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="base.lisp.html">"base"</a></span>)
+(include-book <span class="string"><a href="base-consistent-state.lisp.html">"base-consistent-state"</a></span>)
+(include-book <span class="string"><a href="../../BCV/typechecker.lisp.html">"../../BCV/typechecker"</a></span>)
+(include-book <span class="string"><a href="base-branch-instrs.lisp.html">"base-branch-instrs"</a></span>)
+
+
+(acl2::set-verify-guards-eagerness 0)
+
+(in-theory (disable bcv::frameStack bcv::frameLocals bcv::frameFlags
+                   locals operand-stack bcv::nth1OperandStackIs  
+                   bcv::pushOperandStack popStack
+                   nullp BCV::isMatchingType
+                   CODE-STACKMAPS ENV-SIG HEAP-INIT-MAP 
+                   MAKEENVIRONMENT BCV::ARRAYELEMENTTYPE
+                   BCV::POP frame-sig BCV::SIZEOF
+                   bcv::classtableEnvironment
+                   BCV::popmatchingtype
+                   BCV::MAXSTACKENVIRONMENT
+                   bcv::make-sig-frame
+                   value-sig
+                   make-sig-frame))
+
+
+(in-theory (disable frame-push-value-sig
+                    frame-pop-opstack 
+                    frame-top-opstack))
+
+
+
+(defthm bcv-frame-Stack-frame-sig-is-opstack-sig
+  (equal (bcv::frameStack (frame-sig frame cl hp hp-init))
+         (opstack-sig (operand-stack frame) cl hp hp-init (method-ptr frame)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable frame-sig bcv::frameStack make-sig-frame))))
+
+<span class="comment">;;; normalize all bcv::frameStack reference into opstack-sig
+;;; later we will have 
+</span>
+
+
+
+<span class="comment">;; the following is a key lemma
+;;  we will need proved it with theorems from the base-bcv-support.lisp
+;;
+;;
+;; (encapsulate ()
+;;   (local (include-book <a href="base-bcv-support.lisp.html">"base-bcv-support"</a>))
+</span>
+<span class="comment">;; (i-am-here) ;; Wed May 11 09:43:37 2005
+</span>
+
+(encapsulate ()
+   (local (include-book <span class="string"><a href="base-bcv-support.lisp.html">"base-bcv-support"</a></span>))
+
+   (defthm isMatchingType-popMatchingType-form1
+     (implies (and (bcv::ismatchingtype type (opstack-sig (operand-stack (current-frame s))
+                                                          cl hp hp-init
+                                                          method-ptr) (env-sig
+                                                          s))
+                   type
+                   (not (equal type 'topx))
+                   (equal (bcv::sizeof type) 1)
+                   (not   (equal type 'void))
+                   (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                   (equal (instance-class-table s) cl)
+                   (equal (heap s) hp)
+                   (equal (heap-init-map (aux s)) hp-init)
+                   (equal (method-ptr (current-frame s)) method-ptr))
+              (equal (BCV::POPMATCHINGTYPE type
+                                           (OPSTACK-SIG (OPERAND-STACK (CURRENT-FRAME S))
+                                                        cl hp hp-init method-ptr))
+                     (opstack-sig (operand-stack (current-frame (popStack s)))
+                                  cl hp hp-init method-ptr)))
+     <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () 
+                                     ())))))
+  
+
+
+
+
+
+
+(defthm topstack-guard-strong-implied-by-canPopCategory1
+  (implies (and (canPopCategory1 (operand-stack (current-frame s)))
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (NOT (MEM '*NATIVE*
+                          (METHOD-ACCESSFLAGS (CURRENT-METHOD S)))))
+           (topstack-guard-strong s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable topstack-guard-strong))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;;; some facts about isMatchingType and canPopCategory
+;;; there will be finite number of these. 
+;;; Force ACL2 to try all these rules during backchaining
+</span>
+(include-book <span class="string"><a href="base-bcv-fact-isMatchingType-canPopCategory1.lisp.html">"base-bcv-fact-isMatchingType-canPopCategory1"</a></span>)
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;
+; for showing djvm::check-* implies djvm::*-guard we need provide some facts
+; about <a href="../consistent-state.lisp.html">consistent-state</a>'s component been consistent and their values matches
+; their tags. 
+;
+</span>
+
+<span class="comment">;; (defthm REFp-implies-not-tag-of-specific
+;;   (implies (REFp (topStack s) (heap s))
+;;            (equal (tag-of (topStack s)) 'REF))
+;;   :hints (("Goal" :in-theory (enable tag-of wff-REFp topStack REFp))))
+</span>
+
+
+
+<span class="comment">; We then need to show isAssignable to an none primitive-type 
+; in an <a href="../consistent-state.lisp.html">consistent-state</a> implies REFp!! 
+</span>
+<span class="comment">; Note this will be a finite set of lemmas!!! 
+</span>
+
+(include-book <span class="string"><a href="base-bcv-fact-isMatchingType-suitable-value.lisp.html">"base-bcv-fact-isMatchingType-suitable-value"</a></span>)
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(defthm len-bcv-pushOperandStack 
+  (implies (and (syntaxp (equal (car v) 'QUOTE))
+                (not   (equal v 'void))
+                (equal (bcv::sizeof v) 1))
+           (equal (LEN (BCV::PUSHOPERANDSTACK v  stk)) (+ 1 (len stk))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv::pushoperandstack))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+;; (i-am-here) ;; Tue May 17 23:16:48 2005
+</span>
+(defthm bcv-max-stack-environment
+  (equal (BCV::MAXSTACKENVIRONMENT (ENV-SIG S))
+         (max-stack s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable env-sig max-stack makeenvironment 
+                                     bcv::maxstackenvironment))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;; because of <a href="AASTORE.lisp.html">AASTORE</a> asserts that the value is not initialized. 
+;;
+;; We will need some facts to assert isMatching type java.lang.Object
+;; ensures that (not (deref2-init ...))
+;;
+</span>
+
+(include-book <span class="string"><a href="base-bcv-fact-isMatchingType-value-initialized.lisp.html">"base-bcv-fact-isMatchingType-value-initialized"</a></span>)
+
+
+<span class="comment">;----------------------------------------------------------------------
+;;(i-am-here) ;; Wed Jul 27 15:16:30 2005
+</span>
+<span class="comment">;;; this is not true! 
+</span>
+(local 
+ (defthm wff-instr-implies-never-stackmap
+   (implies (wff-insts insts)
+            (not (bcv::isstackmapframe (car insts))))))
+
+(local 
+ (defthm get-map-make-map-same
+   (equal (bcv::getmap (bcv::makeStackmap map))
+          map)))
+
+(local 
+ (defthm isStackMapFrame-makestackmap
+   (bcv::isstackmapframe (bcv::makeStackmap map))))
+
+(local 
+ (defthm bcv-search-in-merged-code-implies-target-exist
+   (implies (and (wff-insts instrs)
+                 (bcv::searchstackframe offset 
+                                        (bcv::mergestackmapandcode maps instrs)))
+            (branch-target-exists offset instrs))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable bcv::getmap bcv::makeStackMap
+                                       bcv::mapoffset
+                                       bcv::isstackmapframe)))))
+
+
+(local 
+ (defthm allinstructions-make-env
+   (equal (bcv::allinstructions
+           (MAKEENVIRONMENT
+            anyclassdecl
+            currentmethod
+            returntype
+            merged-maps-insts
+            maxstack
+            exception-handlers
+            scl))
+          merged-maps-insts)
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable makeenvironment)))))
+
+
+(defthm bcv-target-is-safe-implies-in-range
+  (implies (and (bcv::targetistypesafe (env-sig s)
+                                       anyframe 
+                                       offset)
+                (wff-insts (method-code (current-method s))))
+           (branch-target-exists offset (method-code (current-method s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (current-method env-sig)
+                                  (bcv::mergestackmapandcode
+                                   BCV::ALLINSTRUCTIONS
+                                   bcv::searchstackframe)))))
+                                      
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span></pre>
+  </body>
+</html>

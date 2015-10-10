@@ -1,0 +1,2 @@
+(ld "../../DJVM/djvm.pkg")
+(certify-book "base-build-an-array-instance-creates-consistent-object" 6 t :skip-proofs-okp t)

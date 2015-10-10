@@ -1,0 +1,2 @@
+(ld "../BCV/bcv.pkg")
+(certify-book "bcv-succeed-implies-bcv-simple-succeed" 5 t :skip-proofs-okp t)

@@ -1,0 +1,176 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>generic.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"ACL2"</span>)
+(include-book <span class="string"><a href="jvm-model.lisp.html">"jvm-model"</a></span>)
+(include-book <span class="string"><a href="bcv-simple-model.lisp.html">"bcv-simple-model"</a></span>)
+
+(defthm g-pc-extract-sig-frame
+  (equal (G 'PC
+            (EXTRACT-SIG-FRAME frame method-table))
+         (g 'pc frame))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable extract-sig-frame))))
+
+
+(defthm g-max-stack-extract-sig-frame
+  (equal (G 'max-stack
+            (EXTRACT-SIG-FRAME frame method-table))
+         (g 'max-stack frame))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable extract-sig-frame))))
+
+(defthm g-opstack-stack-extract-sig-frame
+  (equal (G 'op-stack
+            (EXTRACT-SIG-FRAME frame method-table))
+         (len (g 'op-stack frame)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable extract-sig-frame))))
+
+
+(defthm g-method-table-extract-sig-frame
+  (equal (G 'method-table
+            (EXTRACT-SIG-FRAME frame method-table))
+         method-table)
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable extract-sig-frame))))
+
+(defthm g-method-name-extract-sig-frame
+  (equal (G 'method-name
+            (EXTRACT-SIG-FRAME frame method-table))
+         (g 'method-name frame))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable extract-sig-frame))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm integerp-implies-integper-plus-1
+  (implies (integerp x)
+           (integerp (+ 1 x))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm g-opstack-create-init-frame
+  (equal (g 'op-stack (createinitframe anymethod anylocals st))
+         nil))
+
+
+(defthm g-max-stack-create-init-frame
+  (equal (g 'max-stack (createinitframe anymethod anylocals st))
+         (g 'max-stack (cdr (assoc-equal anymethod
+                                         (g 'method-table st))))))
+
+
+(defthm g-method-name-create-init-frame
+  (equal (g 'method-name (createinitframe method-name anylocals st))
+         method-name))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm g-method-table-popStack-n
+  (equal (g 'method-table (popStack-n st n))
+         (g 'method-table st)))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;; (local 
+;;  (defthm nth-out-of-bound-is-nil-1
+;;    (implies (and (true-listp l)
+;;                  (integerp x)
+;;                  (&gt;= x (len l)))
+;;             (not (nth x l)))))
+</span>
+<span class="comment">;; ;; nth is a strange. if x is not a number, 
+;; ;; it returns (car l) ... 
+</span>
+<span class="comment">;; (local 
+;;  (defthm nth-out-of-bound-is-nil-2
+;;    (implies (and (true-listp l)
+;;                  (integerp x)
+;;                  (&lt; x 0))
+;;             (not (nth x l)))))
+</span>            
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm g-max-stack-popStack-n
+  (equal (g 'max-stack (car (g 'call-stack (popStack-n st n))))
+         (g 'max-stack (car (g 'call-stack st)))))
+
+
+
+(defthm g-method-name-popStack-n
+  (equal (g 'method-name (car (g 'call-stack (popStack-n st n))))
+         (g 'method-name (car (g 'call-stack st)))))
+
+
+(defthm g-pc-sig-frame-pop-n
+  (equal (G 'PC
+            (SIG-FRAME-POP-N n pre))
+         (g 'pc pre)))
+
+
+(defthm g-max-stack-sig-frame-pop-n
+  (equal (G 'max-stack
+            (SIG-FRAME-POP-N n pre))
+         (g 'max-stack pre)))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(defthm g-method-table-sig-frame-pop-n
+  (equal (G 'METHOD-TABLE
+            (SIG-FRAME-POP-N n  PRE))
+         (g 'method-table pre)))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm g-method-name-sig-frame-pop-n
+  (equal (G 'METHOD-name
+            (SIG-FRAME-POP-N n  PRE))
+         (g 'method-name pre)))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm inst?-implies-not-stackmap
+  (implies (inst? inst)
+           (not (stack-map? inst))))
+
+</pre>
+  </body>
+</html>

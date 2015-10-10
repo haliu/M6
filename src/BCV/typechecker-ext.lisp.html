@@ -1,0 +1,195 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>typechecker-ext.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"BCV"</span>)
+(include-book <span class="string"><a href="typechecker.lisp.html">"typechecker"</a></span>)
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">collect-sig-frame-vector</span> (env mergedcode stackmap)
+  (<span class="keyword">if</span> (endp mergedcode) nil
+    (<span class="keyword">if</span> (endp (cdr mergedcode)) nil
+      (<span class="keyword">if</span> (equal stackmap 'afterGoto)
+          (<span class="keyword">if</span> (isStackMap (car Mergedcode))
+              (collect-sig-frame-vector env (cdr mergedcode) 
+                                        (mapFrame (getMap (car mergedcode))))
+            nil)
+        (<span class="keyword">cond</span> ((isStackMap (car mergedcode))
+               (and (frameIsAssignable stackmap 
+                                       (mapFrame (getMap (car mergedcode)))
+                                       env)
+                    (collect-sig-frame-vector 
+                     env (cdr mergedcode) (mapFrame (getMap (car mergedcode))))))
+              ((isInstruction (car mergedcode))
+               (<span class="keyword">let</span> ((offset     (instrOffset (car MergedCode)))
+                     (instr      (car MergedCode)))
+                 (and (instructionIsTypeSafe instr env stackmap)
+                      (mv-let (NextStackFrame ExceptionStackFrame)
+                              (sig-do-inst instr env stackmap)
+                              (and (instructionSatisfiesHandlers env offset
+                                                                 ExceptionStackFrame)
+                                   (mergedCodeIsTypeSafe env (cdr MergedCode)
+                                                         NextStackFrame)
+                                   (cons (list offset stackmap)
+                                         (collect-sig-frame-vector 
+                                          env 
+                                          (cdr mergedcode) 
+                                          NextStackFrame)))))))
+              (t nil))))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;; (defun pair-with-pc (parsedcode sig-frames)
+;;   (if (endp parsedcode) nil
+;;     (if (endp sig-frames) nil
+;;       (cons (cons (instrOffset (car parsedcode))
+;;                   (car sig-frames))
+;;             (pair-with-pc (cdr parsedcode) (cdr sig-frames))))))
+</span>                
+            
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">collect-sig-frame-vector-for-method</span> (class method static-class-table)
+  (<span class="keyword">let*</span>
+   ((framesize (framesize method class))
+    (maxstack (maxstack method class))
+    (parsedcode (parsedcode method class))
+    (handlers (handlers method class))
+    (stackmap (stackmap method class))
+    (mergedcode (mergestackmapandcode stackmap parsedcode))
+    (stackframe
+     (methodinitialstackframe class method framesize))
+    (returntype (methodreturntype method))
+    (environment
+     (makeenvironment class method returntype
+                      mergedcode maxstack handlers static-class-table)))
+   (collect-sig-frame-vector environment mergedcode stackframe)))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">collect-sig-frame-vector-for-methods</span> (class methods cl)
+  (<span class="keyword">if</span> (endp methods)
+      nil
+    (<span class="keyword">if</span> (or (mem '*abstract*  (methodAccessFlags (car methods)))
+            (mem '*native*  (methodAccessFlags (car methods))))
+        (collect-sig-frame-vector-for-methods class (cdr methods) cl)
+      (prog2$ 
+       (cw <span class="string">"      method ~p0~%~%"</span> (methodname (car methods)))
+       (bind (car methods)
+             (collect-sig-frame-vector-for-method class (car methods) cl)
+             (collect-sig-frame-vector-for-methods class (cdr methods) cl))))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">collect-sig-frame-vector-for-classes</span> (l cl)
+  (<span class="keyword">if</span> (endp l)
+      nil
+    (prog2$ 
+     (acl2::cw <span class="string">"class ~p0~%~%"</span> (classClassName (car l)))
+     (bind (car l)
+           (collect-sig-frame-vector-for-methods (car l)
+                                                 (classMethods (car l))
+                                                 cl)
+           (collect-sig-frame-vector-for-classes (cdr l) cl)))))
+  
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+
+(<span class="keyword">defun</span> <span class="function-name">simple-test-method</span> (class method cl)
+  (prog2$ 
+   (cw <span class="string">"      method ~p0~%~%"</span> (methodname method))
+   (or (equal (len (parsedcode1 method))
+              (+ 1 (len (collect-sig-frame-vector-for-method class method cl))))
+       (prog2$ (cw <span class="string">"method code, frame does not match"</span>)
+               nil))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">simple-test-methods</span> (class methods cl)
+  (<span class="keyword">if</span> (endp methods)
+      t
+    (<span class="keyword">if</span> (or (mem '*abstract*  (methodAccessFlags (car methods)))
+            (mem '*native*  (methodAccessFlags (car methods))))
+        (simple-test-methods class (cdr methods) cl)
+      (and (simple-test-method class (car methods) cl)
+           (simple-test-methods class (cdr methods) cl)))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">simple-test-classes</span> (l cl)
+  (<span class="keyword">if</span> (endp l)
+      t
+    (prog2$ 
+     (acl2::cw <span class="string">"class ~p0~%~%"</span> (classClassName (car l)))
+     (and (simple-test-methods (car l)
+                               (classMethods (car l))
+                               cl)
+          (simple-test-classes (cdr l) cl)))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+                                        
+                                         
+                                         
+                                          
+
+                                          
+                                          
+                                          
+                                                                   
+                            
+                      
+                    
+                                        
+              
+      
+
+     
+     
+     
+     
+     
+
+  </pre>
+  </body>
+</html>

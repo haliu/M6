@@ -1,0 +1,70 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-consistent-state-consistent-object.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="../consistent-state.lisp.html">"../../DJVM/consistent-state"</a></span>)
+(include-book <span class="string"><a href="../consistent-state-properties.lisp.html">"../../DJVM/consistent-state-properties"</a></span>)
+
+(include-book <span class="string"><a href="base-valid-type-s.lisp.html">"base-valid-type-s"</a></span>)
+(include-book <span class="string"><a href="base-consistent-state.lisp.html">"base-consistent-state"</a></span>)
+
+(local (include-book <span class="string"><a href="base-consistent-state-consistent-object-support.lisp.html">"base-consistent-state-consistent-object-support"</a></span>))
+
+(defthm consistent-object-valid-type-strong
+  (implies (and (consistent-object obj (heap s) (instance-class-table s))
+                (or (not (isArrayType (obj-type obj)))
+                    (consistent-array-object obj (heap s) 
+                                             (instance-class-table s)
+                                             (array-class-table s)))
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+           (valid-type-strong (obj-type obj) (instance-class-table s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (consistent-object 
+                                   consistent-array-object) ()))))
+
+
+
+(defthm class-loaded-consistent-state-implies-valid-type-strong
+  (implies (and (class-loaded? any s)
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+           (valid-type-strong any (instance-class-table s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable class-loaded?))))
+
+
+
+</pre>
+  </body>
+</html>

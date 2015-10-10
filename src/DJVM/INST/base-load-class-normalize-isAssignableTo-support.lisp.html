@@ -1,0 +1,362 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-load-class-normalize-isAssignableTo-support.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+
+(include-book <span class="string"><a href="base.lisp.html">"base"</a></span>)
+(include-book <span class="string"><a href="base-consistent-state.lisp.html">"base-consistent-state"</a></span>)
+
+(local (in-theory (e/d (isAssignableTo class-loaded? class-exists?)
+                       (isClassTerm))))
+
+
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-consistent-state-load-class.lisp.html">"base-consistent-state-load-class"</a></span>))
+  (defthm resolveClassReference-preserve-consistency
+    (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+             (<a href="../consistent-state.lisp.html">consistent-state</a> (resolveClassReference any s)))))
+
+
+
+(defthm class-table-is-loaded-from-implies-bound-bound
+  (implies (and (class-table-is-loaded-from cl scl)
+                (isClassTerm (class-by-name name cl))
+                (stringp name))
+           (car (class-by-name-s name scl))))
+
+(defthm consistent-state-class-table-is-loaded-from
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (class-table-is-loaded-from (instance-class-table s)
+                                       (env-class-table (env s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a>))))
+
+
+
+(local 
+ (defthm consistent-class-decls-implies-stringp
+   (implies (and (consistent-class-decls cl1 cl hp)
+                 (wff-instance-class-table cl1)
+                 (class-by-name name cl1))
+            (stringp name))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable consistent-class-decl)))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+(defthm consistent-state-class-name-is-stringp
+  (implies (and (class-by-name name (instance-class-table s))
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+           (stringp name))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+(local 
+ (defthm isClassTerm-implies-not-nil
+   (implies (isClassTerm class-rep)
+            class-rep)
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable isClassTerm)))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+(defthm consistent-state-class-name-is-stringp-2
+  (implies (and (isClassTerm (class-by-name name (instance-class-table s)))
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+           (stringp name))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+
+(defthm isClassTerm-class-by-name-implies-bound?-static-class-table
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (isClassTerm (class-by-name name (instance-class-table s))))
+           (car (class-by-name-s name (env-class-table (env s)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> ((<span class="builtin">:instance</span> 
+                         class-table-is-loaded-from-implies-bound-bound
+                         (cl (instance-class-table s))
+                         (scl (env-class-table (env s))))))))
+
+
+(defthm if-found-in-static-class-table-then-mem-of-all-name-s
+  (implies (car (class-by-name-s name scl))
+           (mem name (all-class-names-s scl))))
+
+
+(defthm isClassTerm-class-by-name-implies-bound?-static-class-table-g
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (isClassTerm (class-by-name name (instance-class-table s)))
+                (equal (env-class-table (env s)) scl))
+           (car (class-by-name-s name scl))))
+
+
+(defthm lemma-isSuperClass1-remain-isSupclass1-resolveClassReference
+  (IMPLIES
+   (AND
+    (CONSISTENT-STATE S)
+    (ISCLASSTERM
+     (CLASS-BY-NAME TYP1
+                    (INSTANCE-CLASS-TABLE (RESOLVECLASSREFERENCE ANY S)))))
+   (MEM TYP1
+        (ALL-CLASS-NAMES-S (ENV-CLASS-TABLE (ENV S)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> ((<span class="builtin">:instance</span> 
+                         isClassTerm-class-by-name-implies-bound?-static-class-table-g
+                         (s (resolveclassreference any s))
+                         (name typ1)
+                         (scl (env-class-table (env s))))))))
+
+
+(defthm consistent-state-implies-isSuperClass1-invariant
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (issuperclass1-invariant typ s)))
+
+(local (in-theory (disable issuperclass1-invariant)))
+
+
+
+(encapsulate () 
+   (local (include-book <span class="string"><a href="base-load-class-normalize-class-by-name.lisp.html">"base-load-class-normalize-class-by-name"</a></span>))
+   (defthm class-by-name-no-change-after-resolveClassReference
+     (implies (isClassTerm (class-by-name name (instance-class-table s)))
+              (equal (class-by-name name (instance-class-table
+                                          (resolveclassreference any s)))
+                     (class-by-name name (instance-class-table s))))))
+
+
+
+
+(defthm isSuperClass1-remain-isSupclass1-resolveClassReference
+  (implies (and (car (isSuperClass1 typ1 typ2 s seen))
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (no-fatal-error? s)
+                (no-fatal-error? (resolveclassreference any s)))
+           (car (isSuperClass1 typ1 typ2 (resolveclassreference any s) seen)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+           <span class="builtin">:in-theory</span> (e/d (isSuperClass1)
+                           (isSuperClass1-invariant)))))
+
+
+
+(defthm implementInterface-x-remains-implementInterface-x-resolveClassReference
+  (implies (and (car (IMPLEMENTINTERFACE-X from to s seen mode))
+                (isClassTerm (class-by-name to (instance-class-table s)))
+                (no-fatal-error? s)
+                (no-fatal-error? (resolveclassreference any s))
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+           (car (implementinterface-x from to (resolveclassreference any s)
+                                      seen mode)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize))
+          (<span class="string">"Subgoal *1/10"</span> <span class="builtin">:expand</span> (IMPLEMENTINTERFACE-X FROM TO S SEEN 0))))
+           
+
+
+(defthm consistent-state-if-bound-implies-isClassTerm
+  (implies (and (wff-instance-class-table cl)
+                (class-by-name name cl))
+           (isClassTerm (class-by-name name cl)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable wff-class-rep isClassTerm))))
+
+(defthm isInterface-implies-not-null
+  (implies (isInterface class-rep)
+           class-rep)
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+(defthm consistent-state-isInterface-implies-isClassTerm
+  (implies (and (isInterface (class-by-name name (instance-class-table s)))
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+           (isClassTerm (class-by-name name (instance-class-table s)))))
+
+
+(include-book <span class="string"><a href="base-valid-type-s.lisp.html">"base-valid-type-s"</a></span>)
+
+
+
+<span class="comment">;; (defthm consistent-state-class-name-is-stringp
+;;   (implies (and (class-by-name name (instance-class-table s))
+;;                 (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+;;            (stringp name))
+;;   :rule-classes :forward-chaining)
+</span>
+
+
+(defthm wff-array-type-not-stringp-f
+  (implies (wff-array-type typ)
+           (not (stringp typ)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable wff-array-type)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+
+(defthm consistent-state-wff-array-type-not-bound
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (wff-array-type typ1))
+           (not 
+             (CLASS-BY-NAME typ1 (instance-class-table s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> ((<span class="builtin">:instance</span> consistent-state-class-name-is-stringp
+                                   (name typ1))))))
+  
+
+
+
+(defthm valid-type-s-0-wff-array-type
+  (implies (valid-type-s typ cl 0)
+           (wff-array-type typ))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+
+<span class="comment">;; (defthm valid-type-s-0-not-stringp
+;;   (implies (valid-type-s typ cl 0)
+;;            (not (stringp typ)))
+;;   :hints (("Goal" :expand (valid-type-s typ cl 0)
+;;            :in-theory (enable wff-array-type))))
+</span>
+
+
+<span class="comment">;; (defthm valid-type-s-0-not-stringp-f
+;;   (implies (valid-type-s typ cl 0)
+;;            (not (stringp typ)))
+;;   :hints (("Goal" :expand (valid-type-s typ cl 0)
+;;            :in-theory (enable wff-array-type)))
+;;   :rule-classes :forward-chaining)
+</span>
+
+(defthm valid-type-s-not-class-by-name
+  (implies (and (valid-type-s typ (instance-class-table s) 0)
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+           (not (class-by-name typ (instance-class-table s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> 
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span> consistent-state-class-name-is-stringp
+                            (name typ))))))
+
+(defthm consistent-state-valid-type-s-mode-0-not-interface-type
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (valid-type-s typ1 (instance-class-table s) 0))
+           (not 
+            (ISINTERFACE
+             (CLASS-BY-NAME TYP1
+                            (INSTANCE-CLASS-TABLE (RESOLVECLASSREFERENCE ANY
+                                                                         S))))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> 
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span> resolveClassReference-preserve-consistency)))))
+                            
+  
+(defthm consistent-state-array-type-not-isClassTerm
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (array-type? typ))
+           (not (class-by-name typ (instance-class-table s)))))
+
+
+
+(defthm isAssignableTo-isAssignableTo-resolveClassReference-lemma
+  (implies (and (car (isAssignableTo typ1 typ2 s))
+                (valid-type-strong typ1 (instance-class-table s))
+                (valid-type-strong typ2 (instance-class-table s))
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (no-fatal-error? s)
+                (no-fatal-error? (resolveClassReference any s)))
+           (car (isAssignableTo typ1 typ2 (resolveClassReference any s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+           <span class="builtin">:in-theory</span> (disable isSuperClass1
+                               array-type?
+                               implementinterface-x))))
+                               
+
+
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-fatal-errorflag-not-earsed.lisp.html">"base-fatal-errorflag-not-earsed"</a></span>))
+  (defthm not-no-fatal-error-preserved-resolveClassReference
+    (implies (not (no-fatal-error? s))
+             (not (no-fatal-error? (resolveClassReference any s))))))
+
+<span class="comment">;;; shall not be hard. 
+;; ;;;
+;; ;;; once have fatal-error, it will keep it. 
+;; ;;;
+</span>
+<span class="comment">;; we also proved a lemma to say if 
+;; typ1 is a valid-type-strong,
+;; then 
+;; typ2 has to be a valid-type-strong,
+;; otherwise
+;; (car (isAssignableTo typ1 typ2 s)) is nil!! 
+;;
+</span>
+<span class="comment">;; (i-am-here) ;; Sat Jun 11 21:11:20 2005
+</span>
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-isAssignableTo-properties.lisp.html">"base-isAssignableTo-properties"</a></span>))
+  (defthm isAssignable-to-then-loaded
+    (implies (and (car (isAssignableTo typ1 typ2 s))
+                  (not (equal typ1 typ2))
+                  (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+             (valid-type-strong typ2 (instance-class-table s)))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)))))
+
+
+(defthm isAssignableTo-valid-type-valid-type
+  (implies (and (car (isAssignableTo typ1 typ2 s))
+                (valid-type-strong typ1 (instance-class-table s))
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+           (valid-type-strong typ2 (instance-class-table s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:cases</span> ((equal typ1 typ2)))))
+
+
+
+
+
+(defthm isAssignableTo-isAssignableTo-resolveClassReference
+  (implies (and (car (isAssignableTo typ1 typ2 s))
+                (valid-type-strong typ1 (instance-class-table s))
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (no-fatal-error? (resolveClassReference any s)))
+           (car (isAssignableTo typ1 typ2 (resolveClassReference any s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+           <span class="builtin">:cases</span> ((no-fatal-error? s)))))
+
+
+<span class="comment">;;; we got rid of the valid-type-strong assertions on typ2 !!! 
+;;; the theorem is easier to use!! 
+</span>
+
+                               
+
+
+</pre>
+  </body>
+</html>

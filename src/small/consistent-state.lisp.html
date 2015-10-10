@@ -1,0 +1,205 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>consistent-state.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"ACL2"</span>)
+(include-book <span class="string"><a href="jvm-model.lisp.html">"jvm-model"</a></span>)
+(include-book <span class="string"><a href="bcv-model.lisp.html">"bcv-model"</a></span>)
+<span class="comment">;; (defmacro extract-sig-frame (frame method-table)
+;;   `(s 'method-table ,method-table
+;;      (s 'max-stack 
+;;         (g 'max-stack ,frame)
+;;         (s 'method-name 
+;;            (g 'method-name ,frame)
+;;            (s 'pc (g 'pc ,frame)
+;;               (s 'op-stack (len (g 'op-stack ,frame))
+;;                  (s 'locals
+;;                     (extract-sig-locals ,frame) nil)))))))
+</span>
+
+
+(<span class="keyword">defun</span> <span class="function-name">consistent-caller-frame</span> (caller-frame callee-frame method-table)
+  (<span class="keyword">let*</span>  ((caller-name (g 'method-name caller-frame))
+          (callee-name (g 'method-name callee-frame))
+          (caller (binding caller-name method-table))
+          (callee (binding callee-name method-table))
+          (sig-frame (extract-sig-frame caller-frame
+                                        method-table))
+          (pc (g 'pc sig-frame))
+          (record-frame-sig (binding pc (collect-witness-bcv-method caller method-table))))
+    (and (bcv-method caller method-table)
+         (&lt;= (+ 1 (len (g 'op-stack caller-frame)))
+             (g 'max-stack caller-frame))
+         (equal (g 'method-name caller)
+                caller-name)
+         (integerp (g 'pc caller-frame))
+         (&lt;= 1 (g 'pc caller-frame))
+         (&lt; (g 'pc caller-frame) (len (g 'code caller)))
+         <span class="comment">;; (equal (arg (nth (- pc 1) (g 'code caller)))
+</span>         <span class="comment">;;       callee-name)
+</span>         <span class="comment">;; do I need the above assertion? as long as return value size 
+</span>         <span class="comment">;; is the same for all method, we don't. 
+</span>         <span class="comment">;; However, this invariant should be easy to maintain. 
+</span>         <span class="comment">;; does not add more complexity (proof-wise) to have it. 
+</span>         (sig-frame-compatible
+          (sig-frame-push-value (g 'ret callee) sig-frame)
+          record-frame-sig))))
+
+
+
+<span class="comment">;; need to deal with top call frame and other call frames below it a bit
+;; differently
+</span>
+<span class="comment">;; because the caller's pc is pointing to the next instruction, however
+;; caller's operand stack does not reflect that!! The hope is that when callee
+;; returns it will return the correct number of arguments and the execution can
+;; resume from a state. execution from such a state is within the "coverage" of
+;; the BCV!!
+</span>
+
+<span class="comment">;; (defun pc-in-range (frame method-table)
+;;  (let* ((method-name (g 'method-name frame))
+;;         (method (binding method-name method-table))
+;;         (pc (g 'pc frame))
+;;         (code (g 'code method)))
+;;    (and (integerp pc)
+;;         (&lt;= 0 pc)
+;;         (&lt; pc (len code)))))
+</span>
+(<span class="keyword">defun</span> <span class="function-name">consistent-frame</span> (frame method-table)
+  (<span class="keyword">let*</span> ((method-name (g 'method-name frame))
+         (method (binding method-name method-table)))
+    (and <span class="comment">;; Sun Oct  2 04:29:07 2005
+</span>         <span class="comment">;; (pc-in-range frame method-table)
+</span>         <span class="comment">;; When PC is out of range, we know the next instruction will be
+</span>         <span class="comment">;; undefined. It will be treated as a halt.
+</span>         <span class="comment">;;
+</span>         <span class="comment">;; so <a href="consistent-state.lisp.html">consistent-state</a> will be preserved. 
+</span>         <span class="comment">;; and our main goal can still be established under this weaker
+</span>         <span class="comment">;; <a href="consistent-state.lisp.html">consistent-state</a> predicate. 
+</span>         <span class="comment">;; (integerp (g 'pc frame))
+</span>         <span class="comment">;; (equal (g 'method-name method)
+</span>         <span class="comment">;;         method-name)                 !!! Thu Nov  3 22:31:32 2005
+</span>         (bound? method-name method-table)
+         (&lt;= (len (g 'op-stack frame))
+             (g 'max-stack frame))
+         (equal (g 'max-stack frame)
+                (g 'max-stack method)))))
+
+<span class="comment">;; only assert this! 
+</span>
+(<span class="keyword">defun</span> <span class="function-name">consistent-callee-frame</span> (frame method-table)
+  (<span class="keyword">let*</span> ((method-name (g 'method-name frame))
+         (method (binding method-name method-table)))
+    (and (bcv-method method method-table)
+         (equal (g 'method-name method)
+                method-name)
+         (sig-frame-compatible
+          (extract-sig-frame frame method-table)
+          (binding (g 'pc frame) 
+                   (collect-witness-bcv-method method method-table))))))
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">consistent-call-stack1</span> (call-stack topframe method-table)
+  (<span class="keyword">if</span> (endp call-stack) t
+    (and (consistent-frame (topx call-stack) method-table)
+         (consistent-caller-frame (topx call-stack)
+                                  topframe method-table)
+         (consistent-call-stack1 
+          (popx call-stack) (topx call-stack) method-table))))
+
+<span class="comment">;; (i-am-here) 
+</span>
+(<span class="keyword">defun</span> <span class="function-name">consistent-call-stack</span> (call-stack method-table)
+  (and (consp call-stack)
+       (consistent-frame (topx call-stack) method-table)
+       (consistent-callee-frame (topx call-stack) method-table)
+       (consistent-call-stack1 (popx call-stack) (topx call-stack) method-table)))
+                               
+
+
+(<span class="keyword">defun</span> <span class="function-name">all-method-verified1</span> (method-table1 method-table)
+  (<span class="keyword">if</span> (endp method-table1) t
+      (and (bcv-method (cdr (car method-table1))  method-table)
+           (all-method-verified1 (cdr method-table1) method-table))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">all-method-verified</span> (method-table)
+  (all-method-verified1 method-table method-table))
+
+<span class="comment">;;
+;; note: this all-method-verified1 is using bcv-simple-method!!  we will have a
+;; more "procedural" style bcv-simple-method and bcv-verified-method-table!!
+;;
+</span>
+
+<span class="comment">;;(i-am-here) ;; Sun Nov 20 17:19:14 2005
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">wff-method</span> (method)
+  (<span class="keyword">declare</span> (ignore method))
+  t)
+
+(<span class="keyword">defun</span> <span class="function-name">wff-method-table</span> (method-table)
+  (<span class="keyword">if</span> (endp method-table) t
+    (and (equal (g 'method-name (cdar method-table))
+                (caar method-table))
+         (wff-method (cdr method-table))
+         (wff-method-table (cdr method-table)))))
+
+
+(<span class="keyword">defun</span> <span class="function-name"><a href="consistent-state.lisp.html">consistent-state</a></span> (st)
+  (<span class="keyword">let*</span>  ((method-table (g 'method-table st))
+          (call-stack   (g 'call-stack st)))
+    (and (pc-in-range st)
+         (wff-method-table (g 'method-table st))
+         (consistent-call-stack call-stack method-table)
+         (all-method-verified method-table))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+</pre>
+  </body>
+</html>

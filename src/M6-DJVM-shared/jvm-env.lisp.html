@@ -1,0 +1,622 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>jvm-env.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      .type {
+        /* font-lock-type-face */
+        color: #98fb98;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"JVM"</span>)
+
+(include-book <span class="string"><a href="jvm-env-test-data.lisp.html">"jvm-env-test-data"</a></span>)
+<span class="comment">;;; importing *test.env*
+;;;
+</span>
+<span class="comment">;-- ENV ------
+; temp -- consider no IO
+;-------------
+</span>
+<span class="comment">;; static class representation. 
+</span>
+(acl2::set-verify-guards-eagerness 2)
+
+(<span class="keyword">defun</span> <span class="function-name">make-env</span> (scl) <span class="comment">;; temp version
+</span>  <span class="string">"Create an object that represents the 'Environment'"</span>
+   (list 'env 
+        (cons 'external-class-table
+              scl)))
+
+<span class="comment">;; Mon Jan 12 23:59:43 2004 from consistent-class.lisp
+</span>
+(<span class="keyword">defun</span> <span class="function-name">wff-env</span> (env)
+  <span class="string">"Shallow wff of ENV"</span>
+  (and (true-listp env)
+       (equal (len env) 2)
+       (consp (nth 1 env))))
+
+(local 
+ (defthm wff-env-test 
+   (wff-env *test.env*)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">env-class-table</span> (env) 
+  <span class="string">"Extract the external class table from the environment"</span>
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-env env)))
+  (cdr (nth 1 env)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">make-static-class-table</span> (static-class-descs)
+    static-class-descs)
+
+
+(<span class="keyword">defun</span> <span class="function-name">make-static-class-desc</span> (classname super constantpool
+                                         fields methods
+                                         interfaces
+                                         accessflags)
+  (list 'class classname                   <span class="comment">;; just names 
+</span>        super                              <span class="comment">;; name of the super
+</span>        (cons 'constant_pool constantpool)  <span class="comment">;; runtime representation
+</span>        (cons 'fields fields)               <span class="comment">;; fields 
+</span>        (cons 'methods methods)             <span class="comment">;; list of methods 
+</span>        (cons 'interfaces interfaces)       <span class="comment">;; interfaces 
+</span>        (cons 'accessflags accessflags)))   <span class="comment">;; access flags
+</span>
+<span class="comment">;;(i-am-here) ;; Tue Jul 12 21:30:24 2005
+</span>
+(<span class="keyword">defun</span> <span class="function-name">wff-class-rep-static</span> (class-rep)
+  <span class="string">"One level Wff assertions on static class representation"</span>
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:verify-guards</span> t))
+  (and (true-listp class-rep)
+       (equal (len class-rep) 8)
+       (equal (car class-rep) 'class) 
+       (stringp (nth 1 class-rep))
+       (stringp (nth 2 class-rep)) <span class="comment">;; Wed Jul 13 12:21:51 2005
+</span>       (consp (nth 3 class-rep))
+       (consp (nth 4 class-rep))
+       (consp (nth 5 class-rep))
+       (consp (nth 6 class-rep))
+       (consp (nth 7 class-rep))
+       (true-listp (cdr (nth 3 class-rep)))
+       (true-listp (cdr (nth 4 class-rep)))
+       (true-listp (cdr (nth 5 class-rep)))
+       (true-listp (cdr (nth 6 class-rep)))
+       (true-listp (cdr (nth 7 class-rep)))
+       (true-listp (cdr (nth 7 class-rep)))
+       (EQUAL (LIST 'CLASS
+                    (NTH 1 class-rep)
+                    (NTH 2 class-rep)
+                    (CONS 'CONSTANT_POOL
+                          (CDR (NTH 3 class-rep)))
+                    (CONS 'FIELDS (CDR (NTH 4 class-rep)))
+                    (CONS 'METHODS (CDR (NTH 5 class-rep)))
+                    (CONS 'INTERFACES
+                          (CDR (NTH 6 class-rep)))
+                    (CONS 'ACCESSFLAGS
+                          (CDR (NTH 7 class-rep))))
+              class-rep)))
+ 
+<span class="comment">;;;
+;;; Tue Jul 12 21:27:08 2005. We need to strengthen it. 
+;;; so that we can prove the 
+</span>
+<span class="comment">;; (defthm equal-make-class-def-scl-decl-bcv2jvm
+;;   (implies (jvm::wff-class-rep-static raw-class)
+;;            (equal (scl-decl-bcv2jvm 
+;;                    (make-class-def raw-class))
+;;                   raw-class))
+;;   :hints (("Goal" :in-theory (enable jvm::wff-class-rep-static))))
+</span>
+<span class="comment">;; scl-decl-bcv2jvm is not defined until 
+</span>
+
+<span class="comment">;;          (EQUAL (LIST (CAR class-rep)
+;;                       (NTH 1 class-rep)
+;;                       (CONS 'CONSTANT_POOL
+;;                             (CDR (NTH 2 class-rep)))
+;;                       (CONS 'FIELDS (CDR (NTH 3 class-rep)))
+;;                       (CONS 'METHODS (CDR (NTH 4 class-rep)))
+;;                       (CONS 'INTERFACES
+;;                             (CDR (NTH 5 class-rep)))
+;;                       (CONS 'ACCESSFLAGS
+;;                             (CDR (NTH 6 class-rep)))
+;;                       (CONS 'ATTRIBUTES
+;;                             (CDR (NTH 7 class-rep))))
+;;                 class-rep)).
+</span>
+
+(local 
+ (<span class="keyword">defun</span> <span class="function-name">all-wff-class-rep-static</span> (class-reps)
+   (<span class="keyword">if</span> (not (consp class-reps)) t
+     (and (wff-class-rep-static (car class-reps))
+          (all-wff-class-rep-static (cdr class-reps))))))
+       
+
+<span class="comment">;; (i-am-here) ;; 
+</span>
+(local 
+  (defthm wff-class-rep-static-test
+    (all-wff-class-rep-static  (env-class-table *test.env*))))
+
+<span class="comment">;; ;;; this failed!! 
+;; ;;; to be investigated!! 
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">classname-s</span> (sclass-rep)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-class-rep-static sclass-rep)))
+  (nth 1 sclass-rep))
+
+(<span class="keyword">defun</span> <span class="function-name">super-s</span> (sclass-rep)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-class-rep-static sclass-rep)))
+  (nth 2 sclass-rep))
+
+(<span class="keyword">defun</span> <span class="function-name">constantpool-s</span> (sclass-rep)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-class-rep-static sclass-rep)))
+  (cdr (nth 3 sclass-rep)))
+
+(<span class="keyword">defun</span> <span class="function-name">fields-s</span> (sclass-rep)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-class-rep-static sclass-rep)))
+  (cdr (nth 4 sclass-rep)))
+
+(<span class="keyword">defun</span> <span class="function-name">methods-s</span> (sclass-rep)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-class-rep-static sclass-rep)))
+  (cdr (nth 5 sclass-rep)))
+
+(<span class="keyword">defun</span> <span class="function-name">interfaces-s</span> (sclass-rep)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-class-rep-static sclass-rep)))
+  (cdr (nth 6 sclass-rep)))
+
+(<span class="keyword">defun</span> <span class="function-name">accessflags-s</span> (sclass-rep)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-class-rep-static sclass-rep)))
+  (cdr (nth 7 sclass-rep)))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">wff-string-cp-entry-s</span> (cp-entry)
+  <span class="string">"Static cp-entry representing a String"</span>
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:verify-guards</span> t))
+  (and (consp cp-entry)
+       (equal (len cp-entry) 2)
+       (equal (car cp-entry) 'STRING)
+       (stringp (cadr cp-entry))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">wff-int-cp-entry-s</span> (cp-entry)
+  <span class="string">"Static cp-entry representing a INT"</span>
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:verify-guards</span> t))
+  (and (consp cp-entry)
+       (equal (len cp-entry) 2)
+       (equal (car cp-entry) 'INT)
+       (int32p (cadr cp-entry))))
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">wff-long-cp-entry-s</span> (cp-entry)
+  <span class="string">"Static cp-entry representing a LONG"</span>
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:verify-guards</span> t))
+  (and (consp cp-entry)
+       (equal (len cp-entry) 2)
+       (equal (car cp-entry) 'LONG)
+       (int64p (cadr cp-entry))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">wff-constant-pool-entry-s</span> (cp-entry)
+  <span class="string">"wff static cp-entry"</span>
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:verify-guards</span> t))
+  (and (consp cp-entry)
+       (equal (len cp-entry) 2)
+       (or (wff-string-cp-entry-s cp-entry)
+           (wff-int-cp-entry-s cp-entry)
+           (wff-long-cp-entry-s cp-entry)
+           <span class="comment">;;(wff-float-cp-entry cp-entry)
+</span>           <span class="comment">;;(wff-double-cp-entry cp-entry)
+</span>           <span class="comment">;; temp implementation
+</span>           )))
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">wff-constant-pool-s</span> (cps)
+  <span class="string">"Constant pool being wff"</span>
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:verify-guards</span> t))
+  (<span class="keyword">if</span> (not (consp cps)) t
+    (and (wff-constant-pool-entry-s (car cps))
+         (wff-constant-pool-s (cdr cps)))))
+
+(local 
+ (<span class="keyword">defun</span> <span class="function-name">all-constant-pools-s</span> (class-reps)
+   (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (all-wff-class-rep-static class-reps)))
+   (<span class="keyword">if</span> (not (consp class-reps)) nil
+     (cons (constantpool-s (car class-reps))
+           (all-constant-pools-s (cdr class-reps))))))
+
+
+(local 
+ (<span class="keyword">defun</span> <span class="function-name">all-wff-constant-pool-s</span> (constantpools)
+   (<span class="keyword">if</span> (not (consp constantpools)) t
+     (and (wff-constant-pool-s (car constantpools))
+          (all-wff-constant-pool-s (cdr constantpools))))))
+
+(local 
+ (defthm all-wff-constant-pool-s-test 
+   (all-wff-constant-pool-s (all-constant-pools-s (env-class-table *test.env*)))))
+
+<span class="comment">;; cpentry : type + value 
+</span>(<span class="keyword">defun</span> <span class="function-name">cpentry-type-s</span> (cpentry)
+  <span class="string">"Return the type of the cpentry"</span>
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-constant-pool-entry-s cpentry)))
+  (car cpentry))
+
+
+(<span class="keyword">defun</span> <span class="function-name">cpentry-value-s</span> (cpentry)
+  <span class="string">"Return the value of the cpentry"</span>
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-constant-pool-entry-s cpentry)))
+  (cadr cpentry))
+
+(<span class="keyword">defun</span> <span class="function-name">make-string-cp-entry-s</span> (string-value)
+  (list 'STRING string-value))
+
+(<span class="keyword">defun</span> <span class="function-name">string-value-cp-entry-s</span> (cpentry)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-constant-pool-entry-s cpentry)))
+  (cadr cpentry))
+
+(<span class="keyword">defun</span> <span class="function-name">make-int-cp-entry-s</span> (int-value)
+  (list 'INT int-value))
+
+(<span class="keyword">defun</span> <span class="function-name">int-value-cpentry-s</span> (cpentry)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-constant-pool-entry-s cpentry)))
+  (cadr cpentry))
+
+
+(<span class="keyword">defun</span> <span class="function-name">make-long-cp-entry-s</span> (long-value)
+  (list 'LONG long-value))
+
+(<span class="keyword">defun</span> <span class="function-name">long-value-cpentry-s</span> (cpentry)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-constant-pool-entry-s cpentry)))
+  (cadr cpentry))
+
+
+(<span class="keyword">defun</span> <span class="function-name">make-float-cp-entry-s</span> (float-value)
+  (list 'FLOAT float-value))
+
+(<span class="keyword">defun</span> <span class="function-name">float-value-cpentry-s</span> (cpentry)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-constant-pool-entry-s cpentry)))
+  (cadr cpentry))
+
+(<span class="keyword">defun</span> <span class="function-name">make-double-cp-entry-s</span> (double-value)
+  (list 'double double-value))
+
+(<span class="keyword">defun</span> <span class="function-name">double-value-cpentry-s</span> (cpentry)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-constant-pool-entry-s cpentry)))
+  (cadr cpentry))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">make-field-s</span> (fieldname fieldtype accessflags cpindex)
+  (list 'field fieldname fieldtype 
+        (cons 'accessflags accessflags)
+        cpindex))
+
+(<span class="keyword">defun</span> <span class="function-name">wff-field-s</span> (field)
+  <span class="string">"Field being wff. shallow"</span>
+  (and (equal (len field) 5)
+       (true-listp field)
+       (consp (nth 3 field))))
+
+
+(local 
+ (<span class="keyword">defun</span> <span class="function-name">all-fields-s</span> (class-reps)
+   (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (all-wff-class-rep-static class-reps)))
+   (<span class="keyword">if</span> (not (consp class-reps)) nil
+     (app (fields-s (car class-reps))
+          (all-fields-s (cdr class-reps))))))
+
+
+<span class="comment">;; (local 
+;;  (defun all-wff-fields-s (class-reps)
+;;    (declare (xargs :guard (all-wff-class-rep-static class-reps)))
+;;    (if (not (consp class-reps)) t
+;;      (and (wff-fields-s (fields-s (car class-reps)))
+;;           (all-wff-fields-s (cdr class-reps))))))
+</span>
+
+(local 
+ (<span class="keyword">defun</span> <span class="function-name">all-wff-fields-s</span> (fields)
+   (<span class="keyword">if</span> (not (consp fields)) t
+     (and (wff-field-s (car fields))
+          (all-wff-fields-s (cdr fields))))))
+
+
+(local 
+ (defthm all-wff-fields-s-test 
+   (all-wff-fields-s (all-fields-s (env-class-table *test.env*)))))
+
+(<span class="keyword">defun</span> <span class="function-name">field-fieldname-s</span> (field)  
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-field-s field)))
+  (nth 1 field))
+
+(<span class="keyword">defun</span> <span class="function-name">field-fieldtype-s</span> (field) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-field-s field)))
+  (nth 2 field))
+
+(<span class="keyword">defun</span> <span class="function-name">field-fieldaccessflags-s</span> (field) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-field-s field)))
+  (cdr (nth 3 field)))
+
+(<span class="keyword">defun</span> <span class="function-name">field-cpindex-s</span> (field)   
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-field-s field)))
+  (nth 4 field))
+
+(<span class="keyword">defun</span> <span class="function-name">static-field?-s</span> (field)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-field-s field)))
+  (mem '*static* (field-fieldaccessflags-s field)))
+
+<span class="comment">;; in the <a href="jvm-class-table.lisp.html">jvm-class-table</a>
+; methods 
+</span>
+(<span class="keyword">defun</span> <span class="function-name">make-method-s</span> (methodname args returntype accessflags code)
+  (list 'method 
+        methodname 
+        (list 'parameters args)
+        (list 'returntype returntype)
+        (list 'accessflags accessflags)
+        code))
+
+
+(<span class="keyword">defun</span> <span class="function-name">wff-method-decl-s</span> (method-decl)
+  (and (true-listp method-decl)
+       (equal (len method-decl) 6)
+       (consp (nth 2 method-decl))
+       (consp (nth 3 method-decl))
+       (consp (nth 4 method-decl))
+       <span class="comment">;; (consp (cdr (nth 3 method-decl))) ;; Thu Jan  5 17:55:19 2006
+</span>       <span class="comment">;; Thu Jan  5 17:54:40 2006. updated jvm2acl2. 
+</span>       (true-listp (cdr (nth 2 method-decl)))
+       (true-listp (cdr (nth 4 method-decl)))
+       (true-listp (nth 5 method-decl))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">method-methodname-s</span>  (method) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-method-decl-s method)))
+  (nth 1 method))
+
+(<span class="keyword">defun</span> <span class="function-name">method-args-s</span>        (method)  
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-method-decl-s method)))
+  (cdr  (nth 2 method)))
+
+(<span class="keyword">defun</span> <span class="function-name">method-returntype-s</span>  (method)   
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-method-decl-s method)))
+  (cdr (nth 3 method)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">method-accessflags-s</span> (method)  
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-method-decl-s method)))
+  (cdr (nth 4 method)))
+
+(<span class="keyword">defun</span> <span class="function-name">method-code-s</span>        (method) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-method-decl-s method)))
+  (nth 5 method))
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">wff-method-decls-s</span> (method-decls)
+  (<span class="keyword">if</span> (not (consp method-decls)) t
+    (and (wff-method-decl-s (car method-decls))
+         (wff-method-decls-s (cdr method-decls)))))
+
+
+(local
+ (<span class="keyword">defun</span> <span class="function-name">all-method-decls-s</span> (class-reps)
+   (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (all-wff-class-rep-static class-reps)))
+   (<span class="keyword">if</span> (not (consp class-reps)) nil
+     (app (methods-s (car class-reps))
+          (all-method-decls-s (cdr class-reps))))))
+      
+(local 
+ (<span class="keyword">defun</span> <span class="function-name">all-wff-method-decls-s</span> (methods)
+   (<span class="keyword">if</span> (not (consp methods)) t
+     (and (wff-method-decl-s (car methods))
+          (all-wff-method-decls-s (cdr methods))))))
+
+
+(local 
+ (defthm all-wff-method-decls-s-test 
+   (all-wff-method-decls-s (all-method-decls-s (env-class-table *test.env*)))))
+
+<span class="comment">;; the following are the same with their dynamic counterpart
+</span>
+(<span class="keyword">defun</span> <span class="function-name">make-code-s</span> (max-stack max-local code-length instrs exceptions stackmaps)
+  (list 'code 
+        (list 'max_stack max-stack)  <span class="comment">;; different from dynamic version.
+</span>        (list 'max_local max-local)  <span class="comment">;; the format generated by jvm2acl2-m6
+</span>        (list 'code_length code-length)
+        (cons 'parsedcode instrs)
+        (cons 'Exceptions exceptions)
+        (cons 'StackMap   stackmaps)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">wff-code-s</span> (code)
+  (and (equal (len code) 7)
+       (true-listp code)
+       (consp (nth 1 code))
+       (integerp (cdr (nth 1 code)))
+       (consp (nth 2 code))
+       (integerp (cdr (nth 2 code)))
+       (consp (nth 3 code))
+       (integerp (cdr (nth 3 code)))
+       (consp (nth 4 code))
+       (consp (nth 5 code))
+       (consp (nth 6 code))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">code-max-stack-s</span> (code)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-code-s code)))
+  (cdr (nth 1 code)))
+
+(<span class="keyword">defun</span> <span class="function-name">code-max-local-s</span> (code)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-code-s code)))
+  (cdr (nth 2 code)))
+
+(<span class="keyword">defun</span> <span class="function-name">code-code-length-s</span> (code)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-code-s code)))
+  (cdr (nth 3 code)))
+
+(<span class="keyword">defun</span> <span class="function-name">code-instrs-s</span> (code)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-code-s code)))
+  (cdr (nth 4 code)))
+
+(<span class="keyword">defun</span> <span class="function-name">code-handlers-s</span> (code)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-code-s code)))
+  (cdr (nth 5 code)))
+
+(<span class="keyword">defun</span> <span class="function-name">code-stackmaps-s</span> (code)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-code-s code)))
+  (cdr (nth 6 code)))
+
+
+(local 
+ (<span class="keyword">defun</span> <span class="function-name">all-code-s</span> (methods)
+   (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-method-decls-s methods)))
+   (<span class="keyword">if</span> (not (consp methods)) t
+     (<span class="keyword">if</span> (and (not (mem '*native*   (method-accessflags-s (car methods))))
+              (not (mem '*abstract* (method-accessflags-s (car methods)))))
+         (cons (method-code-s (car methods))
+               (all-code-s (cdr methods)))
+       (all-code-s (cdr methods))))))
+
+<span class="comment">;; it is possible that some 
+</span>
+(local 
+ (<span class="keyword">defun</span> <span class="function-name">all-wff-code-s</span> (codes)
+   (<span class="keyword">if</span> (not (consp codes)) t
+     (and (wff-code-s (car codes))
+          (all-wff-code-s (cdr codes))))))
+       
+(local 
+ (defthm all-wff-code-s-test 
+   (all-wff-code-s (all-code-s (all-method-decls-s (env-class-table *test.env*))))))
+
+<span class="comment">;---
+;---
+</span>
+(<span class="keyword">defun</span> <span class="function-name">wff-static-class-table</span> (scl)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:verify-guards</span> t))
+  (<span class="keyword">if</span> (not (consp scl)) t
+    (and (wff-class-rep-static (car scl))
+         (wff-static-class-table (cdr scl)))))
+
+(<span class="keyword">defun</span> <span class="function-name">class-by-name-s</span> (name scl)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-static-class-table scl)))
+  (<span class="keyword">if</span> (not (consp scl))
+      (mv nil nil)
+    (<span class="keyword">if</span> (equal (classname-s (car scl))
+               name)
+        (mv t (car scl))
+      (class-by-name-s name (cdr scl)))))
+
+
+<span class="comment">;-------
+</span>(<span class="keyword">defun</span> <span class="function-name">make-class-def</span> (raw-class) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-class-rep-static raw-class)))
+  (make-static-class-desc 
+     (classname-s raw-class)
+     (super-s     raw-class)
+     (constantpool-s raw-class)
+     (fields-s       raw-class)
+     (methods-s      raw-class)
+     (interfaces-s   raw-class)
+     (accessflags-s  raw-class)))
+       
+(<span class="keyword">defmacro</span> <span class="function-name">make-static-class-decls</span> (<span class="type">&amp;rest</span> cl)
+  (cons 'list cl))
+
+
+<span class="comment">;; (defconst *jvm-env-symbols* 
+;;   '(make-env
+;; env-class-table
+;; make-static-class-table
+;; make-static-class-desc
+;; classname-s
+;; super-s
+;; constantpool-s
+;; fields-s
+;; methods-s
+;; interfaces-s
+;; accessflags-s
+;; cpentry-type-s
+;; make-string-cp-entry-s
+;; string-value-cp-entry-s
+;; make-int-cp-entry-s
+;; int-value-cpentry-s
+;; make-long-cp-entry-s
+;; long-value-cpentry-s
+;; make-float-cp-entry-s
+;; float-value-cpentry-s
+;; make-double-cp-entry-s
+;; make-field-s
+;; field-fieldname-s
+;; field-fieldtype-s
+;; field-fieldaccessflags-s
+;; field-cpindex-s
+;; static-field?-s
+;; make-method-s
+;; method-methodname-s
+;; method-args-s
+;; method-returntype-s
+;; method-accessflags-s
+;; method-code-s
+;; make-code-s
+;; code-max-stack-s
+;; code-max-local-s
+;; code-code-length-s
+;; code-instrs-s
+;; code-handlers-s
+;; code-stackmaps-s
+;; class-by-name-s
+;; make-class-def))
+</span></pre>
+  </body>
+</html>

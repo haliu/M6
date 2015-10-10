@@ -1,0 +1,63 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>jvm-bytecode-guard-verification.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"JVM"</span>)
+(include-book <span class="string"><a href="jvm-bytecode.lisp.html">"../M6-DJVM-shared/jvm-bytecode"</a></span>)
+
+<span class="comment">;; (skip-proofs (verify-guards inst-by-offset1))
+;; (skip-proofs (verify-guards inst-by-offset))
+;; (skip-proofs (verify-guards next-inst ))
+;; (skip-proofs (verify-guards arg ))
+;; (skip-proofs (verify-guards wff-one-arg ))
+;; (skip-proofs (verify-guards local-at ))
+;; (skip-proofs (verify-guards inst-size ))
+;; (skip-proofs (verify-guards field-size))
+;; (skip-proofs (verify-guards fatalSlotError))
+</span>
+(verify-guards inst-by-offset1)
+(verify-guards inst-by-offset)
+(verify-guards next-inst )
+(verify-guards arg )
+(verify-guards wff-one-arg )
+(verify-guards local-at )
+(verify-guards inst-size )
+(verify-guards field-size)
+(verify-guards fatalSlotError)
+
+<span class="comment">;; should all be redundant!! </span></pre>
+  </body>
+</html>

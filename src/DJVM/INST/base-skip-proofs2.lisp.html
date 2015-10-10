@@ -1,0 +1,52 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-skip-proofs2.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="base.lisp.html">"base"</a></span>)
+(include-book <span class="string"><a href="base-skip-proofs.lisp.html">"base-skip-proofs"</a></span>)
+
+(skip-proofs 
+ (defthm consistent-state-not-method-native-topstackguard-implies-wff-instrs
+   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+            (wff-insts (method-code (current-method s))))))
+
+
+(skip-proofs 
+ (defthm consistent-state-not-method-native-topstackguard-implies-wff-code
+   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+            (WFF-CODE (METHOD-CODE (DEREF-METHOD (CURRENT-METHOD-PTR S)
+                                                 (INSTANCE-CLASS-TABLE S)))))))
+
+  </pre>
+  </body>
+</html>

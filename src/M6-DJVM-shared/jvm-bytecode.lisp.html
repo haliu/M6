@@ -1,0 +1,320 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>jvm-bytecode.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"JVM"</span>)
+(include-book <span class="string"><a href="jvm-thread.lisp.html">"../M6-DJVM-shared/jvm-thread"</a></span>)
+(include-book <span class="string"><a href="jvm-frame-manipulation-primitives.lisp.html">"../M6-DJVM-shared/jvm-frame-manipulation-primitives"</a></span>)
+(include-book <span class="string"><a href="jvm-linker.lisp.html">"../M6-DJVM-shared/jvm-linker"</a></span>)
+
+(acl2::set-verify-guards-eagerness 2)
+
+<span class="comment">;-- <a href="../common/primitives.lisp.html">primitives</a> for accessing instructions 
+;; because instrs is a list of (offset (opcode args))
+</span>
+(<span class="keyword">defun</span> <span class="function-name">inst-by-offset1</span> (offset instrs)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-insts instrs)))
+  (<span class="keyword">if</span> (not (consp instrs))
+      (list offset '(invalid-inst-offset))
+    (<span class="keyword">if</span> (equal (inst-offset (car instrs)) 'endofcode)
+        (list offset '(invalid-inst-offset))
+      (<span class="keyword">if</span> (equal (inst-offset (car instrs)) offset)
+          (car instrs)
+        (inst-by-offset1 offset (cdr instrs))))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">inst-by-offset</span> (offset method-rep)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-method-decl method-rep)
+                              (wff-code (method-code method-rep))
+                              (wff-insts (code-instrs (method-code method-rep))))))
+  (<span class="keyword">let</span> ((instrs (code-instrs (method-code method-rep))))
+    (inst-by-offset1 offset instrs)))
+
+
+<span class="comment">;;; this should be automatically derived!!! 
+</span>
+(<span class="keyword">defun</span> <span class="function-name">next-inst</span> (s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-state s)
+                              (CURRENT-FRAME-GUARD S)
+                              (WFF-CALL-FRAME (CURRENT-FRAME S))
+                              (WFF-METHOD-PTR (current-method-ptr s))
+                              (wff-class-table (class-table s))
+                              (WFF-INSTANCE-CLASS-TABLE 
+                               (instance-class-table s))
+                              (wff-method-decl (deref-method
+                                                (current-method-ptr s)
+                                                (instance-class-table s)))
+                              (wff-code (method-code (deref-method
+                                                      (current-method-ptr s)
+                                                      (instance-class-table s))))
+                              (wff-insts (code-instrs (method-code 
+                                                       (deref-method
+                                                        (current-method-ptr s)
+                                                        (instance-class-table s))))))))
+  (<span class="keyword">let*</span> ((ip  (pc s))
+         (method-ptr (current-method-ptr s))
+         (method-rep (deref-method method-ptr (instance-class-table s))))
+    (inst-by-offset ip method-rep)))
+
+
+<span class="comment">;--- <a href="../common/primitives.lisp.html">primitives</a> for implementing each execute-XXX 
+</span>
+<span class="comment">;; (acl2::set-verify-guards-eagerness 2)
+</span>
+(<span class="keyword">defun</span> <span class="function-name">wff-one-arg</span> (<a href="../DJVM/INST/inst.lisp.html">inst</a>)
+  (and (wff-<a href="../DJVM/INST/inst.lisp.html">inst</a> <a href="../DJVM/INST/inst.lisp.html">inst</a>)
+       (equal (len (cdr (nth 1 <a href="../DJVM/INST/inst.lisp.html">inst</a>))) 1)))
+
+<span class="comment">;; ;;
+;; ;; because of raise-exception is a conflict with jvm-exception. 
+;; ;; we can not load both M6 and DJVM at the same time...
+;; ;;
+;;;;; is it still the case?? 
+</span>
+<span class="comment">;; (defun arg (<a href="../DJVM/INST/inst.lisp.html">inst</a>)
+;;   (declare (xargs :guard (wff-one-arg <a href="../DJVM/INST/inst.lisp.html">inst</a>)))
+;;   (nth 1 (nth 1 <a href="../DJVM/INST/inst.lisp.html">inst</a>)))
+</span>
+                 
+(<span class="keyword">defun</span> <span class="function-name">arg</span> (<a href="../DJVM/INST/inst.lisp.html">inst</a>)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-one-arg <a href="../DJVM/INST/inst.lisp.html">inst</a>)))
+  (nth 1 (nth 1 <a href="../DJVM/INST/inst.lisp.html">inst</a>)))
+
+<span class="comment">;;
+;; jvm-class-table.lisp inst-arg is not used. 
+;; 
+</span>
+(<span class="keyword">defun</span> <span class="function-name">local-at</span> (i s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (current-frame-guard s)
+                              (wff-call-frame (current-frame s))
+                              (integerp i)
+                              (true-listp (locals (current-frame s)))
+                              (&lt;= 0 i)
+                              (&lt; i (len (locals (current-frame s)))))))
+  (nth i (locals (current-frame s))))
+
+<span class="comment">;; (defun local-at (i s)
+;;   (declare (xargs :guard (and (<a href="../DJVM/consistent-state.lisp.html">consistent-state</a> s)
+;;                               (integerp i)
+;;                               (&lt;= 0 i)
+;;                               (&lt; i (len (locals (current-frame s)))))))
+;;   (nth i (locals (current-frame s))))
+</span>
+
+<span class="comment">;; (acl2::set-verify-guards-eagerness 0)
+</span>
+<span class="comment">;-- top level loop ---
+</span>
+
+
+<span class="comment">;; in principle, those callback function should always pop off the topframe 
+;; or advance the ip to execute the next instruction 
+</span>
+<span class="comment">;; in case of runClinit is pop off the frame when it finishes the initializing
+;; the class. 
+;; in case of initInitialThreadBehaviror, it is the first frame in any
+;; execution. The result of excuting initInitialThreadBehavior is we create a
+;; new frame on top of this first frame. We set the return address of that new
+;; frame to be 'KILL_THREAD. System will terminates when we finished with the
+;; excuting the new frame with a return.
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name"><a href="../DJVM/INST/inst.lisp.html">inst</a>-size</span> (<a href="../DJVM/INST/inst.lisp.html">inst</a>)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-<a href="../DJVM/INST/inst.lisp.html">inst</a> <a href="../DJVM/INST/inst.lisp.html">inst</a>)))
+  (<span class="keyword">case</span> (<a href="../DJVM/INST/inst.lisp.html">inst</a>-opcode <a href="../DJVM/INST/inst.lisp.html">inst</a>)
+    (CUSTOMCODE    1)
+
+    (ICONST_0      1)
+    (ICONST_1      1)
+    (ICONST_2      1)
+    (ICONST_3      1)
+    (ICONST_4      1)
+    (ICONST_5      1)
+    (ICONST_M1     1)
+
+
+    (JVM::LCONST_0  1)
+    (JVM::LCONST_1  1)
+    (JVM::LCMP      1)
+    
+    (<a href="../DJVM/INST/ACONST_NULL.lisp.html">ACONST_NULL</a>   1)
+    
+
+    (ISTORE        2)
+    (ISTORE_0      1)
+    (ISTORE_1      1)
+    (ISTORE_2      1)   
+    (ISTORE_3      1)   
+
+    (ILOAD         2)
+    (ILOAD_0       1)
+    (ILOAD_1       1)
+    (ILOAD_2       1)
+    (ILOAD_3       1)
+
+
+    (<a href="../DJVM/INST/ASTORE.lisp.html">ASTORE</a>        2)
+    (ASTORE_0      1)
+    (ASTORE_1      1)
+    (ASTORE_2      1)   
+    (ASTORE_3      1)   
+
+    (<a href="../DJVM/INST/ALOAD.lisp.html">ALOAD</a>         2)
+    (ALOAD_0       1)
+    (ALOAD_1       1)
+    (ALOAD_2       1)
+    (ALOAD_3       1)
+
+    (<a href="../DJVM/INST/AALOAD.lisp.html">AALOAD</a>        1)
+    (<a href="../DJVM/INST/AASTORE.lisp.html">AASTORE</a>       1)
+
+    (IALOAD        1)
+    (IASTORE       1)
+
+
+
+    (LALOAD        1)
+    (LASTORE       1)
+
+    (BALOAD        1)
+    (BASTORE       1)
+
+    (CALOAD        1)
+    (CASTORE       1)
+
+    (SALOAD        1)
+    (SASTORE       1)
+
+    (IADD          1)
+    (IINC          3)
+    (INEG          1)
+
+    (IMUL          1)
+    (IDIV          1)
+    (IREM          1)
+
+
+    (ISUB          1)
+
+    (POP           1)
+    (POP2          1)
+
+    (NEWARRAY      2)
+    (ARRAYLENGTH   1)
+
+
+    (MONITORENTER  1)
+    (MONITOREXIT   1)
+
+    (CHECKCAST     3)
+
+
+    (RETURN        1)
+    (NEW           3)
+    (DUP           1)
+    (DUP_X1        1)
+    (DUP_X2        1)
+    (DUP2          1)
+    (DUP2_X1       1)
+    (DUP2_X2       1)
+
+
+    (INVOKESPECIAL 3)
+    (INVOKESTATIC  3)
+    (INVOKEVIRTUAL 3)
+    (INVOKEINTERFACE 5)
+    (PUTFIELD      3)
+
+    (<a href="../DJVM/INST/GETFIELD.lisp.html">GETFIELD</a>      3)
+    (GETSTATIC     3)
+
+    (PUTSTATIC     3)
+    (BIPUSH        2)
+
+    (CASTORE       1)
+    (PUTSTATIC     3)
+    (LDC           2)
+    (IFNULL        3)
+    (IFNONNULL     3)
+    (<a href="../DJVM/INST/IFEQ.lisp.html">IFEQ</a>          3)
+    (IFNE          3)
+    (IFLT          3)
+    (IFGE          3)
+    (IFGT          3)
+    (IFLE          3)
+    (IF_ICMPEQ     3)
+    (IF_ICMPNE     3)
+    (IF_ICMPLT     3)
+    (IF_ICMPGE     3)
+    (IF_ICMPGT     3)
+    (IF_ICMPLE     3)
+    (GOTO          3)
+    (IRETURN       1)
+    (RETURN        1)
+    (ARETURN       1)
+    (ATHROW        1)
+    (JSR           3)
+    (RET           2)
+    (t             0)))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">; moved from m6-bytecode.lisp
+</span>
+(<span class="keyword">defun</span> <span class="function-name">field-size</span> (field-rep) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-field field-rep)))
+  (type-size (field-fieldtype field-rep)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">fatalSlotError</span> (fieldCP s)
+   (<span class="keyword">declare</span> (ignore fieldCP))
+   (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-state s)))
+   (fatalError <span class="string">"field not found"</span> s))
+
+
+
+</pre>
+  </body>
+</html>

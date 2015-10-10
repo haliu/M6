@@ -1,0 +1,1237 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>jvm-loader-guard-verification-support-load-cp-guard.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"JVM"</span>)
+(include-book <span class="string"><a href="jvm-loader.lisp.html">"../M6-DJVM-shared/jvm-loader"</a></span>)
+(include-book <span class="string"><a href="jvm-dynamic-loading-property.lisp.html">"../M6-DJVM-shared/jvm-dynamic-loading-property"</a></span>)
+
+(local (encapsulate ()
+
+     (<span class="keyword">defun</span> <span class="function-name">wff-class-table-state</span> (s)
+       (wff-class-table (class-table s)))
+
+     (<span class="keyword">defun</span> <span class="function-name">wff-heap-state</span> (s)
+       (wff-heap (heap s)))
+
+     <span class="comment">;;
+</span>     <span class="comment">;; we define a equiv relation, we know most operation will preserve, except 
+</span>     <span class="comment">;; the extension to the instance-class-table. 
+</span>     <span class="comment">;;
+</span>
+     (<span class="keyword">defun</span> <span class="function-name">equiv-state-instance-class-table</span> (s1 s2)
+       (and (equal (wff-state s1) (wff-state s2))
+            (equal (wff-class-table-state s1) (wff-class-table-state s2))
+            (equal (wff-heap-state s1) (wff-heap-state s2))
+            (equal (env s1) (env s2))
+            (equal (loader-inv s1) (loader-inv s2))
+            (equal (instance-class-table s1)
+                   (instance-class-table s2))))
+
+
+     (defequiv equiv-state-instance-class-table
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (wff-heap wff-state wff-class-table)))))
+
+     (defcong equiv-state-instance-class-table equal (instance-class-table s) 1)
+     (defcong equiv-state-instance-class-table equal (env s) 1)
+     (defcong equiv-state-instance-class-table equal (wff-state s) 1)
+     (defcong equiv-state-instance-class-table equal (wff-class-table-state s) 1)
+     (defcong equiv-state-instance-class-table equal (wff-heap-state s) 1)
+     (defcong equiv-state-instance-class-table equal (loader-inv s) 1)
+
+     (in-theory (disable equiv-state-instance-class-table))
+
+
+     (local 
+      (defthm wff-class-table-class-table-norm
+        (equal (wff-class-table (class-table s))
+               (wff-class-table-state s))))
+
+     (in-theory (disable wff-class-table-state))
+
+
+     (local 
+      (defthm wff-heap-heap-norm
+        (equal (wff-heap (heap s))
+               (wff-heap-state s))))
+
+     (in-theory (disable wff-heap-state))
+
+
+     <span class="comment">;;
+</span>     <span class="comment">;; we define another equiv on pairs that we know load_cp_entry will return. 
+</span>     <span class="comment">;;
+</span>     <span class="comment">;; (maybe we should use local)
+</span>
+     (<span class="keyword">defun</span> <span class="function-name">equiv-two-tuple</span> (t1 t2)
+       (and (equal (mv-nth 0 t1) (mv-nth 0 t2))
+            (equiv-state-instance-class-table (mv-nth 1 t1) (mv-nth 1 t2))))
+
+
+     (defequiv equiv-two-tuple)
+
+     (<span class="keyword">defun</span> <span class="function-name">slot1</span> (tuple)
+       (mv-nth 0 tuple))
+
+     (<span class="keyword">defun</span> <span class="function-name">slot2</span> (tuple)
+       (mv-nth 1 tuple))
+
+
+     (defcong equiv-two-tuple equal (slot1 tuple) 1)
+     (defcong equiv-two-tuple equiv-state-instance-class-table (slot2 tuple) 1)
+
+     (in-theory (disable equiv-two-tuple))
+
+
+     <span class="comment">;----------------------------------------------------------------------
+</span>     <span class="comment">;
+</span>     <span class="comment">; (defthm load_cp_entry_guard_preserved_by_load_class
+</span>     <span class="comment">;   (implies (and (load_cp_entry_guard any s)
+</span>     <span class="comment">;                 (loader-inv s))
+</span>     <span class="comment">;            (load_cp_entry_guard cp (load_class anyx s))))
+</span>
+     <span class="comment">; shall we try more systematic way? (enable state-set *** )
+</span>
+     (in-theory (enable state-set-current-thread class-loaded?))
+     (in-theory (disable accessflags-s constantpool-s aux loader-inv wff-class-rep
+                         wff-class-table wff-env))
+
+     (defthm class-loaded-load_class_x_3
+       (implies (class-loaded? x s)
+                (equal (load_class_x x s seen 3)
+                       s)))
+
+     (defcong equiv-state-instance-class-table
+       equal (build-immediate-instance-data-guard any s) 2)
+     (in-theory (disable build-immediate-instance-data-guard))
+
+
+     (defcong equiv-state-instance-class-table
+       equal (build-a-java-visible-instance-data-guard any s) 2
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable build-a-java-visible-instance-guard))))
+
+
+
+     (defthm wff-state-equiv-state-instance-class-table
+       (implies (and (wff-state s1) 
+                     (equiv-state-instance-class-table s2 s1)
+                     (syntaxp (&gt; (acl2-count s2)
+                                 (acl2-count s1))))
+                (equal (build-a-java-visible-instance-guard any s2)
+                       (build-a-java-visible-instance-guard any s1)))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (build-a-java-visible-instance-guard)
+                                       (equiv-state-instance-class-table)))))
+
+     (defthm equiv-state-instance-class-table-if-wff
+       (mylet* ((ns (MAKE-STATE (PC S)
+                                (CURRENT-THREAD S)
+                                (HEAP S)
+                                (THREAD-TABLE S)
+                                (CLASS-TABLE S)
+                                (ENV S)
+                                (ERROR-FLAG S)
+                                (AUX S))))
+       (implies (wff-state s)
+                (equiv-state-instance-class-table ns s)))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (equiv-state-instance-class-table 
+                                        loader-inv wff-class-table-state
+                                        wff-heap-state)
+                                       (wff-class-table-class-table-norm
+                                        wff-heap-heap-norm)))))
+
+
+     (defthm equiv-state-instance-class-table-if-wff-specific
+       (mylet* ((ns (MAKE-STATE (PC S)
+                                (CURRENT-THREAD S)
+                                (HEAP S)
+                                (THREAD-TABLE S)
+                                (CLASS-TABLE S)
+                                (ENV S)
+                                (ERROR-FLAG S)
+                                (AUX S))))
+       (implies (wff-state s)
+                (equal (equiv-state-instance-class-table ns s) t)))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (equiv-state-instance-class-table 
+                                        loader-inv wff-class-table-state
+                                        wff-heap-state)
+                                       (wff-class-table-class-table-norm
+                                        wff-heap-heap-norm)))))
+
+
+     <span class="comment">;;;        
+</span>     <span class="comment">;;; proved the case where "class_loaded?" is true.
+</span>     <span class="comment">;;;
+</span>
+     <span class="comment">; (defthm load_cp_entry_guard_preserved_by_load_class
+</span>     <span class="comment">;    (implies (and (load_cp_entry_guard cp s)
+</span>     <span class="comment">;                  (wff-state s)
+</span>     <span class="comment">;                  (loader-inv s))
+</span>     <span class="comment">;             (load_cp_entry_guard cp (load_class anyx s)))
+</span>     <span class="comment">;    :hints (("Goal" :in-theory (e/d () (loader-inv))
+</span>     <span class="comment">;             :restrict ((wff-state-equiv-state-instance-class-table
+</span>     <span class="comment">;                         ((s1 s))))
+</span>     <span class="comment">;             :cases ((not (class-loaded? anyx s))))))
+</span>
+     <span class="comment">;;;
+</span>     <span class="comment">;;; now we need to deal with more difficult part. where class table changes! 
+</span>     <span class="comment">;;;
+</span>     <span class="comment">;(i-am-here)
+</span>
+     <span class="comment">; (defthm equiv-state-instance-class-table-if-wff-specific-2
+</span>     <span class="comment">;   (mylet* ((ns (MAKE-STATE pc 
+</span>     <span class="comment">;                            any
+</span>     <span class="comment">;                            hp
+</span>     <span class="comment">;                            (THREAD-TABLE S)
+</span>     <span class="comment">;                            (CLASS-TABLE S)
+</span>     <span class="comment">;                            (ENV S)
+</span>     <span class="comment">;                            (ERROR-FLAG S)
+</span>     <span class="comment">;                            (AUX S))))
+</span>     <span class="comment">;   (implies (wff-state s)
+</span>     <span class="comment">;            (equal (equiv-state-instance-class-table ns s) t)))
+</span>     <span class="comment">;   :hints (("Goal" :in-theory (e/d (equiv-state-instance-class-table 
+</span>     <span class="comment">;                                    loader-inv wff-class-table-state
+</span>     <span class="comment">;                                    wff-heap-state)
+</span>     <span class="comment">;                                   (wff-class-table-class-table-norm
+</span>     <span class="comment">;                                    wff-heap-heap-norm)))))
+</span>
+
+                             
+     (defthm wff-heap-state-load_cp_entry
+       (implies (wff-heap (heap s))
+                (wff-heap (heap (mv-nth 1 (load_cp_entry cp s)))))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (load_cp_entry wff-heap)
+                                       (wff-heap-heap-norm)))))
+
+     (defthm wff-heap-state-load_cp_entries
+       (implies (wff-heap (heap s))
+                (wff-heap (heap (mv-nth 1 (load_cp_entries cps s)))))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (wff-heap-heap-norm)))))
+
+     (defthm wff-heap-bind
+       (implies (wff-heap hp)
+                (wff-heap (bind x v hp)))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable wff-heap))))
+                
+
+
+     (defthm wff-heap-state-load_class2
+       (implies (wff-heap (heap s))
+                (wff-heap (heap (load_class2 any s))))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (wff-heap-state load_class2)
+                                       (wff-heap-heap-norm)))))
+
+
+     (defthm wff-heap-state-load_class_x
+       (implies (wff-heap-state s)
+                (wff-heap-state (load_class_x any s seen mode)))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (wff-heap-state)
+                                       (wff-heap-heap-norm)))))
+
+     (defthm wff-heap-state-implies-wff-heap
+       (equal (wff-heap-state 
+               (MAKE-STATE anypc 
+                           anythread
+                           (heap s)
+                           anytt
+                           anycl
+                           anyenv
+                           anyef
+                           anyaux))
+              (wff-heap-state s))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (wff-heap-state)
+                                       (wff-heap-heap-norm)))))
+
+     <span class="comment">;; now we have proved simple assertions of in the load_cp_entry_guard
+</span>     <span class="comment">;; 
+</span>     <span class="comment">;; We need to deal with build-a-java-visible-instance-guard.
+</span>     <span class="comment">;;
+</span>     <span class="comment">;; The current approach is leaving update enabled. So the state is always of
+</span>     <span class="comment">;; form make-state ....  We chose to enable build-a-java-visible-instance-guard
+</span>     <span class="comment">;; so that the proof naturally reveals the dependency on class-table.
+</span>
+     <span class="comment">;; 
+</span>             
+
+     (defthm wff-class-table-state-load_class2
+       (implies (wff-class-table (class-table s))
+                (wff-class-table (class-table (load_class2 any s))))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (load_class2)
+                                       (wff-class-table-class-table-norm)))))
+
+     (defthm wff-class-table-state-load_class_x
+       (implies (wff-class-table-state s)
+                (wff-class-table-state (load_class_x any s seen mode)))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (wff-class-table-state)
+                                       (wff-class-table-class-table-norm)))))
+
+
+
+
+     (defthm wff-class-table-implies-wff-class-table
+       (equal (wff-class-table-state  
+               (MAKE-STATE anypc 
+                           anythread
+                           anyheap
+                           anytt
+                           (class-table s)
+                           anyenv
+                           anyef
+                           anyaux))
+              (wff-class-table-state s))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (wff-class-table-state)
+                                       (wff-class-table-class-table-norm)))))
+
+
+     (defthm wff-instance-class-table-implies-wff-instance-class-table
+       (equal (wff-instance-class-table
+               (instance-class-table
+                (MAKE-STATE anypc 
+                            anythread
+                            anyheap
+                            anytt
+                            (class-table s)
+                            anyenv
+                            anyef
+                            anyaux)))
+              (wff-instance-class-table (instance-class-table s))))
+
+
+     (defthm wff-class-rep-MAKE-RUNTIME-CLASS-REP-generalize
+       (implies (and (wff-class-rep-static class-desc)
+                     (integerp new-address)
+                     (true-listp dynamic-cp))
+                (wff-class-rep (make-runtime-class-rep 
+                                classname
+                                (super-s class-desc)
+                                dynamic-cp
+                                (runtime-instance-fields-rep1 
+                                 (fields-s class-desc) classname)                    
+                                (runtime-methods-rep1 
+                                 (methods-s class-desc) classname)
+                                (interfaces-s class-desc)
+                                (runtime-static-fields-rep1 
+                                 (fields-s class-desc) classname dynamic-cp)
+                                any
+                                (accessflags-s class-desc) 
+                                -1            
+                                new-address)))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable  accessflags-s
+                                   wff-class-rep-static interfaces-s
+                                   make-runtime-class-rep wff-class-rep))))
+
+
+
+     (defthm wff-instance-class-table-add-instance-class-rep
+       (implies (and (wff-instance-class-table cl)
+                     (wff-class-rep class))
+                (wff-instance-class-table (add-instance-class-entry class cl)))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable wff-instance-class-table 
+                                          add-instance-class-entry))))
+
+
+     (defthm wff-instance-class-table-preserved-by-load_class_x2-weak
+       (implies (and (wff-instance-class-table (instance-class-table s))
+                     (wff-static-class-table (external-class-table s)))
+                (wff-instance-class-table (instance-class-table (load_class2 any
+                                                                             s))))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (load_class2)
+                                       (make-runtime-class-rep)))))
+
+
+     (defthm wff-instance-class-table-preserved-by-load_class_x-weak
+       (implies (and (wff-instance-class-table (instance-class-table s))
+                     (wff-static-class-table (external-class-table s)))
+                (wff-instance-class-table (instance-class-table (load_class_x any s seen mode)))))
+
+
+
+     <span class="comment">;; from jvm-loader.lisp we have: 
+</span>     <span class="comment">;
+</span>     <span class="comment">; (defcong equiv-state-except-thread-and-trace equiv-state-except-thread-and-trace
+</span>     <span class="comment">;   (load_class_x p s seen mode) 2
+</span>     <span class="comment">;   :hints (("Goal" :do-not '(generalize fertilize)
+</span>     <span class="comment">;            :induct (load_class_x_induct p s s-equiv seen mode))))
+</span>     <span class="comment">;
+</span>
+     <span class="comment">;; (i-am-here) ;; Sun Nov  7 17:57:15 2004
+</span>
+     <span class="comment">;; Fri Nov  5 13:41:44 2004
+</span>
+     <span class="comment">;; (defthm equiv-state-instance-class-table-make-thread
+</span>     <span class="comment">;;   (equiv-state-instance-class-table
+</span>     <span class="comment">;;    (MAKE-STATE any_pc
+</span>     <span class="comment">;;                any_thread
+</span>     <span class="comment">;;                (HEAP S)
+</span>     <span class="comment">;;                any_thread_table
+</span>     <span class="comment">;;                (CLASS-TABLE S)
+</span>     <span class="comment">;;                (ENV S)
+</span>     <span class="comment">;;                (ERROR-FLAG S)
+</span>     <span class="comment">;;                any_aux)
+</span>     <span class="comment">;;    s)
+</span>     <span class="comment">;;   :hints (("Goal" :in-theory (enable equiv-state-instance-class-table equiv-aux))))
+</span>
+     <span class="comment">;;;   
+</span>     <span class="comment">;;; add the extra assertion, make the following fails.
+</span>     <span class="comment">;;; 
+</span>     <span class="comment">;;; Fri Nov  5 13:44:41 2004
+</span>     <span class="comment">;;;
+</span>
+
+     (<span class="keyword">defun</span> <span class="function-name">equiv-state-except-thread-and-trace2</span> (s1 s2) 
+       (and <span class="comment">;(equal (pc s1) (pc s2))
+</span>            <span class="comment">;(equal (thread-table s1) (thread-table s2))
+</span>            (equal (heap s1) (heap s2))
+            (equal (class-table s1) (class-table s2))
+            (equal (env s1) (env s2))
+            (equal (error-flag s1) (error-flag s2))))
+
+
+     (defequiv equiv-state-except-thread-and-trace2)
+
+
+     (<span class="keyword">defun</span> <span class="function-name">equiv-tuple-load2</span> (tuple1 tuple2)
+       (and (equal (mv-nth 0 tuple1) 
+                   (mv-nth 0 tuple2))
+            (equiv-state-except-thread-and-trace2 (mv-nth 1 tuple1)
+                                                  (mv-nth 1 tuple2))))
+
+     <span class="comment">;; (defun slot1-tuple-load (tuple)
+</span>     <span class="comment">;;   (mv-nth 0 tuple))
+</span>
+     <span class="comment">;; (defun slot2-tuple-load (tuple)
+</span>     <span class="comment">;;   (mv-nth 1 tuple))
+</span>
+     <span class="comment">;; ;(i-am-here)
+</span>
+     (defequiv equiv-tuple-load2)
+
+
+     (defcong equiv-state-except-thread-and-trace2 equiv-tuple-load2
+       (load_cp_entry cp s) 2
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable load_cp_entry))))
+
+
+     (local (defthm mv-to-slot 
+              (and (equal (mv-nth 0 tuple)
+                          (slot1-tuple-load tuple))
+                   (equal (mv-nth 1 tuple)
+                          (slot2-tuple-load tuple)))
+              <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable slot2-tuple-load
+                                                 slot1-tuple-load)))))
+
+
+
+
+     (in-theory (disable slot2-tuple-load slot1-tuple-load)) 
+
+     (defcong equiv-tuple-load2 equiv-state-except-thread-and-trace2
+       (slot2-tuple-load tuple) 1)
+
+     (defcong equiv-tuple-load2 equal
+       (slot1-tuple-load tuple) 1)
+
+     (defcong equiv-state-except-thread-and-trace2 equal (class-table s) 1)
+     (defcong equiv-state-except-thread-and-trace2 equal (heap s) 1)
+     (defcong equiv-state-except-thread-and-trace2 equal (error-flag s) 1)
+     (defcong equiv-state-except-thread-and-trace2 equal (env s) 1)
+
+     (in-theory (disable equiv-state-except-thread-and-trace2))
+
+
+
+
+     (defcong equiv-state-except-thread-and-trace2 equiv-tuple-load2 
+       (load_cp_entries cps s) 2
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable equiv-state-except-thread-and-trace2))))
+
+
+     <span class="comment">;(i-am-here)
+</span>     (in-theory (disable equiv-tuple-load2))
+
+     (defthm equiv-state-except-thread-and-trace2-make-state
+       (equal (equiv-state-except-thread-and-trace2 
+               (make-state anypc1
+                           anyth1
+                           hp
+                           anytt1
+                           cl
+                           env
+                           ef
+                           anyaux1)
+               (make-state anypc2
+                           anyth2
+                           hp
+                           anytt2
+                           cl
+                           env
+                           ef
+                           anyaux2)) t)
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable equiv-state-except-thread-and-trace2))))
+                    
+
+
+     (defcong equiv-state-except-thread-and-trace2
+       equiv-state-except-thread-and-trace2
+       (fatalError any s) 2
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable equiv-state-except-thread-and-trace2
+                                          fatalError))))
+
+
+
+     (defcong equiv-state-except-thread-and-trace2 equiv-tuple-load2
+       (build-an-instanceClass c s) 2
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (equiv-tuple-load2 slot1-tuple-load) 
+                                       (mv-to-slot
+                                        equiv-state-except-thread-and-trace2)))))
+
+     (defcong equiv-state-except-thread-and-trace2 equal 
+       (instance-class-table s) 1
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (instance-class-table) ()))))
+
+     (defcong equiv-state-except-thread-and-trace2 equal 
+       (array-class-table s) 1
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (array-class-table) ()))))
+
+
+     (defcong equiv-state-except-thread-and-trace2 equiv-state-except-thread-and-trace2
+       (load_class2 p s) 2
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (load_class2)
+                                       (build-an-instanceClass)))))
+
+     <span class="comment">; (defthm fatalerror-equiv-state-state
+</span>     <span class="comment">;   (EQUIV-STATE-EXCEPT-THREAD-AND-TRACE
+</span>     <span class="comment">;    (FATALERROR any S) s)
+</span>     <span class="comment">;   :hints (("Goal" :in-theory (enable equiv-state-except-thread-and-trace fatalerror))))
+</span>
+     (defcong equiv-state-except-thread-and-trace2 equal 
+       (no-fatal-error? s) 1
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (no-fatal-error?) ()))))
+
+
+     (defcong equiv-state-except-thread-and-trace2 equal (class-loaded? p s) 2
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable class-loaded?))))
+       
+
+     (defcong equiv-state-except-thread-and-trace2 equiv-state-except-thread-and-trace2
+       (load_class_x p s seen mode) 2
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize fertilize)
+                <span class="builtin">:induct</span> (load_class_x_induct p s s-equiv seen mode))))
+
+
+     (defthm equiv-state-except-thread-and-trace2-make-state-case
+       (equiv-state-except-thread-and-trace2
+        (MAKE-STATE any_pc
+                    any_thread
+                    (HEAP S)
+                    any_thread_table
+                    (CLASS-TABLE S)
+                    (ENV S)
+                    (ERROR-FLAG S)
+                    any_aux)
+        s)
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable equiv-state-except-thread-and-trace2))))
+
+
+     <span class="comment">;;(skip-proofs 
+</span>     (defthm change-current-thread-does-not-change-class-table
+        <span class="comment">;; what really care about is the relation between classes!!
+</span>        (equal (INSTANCE-CLASS-TABLE (LOAD_CLASS_X ANYX
+                                                   (MAKE-STATE any_pc
+                                                               any_thread
+                                                               (HEAP S)
+                                                               any_thread_table
+                                                               (CLASS-TABLE S)
+                                                               (ENV S)
+                                                               (ERROR-FLAG S)
+                                                               any_aux)
+                                                   seen mode))
+               (INSTANCE-CLASS-TABLE (LOAD_CLASS_X ANYX s seen mode)))
+        <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable load_class_x))))
+
+
+     <span class="comment">;; this is not quite true. if we do not have some extra assertions on 
+</span>     <span class="comment">;; instance-class-table 
+</span>
+     (<span class="keyword">defun</span> <span class="function-name">all-found?</span> (names env-cl)
+       (<span class="keyword">if</span> (endp names) t
+         (mv-let (found class-desc)
+                 (class-by-name-s (car names) env-cl)
+                 (<span class="keyword">declare</span> (ignore class-desc))
+                 (and found
+                      (all-found? (cdr names) env-cl)))))
+
+     <span class="comment">; (defthm not-nil-collect-super-implies-bounded?
+</span>     <span class="comment">;   (implies (and (collect-superclass-list1 classname cl seen)
+</span>     <span class="comment">;                 (wff-instance-class-table cl))
+</span>     <span class="comment">;            (mem classname (collect-superclass-list1 classname cl seen))))
+</span>       
+     (local (in-theory (disable mv-to-slot)))
+
+     (defthm not-found-in-env-cl-not-class-term
+       (implies (and (not (car (class-by-name-s classname env-cl)))
+                     (all-found? (all-class-names cl) env-cl))
+                (not (class-by-name classname cl))))
+
+
+     (defthm all-correctly-loaded-implies-collect-superclass-list
+       (implies (and (all-correctly-loaded? 
+                       (collect-superclassname1 classname env-cl seen)
+                       cl 
+                       env-cl)
+                     (all-found? (all-class-names cl) env-cl))
+                (equal (collect-superclass-list1 classname cl seen)
+                       (collect-superclassname1 classname env-cl seen)))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(fertilize)
+                <span class="builtin">:in-theory</span> (enable correctly-loaded?))))
+
+
+     (defthm all-correctly-loaded?-app-list
+       (implies (all-correctly-loaded? (app a b) cl env-cl)
+                (all-correctly-loaded? a cl env-cl))
+       <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+     (defthm loader-inv-helper1-implies-all-correctly-loaded
+       (implies (and (mem any (all-class-names l))
+                     (loader-inv-helper l cl env-cl))
+                (all-correctly-loaded? (collect-superclassname1 any env-cl nil)
+                                       cl env-cl))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:induct</span> (loader-inv-helper l cl env-cl)
+                <span class="builtin">:do-not</span> '(generalize)
+                <span class="builtin">:in-theory</span> (enable collect-assignableToName))))
+
+     (defthm class-loaded-implies
+       (implies (class-loaded? any s)
+                (mem any (all-class-names (instance-class-table s)))))
+
+     (defthm loader-inv-implies
+       (implies (and (loader-inv s)
+                     (no-fatal-error? s))
+                (loader-inv-helper (instance-class-table s) 
+                                   (instance-class-table s)
+                                   (external-class-table s)))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable loader-inv))))
+
+
+     (defthm loader-inv-loaded-class-implies-all-correctly-loaded
+       (implies (and (class-loaded? any s)
+                     (no-fatal-error? s)
+                     (loader-inv s))
+                (all-correctly-loaded? (collect-superclassname1 any 
+                                                                (external-class-table s)
+                                                                nil)
+                                       (instance-class-table s)
+                                       (external-class-table s)))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable external-class-table)
+                <span class="builtin">:restrict</span> ((loader-inv-helper1-implies-all-correctly-loaded
+                            ((l (instance-class-table s)))))
+                <span class="builtin">:do-not</span> '(generalize)
+                <span class="builtin">:do-not-induct</span> t)))
+                                       
+     (defthm loader-inv-helper-implies-all-found?
+       (implies (loader-inv-helper l cl env-cl)
+                (all-found? (all-class-names l) env-cl))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize fertilize)
+                <span class="builtin">:in-theory</span> (enable collect-assignableToName
+                                   correctly-loaded?))))
+
+
+     (defthm loaded-in-a-loader-inv-state-superchain-is-fixed
+       (implies (and (class-loaded? any s)
+                     (no-fatal-error? s)
+                     (loader-inv s))
+                (equal (collect-superclass-list1 any (instance-class-table s) nil)
+                       (collect-superclassname1 any (external-class-table s) nil)))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:restrict</span>
+                ((all-correctly-loaded-implies-collect-superclass-list
+                  ((env-cl (external-class-table s))))
+                 (loader-inv-helper-implies-all-found?
+                  ((cl (instance-class-table s)))))
+                <span class="builtin">:do-not-induct</span> t
+                <span class="builtin">:in-theory</span> (disable external-class-table))))
+
+     <span class="comment">;;; Wed Jun 30 14:14:43 2004. HERE: this is good. However, this is not the way
+</span>     <span class="comment">;;; to do prove the following: loading some other class does not affect 
+</span>     <span class="comment">;;; the collect-superclassname1. 
+</span>     <span class="comment">;;;
+</span>     <span class="comment">;;; We will show even there is a fatal error, we can still prove that property.
+</span>     <span class="comment">;;; (Do we need such a strong theorem?)
+</span>     <span class="comment">;;; Wed Jun 30 14:17:50 2004
+</span>     <span class="comment">;;;
+</span>     <span class="comment">;;; Maybe we can get away with adding no-fatal-error assertions everywhere.  In
+</span>     <span class="comment">;;; our current implementation, we know this fatal error during class loading
+</span>     <span class="comment">;;; will not corrupt the existing classes, which may not be always true.
+</span>     <span class="comment">;;; 
+</span>     <span class="comment">;;;
+</span>
+     (defthm collect-superclassname1-does-not-change
+       (mylet* ((ns (load_class_x anyx s ss mode)))
+               (equal (external-class-table ns)
+                      (external-class-table s))))
+               
+
+     (defthm class-loaded?-is-perserved
+       (implies (class-loaded? any s)
+                (class-loaded? any (load_class2 anyx s)))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable load_class2 add-instance-class-entry))))
+
+
+     (defthm class-loaded-make-state-equal
+       (equal (class-loaded? any (make-state any_pc 
+                                             any_th
+                                             any_hp
+                                             any_thread_table
+                                             (class-table s)
+                                             any_env
+                                             any_ef
+                                             any_aux))
+              (class-loaded? any s)))
+
+     (defthm class-loaded?-is-perserved-by-load_class_x
+       (implies (class-loaded? any s)
+                (class-loaded? any (load_class_x anyx s ss mode)))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable class-loaded?))))
+
+
+     (defthm once-loaded-superchain-does-not-change
+       (implies (and (class-loaded? any s)
+                     (no-fatal-error? s)
+                     (no-fatal-error? (load_class_x anyx s ss 3))
+                     (loader-inv s))
+                (equal (collect-superclass-list1 any 
+                                                 (instance-class-table
+                                                  (load_class_x anyx s ss 3)) nil)
+                       (collect-superclass-list1 any 
+                                                 (instance-class-table s)
+                                                 nil)))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not-induct</span> t
+                <span class="builtin">:in-theory</span> (disable external-class-table no-fatal-error? class-loaded?))))
+
+     <span class="comment">;;
+</span>     <span class="comment">;; only care about the mode 3. which corresponds to load_class
+</span>     <span class="comment">;;
+</span>
+
+     <span class="comment">;; Superclass chain does not change because of loading!!
+</span>     <span class="comment">;
+</span>     <span class="comment">;
+</span>     <span class="comment">; (defthm once-loaded-superchain-does-not-change
+</span>     <span class="comment">;   (implies (and (class-loaded? any s)
+</span>     <span class="comment">;                 (no-fatal-error? s)
+</span>     <span class="comment">;                 (no-fatal-error? (load_class_x anyx s ss mode))
+</span>     <span class="comment">;                 (loader-inv s))
+</span>     <span class="comment">;            (equal (collect-superclass-list1 any 
+</span>     <span class="comment">;                                             (instance-class-table
+</span>     <span class="comment">;                                              (load_class_x anyx s ss mode)) nil)
+</span>     <span class="comment">;                   (collect-superclass-list1 any 
+</span>     <span class="comment">;                                             (instance-class-table s)
+</span>     <span class="comment">;                                             nil)))
+</span>     <span class="comment">;   :hints (("Goal" :do-not-induct t
+</span>     <span class="comment">;            :in-theory (disable external-class-table no-fatal-error? class-loaded?))))
+</span>
+     <span class="comment">;; important lemma.
+</span>     <span class="comment">;;
+</span>
+     <span class="comment">; &gt;V d          (DEFUN
+</span>     <span class="comment">;                BUILD-IMMEDIATE-INSTANCE-DATA-GUARD
+</span>     <span class="comment">;                (CLASS-NAME S)
+</span>     <span class="comment">;                (AND
+</span>     <span class="comment">;                 (WFF-STATE S)
+</span>     <span class="comment">;                 (WFF-CLASS-TABLE (CLASS-TABLE S))
+</span>     <span class="comment">;                 (WFF-INSTANCE-CLASS-TABLE (INSTANCE-CLASS-TABLE S))
+</span>     <span class="comment">;                 (WFF-CLASS-REP
+</span>     <span class="comment">;                      (CLASS-BY-NAME CLASS-NAME (INSTANCE-CLASS-TABLE S)))
+</span>     <span class="comment">;                 (WFF-CLASS-FIELDS
+</span>     <span class="comment">;                  (FIELDS
+</span>     <span class="comment">;                       (CLASS-BY-NAME CLASS-NAME (INSTANCE-CLASS-TABLE S))))))
+</span>
+
+     (<span class="keyword">defun</span> <span class="function-name">build-immediate-instance-data-guard-alternative</span> (class-name cl)
+       (and (wff-class-rep (class-by-name class-name cl))
+            (wff-class-fields (fields (class-by-name class-name cl)))))
+
+     (defthm build-immediate-instance-data-guard-alternative-extension
+       (implies (and (build-immediate-instance-data-guard-alternative classname cl)
+                     (not (equal (classname new-class) classname)))
+                (build-immediate-instance-data-guard-alternative classname
+                                                                 (add-instance-class-entry 
+                                                                   new-class cl)))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable add-instance-class-entry))))
+
+     (defthm build-immediate-instance-data-guard-implied-by
+       (implies (and (build-immediate-instance-data-guard-alternative classname 
+                                                                      (instance-class-table s))
+                     (wff-state s)
+                     (wff-instance-class-table (instance-class-table s))
+                     (wff-class-table (class-table s)))
+                (build-immediate-instance-data-guard classname s))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable build-immediate-instance-data-guard))))
+
+     <span class="comment">;;; For proving the following 
+</span>     <span class="comment">; (skip-proofs
+</span>     <span class="comment">;  (defthm
+</span>     <span class="comment">;    build-immediate-instance-data-guard-alternative-perserved-by-load_class_x
+</span>     <span class="comment">;    (implies (and (build-immediate-instance-data-guard-alternative any
+</span>     <span class="comment">;                                                                   (instance-class-table s))
+</span>     <span class="comment">;                  (class-loaded? any s)
+</span>     <span class="comment">;                  (loader-inv s))
+</span>     <span class="comment">;             (build-immediate-instance-data-guard-alternative any
+</span>     <span class="comment">;                                                              (instance-class-table 
+</span>     <span class="comment">;                                                               (load_class_x
+</span>     <span class="comment">;                                                                anyx s seen mode))))))
+</span>
+     <span class="comment">;; we need class-by-name is not changed! 
+</span>
+     (defthm class-by-name-load_class2
+       (implies (not (equal any anyx))
+                (equal (class-by-name any (instance-class-table (load_class2 anyx s)))
+                       (class-by-name any (instance-class-table s))))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable load_class2 add-instance-class-entry 
+                                          classname))))
+               
+
+
+     (defthm load_class_does_not_change_loaded_class
+       (implies (class-loaded? any s)
+                (equal (class-by-name any (instance-class-table 
+                                           (load_class_x anyx s seen mode)))
+                       (class-by-name any (instance-class-table s))))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(fertilize generalize))
+               (<span class="string">"Subgoal *1/8"</span> <span class="builtin">:cases</span> ((equal any anyx)))))
+
+
+     (defthm
+       build-immediate-instance-data-guard-alternative-perserved-by-load_class_x
+       (implies (and (build-immediate-instance-data-guard-alternative any
+                                                                      (instance-class-table s))
+                     (class-loaded? any s)
+                     (loader-inv s))
+                (build-immediate-instance-data-guard-alternative any
+                                                                 (instance-class-table 
+                                                                  (load_class_x
+                                                                   anyx s seen mode)))))
+       
+     (defthm build-immediate-instance-data-guard-implies-alternative
+       (implies (build-immediate-instance-data-guard name s)
+                (build-immediate-instance-data-guard-alternative name
+                                                                 (instance-class-table s)))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable build-immediate-instance-data-guard)))
+       <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+     (defthm build-immediate-instance-data-guard-implies-alternative-b
+       (implies (build-immediate-instance-data-guard name s)
+                (build-immediate-instance-data-guard-alternative name
+                                                                 (instance-class-table s)))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable build-immediate-instance-data-guard))))
+
+     <span class="comment">;;; updated for ACL2 2.8 --&gt; 2.9 ;;Fri Oct  8 15:17:44 2004
+</span>
+
+
+
+     (defthm loadr-inv-implies-wff-static-class-table
+       (implies (loader-inv s)
+                (wff-static-class-table (env-class-table (env s))))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable loader-inv))))
+
+
+     (defthm
+       class-table-correct-extension-does-not-change-build-immedimate-data-guard
+       (implies (and (build-immediate-instance-data-guard classname s)
+                     (class-loaded? classname s)
+                     (loader-inv s))
+                (build-immediate-instance-data-guard
+                    classname (load_class_x anyx s seen mode)))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable load_class_x class-loaded? 
+                                           build-immediate-instance-data-guard-alternative)
+                <span class="builtin">:expand</span> (build-immediate-instance-data-guard classname s))))
+
+     (<span class="keyword">defun</span> <span class="function-name">all-loaded?</span> (classnames s)
+       (<span class="keyword">if</span> (endp classnames) t
+         (and (class-loaded? (car classnames) s)
+              (all-loaded? (cdr classnames) s))))
+
+
+     (defthm
+       class-table-correct-extension-does-not-change-build-an-java-instance-data-guard
+       (implies (and (build-a-java-visible-instance-data-guard classnames s)
+                     (all-loaded? classnames s)
+                     (loader-inv s))
+                (build-a-java-visible-instance-data-guard
+                    classnames (load_class_x anyx s seen mode)))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable load_class_x class-loaded?))))
+
+
+     <span class="comment">; (skip-proofs 
+</span>     <span class="comment">;  (defthm loader-inv-and-loaded-implies-all-loaded
+</span>     <span class="comment">;    (implies (and (loader-inv s)
+</span>     <span class="comment">;                  (class-loaded? classname s))
+</span>     <span class="comment">;             (all-loaded? (COLLECT-SUPERCLASS-LIST1 classname
+</span>     <span class="comment">;                                                    (INSTANCE-CLASS-TABLE S)
+</span>     <span class="comment">;                                                    seen)
+</span>     <span class="comment">;                          s))))
+</span>
+
+     (defthm loader-inv-and-loaded-implies-all-loaded
+       (implies (and (loader-inv s)
+                     (class-loaded? classname s))
+                (all-loaded? (COLLECT-SUPERCLASS-LIST1 classname
+                                                       (INSTANCE-CLASS-TABLE S)
+                                                       seen)
+                             s)))
+
+     <span class="comment">;; strange Wed Jun 30 15:00:42 2004. It proves by induction.
+</span>
+     <span class="comment">;; Wed Jun 30 15:02:09 2004
+</span>
+
+     <span class="comment">; (skip-proofs
+</span>     <span class="comment">;  (defthm build-a-java-visible-instance-data-guard-equal
+</span>     <span class="comment">;    (implies (integerp int_pc)
+</span>     <span class="comment">;             (equal (build-a-java-visible-instance-data-guard
+</span>     <span class="comment">;                     classnames
+</span>     <span class="comment">;                     (make-state 
+</span>     <span class="comment">;                      int_pc any_thread wff_heap any_tt 
+</span>     <span class="comment">;                      (class-table s)
+</span>     <span class="comment">;                      any_env
+</span>     <span class="comment">;                      any_errorflag
+</span>     <span class="comment">;                      any_aux))
+</span>     <span class="comment">;                    (build-a-java-visible-instance-data-guard  
+</span>     <span class="comment">;                     classnames s)))))
+</span>
+     (defthm build-immediate-instance-data-guard-equal
+        (implies (and (integerp int_pc)
+                      (wff-state s))
+                 (equal (build-immediate-instance-data-guard
+                         classname
+                         (make-state 
+                          int_pc any_thread wff_heap any_tt 
+                          (class-table s)
+                          any_env
+                          any_errorflag
+                          any_aux))
+                        (build-immediate-instance-data-guard
+                         classname s)))
+        <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+                 <span class="builtin">:in-theory</span> (enable build-immediate-instance-data-guard))))
+
+
+     (defthm build-a-java-visible-instance-data-guard-equal
+        (implies (and (integerp int_pc)
+                      (wff-state s))
+                 (equal (build-a-java-visible-instance-data-guard
+                         classnames
+                         (make-state 
+                          int_pc any_thread wff_heap any_tt 
+                          (class-table s)
+                          any_env
+                          any_errorflag
+                          any_aux))
+                        (build-a-java-visible-instance-data-guard  
+                         classnames s)))
+        <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize))))
+               
+     (defthm loader-inv-and-loaded-implies-all-loaded-generalize
+       (implies (and (loader-inv s)
+                     (equal (instance-class-table s) cl)
+                     (class-loaded? classname s))
+                (all-loaded? (COLLECT-SUPERCLASS-LIST1 classname
+                                                       cl
+                                                       seen)
+                             s))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable all-loaded? class-loaded?))))
+
+     (defthm wff-state-implies-integerp-pc
+       (implies (wff-state s)
+                (integerp (pc s)))
+       <span class="builtin">:rule-classes</span> <span class="builtin">:type-prescription</span>
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable wff-state pc))))
+
+     (defthm loader-inv-equal
+       (implies (loader-inv s)
+                (loader-inv (MAKE-STATE (pc s)
+                                      any_thread
+                                      any_heap
+                                      any_thread_table
+                                      (CLASS-TABLE S)
+                                      (ENV S)
+                                      (ERROR-FLAG S)
+                                      any_aux)))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable loader-inv))))
+
+
+
+     (defthm load_cp_entry_guard_preserved_by_load_class
+        (implies (and (load_cp_entry_guard cp s)
+                      (wff-state s)
+                      (no-fatal-error? (load_class anyx s))
+                      (class-loaded? <span class="string">"java.lang.Object"</span> s)
+                      (loader-inv s))
+                 (load_cp_entry_guard cp (load_class anyx s)))
+        <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (build-a-java-visible-instance-guard) (loader-inv))
+                 <span class="builtin">:restrict</span> ((wff-state-equiv-state-instance-class-table
+                             ((s1 s))))
+                 <span class="builtin">:cases</span> ((not (class-loaded? anyx s))))))
+
+
+
+     (defthm load_cp_entries_guard_preserved_by_load_class
+        (implies (and (load_cp_entries_guard cps s)
+                      (wff-state s)
+                      (no-fatal-error? (load_class anyx s))
+                      (class-loaded? <span class="string">"java.lang.Object"</span> s)
+                      (loader-inv s))
+                 (load_cp_entries_guard cps (load_class anyx s)))
+        <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable load_class no-fatal-error?
+                                            load_cp_entry_guard
+                                            loader-inv class-loaded?))))
+
+
+     (defthm load_cp_entry_guard_preserved_by_load_class_x_mode_3
+        (implies (and (load_cp_entry_guard cp s)
+                      (wff-state s)
+                      (no-fatal-error? (load_class_x anyx s seen 3))
+                      (class-loaded? <span class="string">"java.lang.Object"</span> s)
+                      (loader-inv s))
+                 (load_cp_entry_guard cp (load_class_x anyx s seen 3)))
+        <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (build-a-java-visible-instance-guard) (loader-inv))
+                 <span class="builtin">:restrict</span> ((wff-state-equiv-state-instance-class-table
+                             ((s1 s))))
+                 <span class="builtin">:cases</span> ((not (class-loaded? anyx s))))))
+
+
+
+     (defthm load_cp_entry_guard_preserved_by_load_class_x_mode_2
+        (implies (and (load_cp_entry_guard cp s)
+                      (wff-state s)
+                      (no-fatal-error? (load_class_x anyx s seen 2))
+                      (class-loaded? <span class="string">"java.lang.Object"</span> s)
+                      (loader-inv s))
+                 (load_cp_entry_guard cp (load_class_x anyx s seen 2)))
+        <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:expand</span> (load_class_x anyx s seen 2))))
+
+
+     (<span class="keyword">defun</span> <span class="function-name">mode-0-loaded-induct</span> (p s seen) 
+       (<span class="keyword">if</span> (endp p) (list p s seen)
+         (mode-0-loaded-induct (cdr p)
+                               (load_class_x (car p) s seen 3)
+                               seen)))
+
+     (defthm load_cp_entry_guard_preserved_by_load_class_x_mode_0
+        (implies (and (load_cp_entry_guard cp s)
+                      (wff-state s)
+                      (no-fatal-error? (load_class_x anyx s seen 0))
+                      (class-loaded? <span class="string">"java.lang.Object"</span> s)
+                      (loader-inv s))
+                 (load_cp_entry_guard cp (load_class_x anyx s seen 0)))
+        <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable load_cp_entry_guard)
+                 <span class="builtin">:induct</span> (mode-0-loaded-induct anyx s seen))))
+
+
+     (defthm load_cp_entry_guard_preserved_by_load_class_x_mode_1
+        (implies (and (load_cp_entry_guard cp s)
+                      (wff-state s)
+                      (no-fatal-error? (load_class_x anyx s seen 1))
+                      (class-loaded? <span class="string">"java.lang.Object"</span> s)
+                      (loader-inv s))
+                 (load_cp_entry_guard cp (load_class_x anyx s seen 1)))
+        <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable load_cp_entry_guard)
+                 <span class="builtin">:expand</span> (load_class_x anyx s seen 1))))
+                 
+
+     (defthm load_cp_entry_guard_preserved_by_load_class_x
+        (implies (and (load_cp_entry_guard cp s)
+                      (wff-state s)
+                      (no-fatal-error? (load_class_x anyx s seen mode))
+                      (class-loaded? <span class="string">"java.lang.Object"</span> s)
+                      (loader-inv s))
+                 (load_cp_entry_guard cp (load_class_x anyx s seen mode)))
+        <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not-induct</span> t
+                 <span class="builtin">:cases</span> ((equal mode 3) (equal mode 2) (equal mode 1) (equal mode
+                                                                             0)))))
+
+     (defthm load_cp_entries_guard_preserved_by_load_class_x
+        (implies (and (load_cp_entries_guard cp s)
+                      (wff-state s)
+                      (no-fatal-error? (load_class_x anyx s seen mode))
+                      (class-loaded? <span class="string">"java.lang.Object"</span> s)
+                      (loader-inv s))
+                 (load_cp_entries_guard cp (load_class_x anyx s seen mode)))
+        <span class="builtin">:hints</span> ((<span class="string">"Goal"</span>  <span class="builtin">:in-theory</span> (disable load_class_x wff-state
+                                             no-fatal-error?
+                                             load_cp_entry_guard class-loaded?))))
+))          
+
+(defthm load_cp_entry_guard_preserved_by_load_class
+   (implies (and (load_cp_entry_guard cp s)
+                 (wff-state s)
+                 (no-fatal-error? (load_class anyx s))
+                 (class-loaded? <span class="string">"java.lang.Object"</span> s)
+                 (loader-inv s))
+            (load_cp_entry_guard cp (load_class anyx s)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (build-a-java-visible-instance-guard) (loader-inv))
+            <span class="builtin">:restrict</span> ((wff-state-equiv-state-instance-class-table
+                        ((s1 s))))
+            <span class="builtin">:cases</span> ((not (class-loaded? anyx s))))))
+
+
+(defthm load_cp_entries_guard_preserved_by_load_class
+   (implies (and (load_cp_entries_guard cps s)
+                 (wff-state s)
+                 (no-fatal-error? (load_class anyx s))
+                 (class-loaded? <span class="string">"java.lang.Object"</span> s)
+                 (loader-inv s))
+            (load_cp_entries_guard cps (load_class anyx s)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable load_class no-fatal-error?
+                                       load_cp_entry_guard
+                                       loader-inv class-loaded?))))
+
+
+(defthm load_cp_entry_guard_preserved_by_load_class_x
+   (implies (and (load_cp_entry_guard cp s)
+                 (wff-state s)
+                 (no-fatal-error? (load_class_x anyx s seen mode))
+                 (class-loaded? <span class="string">"java.lang.Object"</span> s)
+                 (loader-inv s))
+            (load_cp_entry_guard cp (load_class_x anyx s seen mode)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not-induct</span> t
+            <span class="builtin">:cases</span> ((equal mode 3) (equal mode 2) (equal mode 1) (equal mode
+                                                                        0)))))
+
+(defthm load_cp_entries_guard_preserved_by_load_class_x
+   (implies (and (load_cp_entries_guard cp s)
+                 (wff-state s)
+                 (no-fatal-error? (load_class_x anyx s seen mode))
+                 (class-loaded? <span class="string">"java.lang.Object"</span> s)
+                 (loader-inv s))
+            (load_cp_entries_guard cp (load_class_x anyx s seen mode)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span>  <span class="builtin">:in-theory</span> (disable load_class_x wff-state
+                                        no-fatal-error?
+                                        load_cp_entry_guard class-loaded?))))
+  
+
+(defthm loaded-in-a-loader-inv-state-superchain-is-fixed
+  (implies (and (class-loaded? any s)
+                (no-fatal-error? s)
+                (loader-inv s))
+           (equal (collect-superclass-list1 any (instance-class-table s) nil)
+                  (collect-superclassname1 any (external-class-table s) nil)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:restrict</span>
+           ((all-correctly-loaded-implies-collect-superclass-list
+             ((env-cl (external-class-table s))))
+            (loader-inv-helper-implies-all-found?
+             ((cl (instance-class-table s)))))
+           <span class="builtin">:do-not-induct</span> t
+           <span class="builtin">:in-theory</span> (disable external-class-table))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">all-loaded?</span> (classnames s)
+  (<span class="keyword">if</span> (endp classnames) t
+    (and (class-loaded? (car classnames) s)
+         (all-loaded? (cdr classnames) s))))
+
+
+(defthm loader-inv-and-loaded-implies-all-loaded
+    (implies (and (loader-inv s)
+                  (class-loaded? classname s))
+             (all-loaded? (COLLECT-SUPERCLASS-LIST1 classname
+                                                    (INSTANCE-CLASS-TABLE S)
+                                                    seen)
+                          s)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">all-found?</span> (names env-cl)
+  (<span class="keyword">if</span> (endp names) t
+    (mv-let (found class-desc)
+            (class-by-name-s (car names) env-cl)
+            (<span class="keyword">declare</span> (ignore class-desc))
+            (and found
+                 (all-found? (cdr names) env-cl)))))
+
+
+(defthm all-correctly-loaded-implies-collect-superclass-list
+  (implies (and (all-correctly-loaded? 
+                 (collect-superclassname1 classname env-cl seen)
+                 cl 
+                 env-cl)
+                (all-found? (all-class-names cl) env-cl))
+           (equal (collect-superclass-list1 classname cl seen)
+                  (collect-superclassname1 classname env-cl seen)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(fertilize)
+           <span class="builtin">:in-theory</span> (enable correctly-loaded?))))
+
+
+
+(defthm
+  class-table-correct-extension-does-not-change-build-an-java-instance-data-guard
+  (implies (and (build-a-java-visible-instance-data-guard classnames s)
+                (all-loaded? classnames s)
+                (loader-inv s))
+           (build-a-java-visible-instance-data-guard
+               classnames (load_class_x anyx s seen mode)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable load_class_x class-loaded?))))
+
+
+<span class="comment">; (skip-proofs 
+;  (defthm loader-inv-and-loaded-implies-all-loaded
+;    (implies (and (loader-inv s)
+;                  (class-loaded? classname s))
+;             (all-loaded? (COLLECT-SUPERCLASS-LIST1 classname
+;                                                    (INSTANCE-CLASS-TABLE S)
+;                                                    seen)
+;                          s))))
+</span>
+
+(defthm loader-inv-and-loaded-implies-all-loaded
+  (implies (and (loader-inv s)
+                (class-loaded? classname s))
+           (all-loaded? (COLLECT-SUPERCLASS-LIST1 classname
+                                                  (INSTANCE-CLASS-TABLE S)
+                                                  seen)
+                          s)))
+ 
+
+</pre>
+  </body>
+</html>

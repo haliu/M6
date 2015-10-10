@@ -1,0 +1,541 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>jvm-obj.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"JVM"</span>)
+(acl2::set-verify-guards-eagerness 2)
+(include-book <span class="string"><a href="jvm-type-value.lisp.html">"../M6-DJVM-shared/jvm-type-value"</a></span>)
+
+<span class="comment">;; 
+;; Internal representation of the object 
+;;
+;; (object  (commoninfo &lt;hashcode&gt; &lt;monitor&gt; &lt;of-class&gt;)
+;;          (type-specific-info ) 
+;;          &lt;java-visible portion&gt;)
+;;
+;; specific-type :: INSTANCE_CLASS ARRAY_CLASS STRING ARRAY GENERIC_OBJECT
+;; 
+;; Java-visible portion just like what it has been in M5
+;; except some tags is removed from data values.       
+;;
+;;
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">make-object</span> (commoninfo specific-info java-visible-part)
+  (list 'object commoninfo specific-info java-visible-part))
+
+(<span class="keyword">defun</span> <span class="function-name">wff-obj</span> (obj)
+  (and (true-listp obj)
+       (equal (length obj) 4)))
+
+(<span class="keyword">defun</span> <span class="function-name">common-info</span>   (object)  
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-obj object)))
+  (nth 1 object))
+
+(<span class="keyword">defun</span> <span class="function-name">specific-info</span> (object)  
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-obj object)))
+  (nth 2 object))    <span class="comment">;; the format depends on types
+</span>
+(<span class="keyword">defun</span> <span class="function-name">java-visible-portion</span> (object)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-obj object)))
+  (nth 3 object))
+
+
+(<span class="keyword">defun</span> <span class="function-name">obj-set-common-info</span> (cminfo obj) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-obj obj)))
+  (make-object cminfo
+               (specific-info obj)
+               (java-visible-portion obj)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">obj-set-specific-info</span> (spinfo obj) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-obj obj)))
+  (make-object (common-info   obj)
+               spinfo
+               (java-visible-portion obj)))
+
+(<span class="keyword">defun</span> <span class="function-name">obj-set-java-visible-portion</span> (jvp obj) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-obj obj)))
+  (make-object (common-info   obj)
+               (specific-info obj)
+               jvp))
+
+(<span class="keyword">defun</span> <span class="function-name">make-common-info</span> (hashcode monitor class-ptr) 
+  (list 'common-info hashcode monitor class-ptr)) 
+
+(<span class="keyword">defun</span> <span class="function-name">wff-common-info</span> (cminfo)
+  (and (true-listp cminfo)
+       (equal (length cminfo) 4)))
+
+(<span class="keyword">defun</span> <span class="function-name">hashcode</span>  (cminfo)  
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-common-info cminfo)))
+  (nth 1 cminfo)) <span class="comment">;; a number. 
+</span>
+(<span class="keyword">defun</span> <span class="function-name">monitor</span>   (cminfo)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-common-info cminfo)))
+  (nth 2 cminfo))
+
+(<span class="keyword">defun</span> <span class="function-name">class-ptr</span> (cminfo)  
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-common-info cminfo)))
+  (nth 3 cminfo))
+
+(<span class="keyword">defun</span> <span class="function-name">obj-hashcode</span>  (object) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-obj object)
+                              (wff-common-info (common-info object)))))
+  (hashcode  (common-info object))) <span class="comment">;; a number 
+</span>
+(<span class="keyword">defun</span> <span class="function-name">obj-monitor</span>   (object) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-obj object)
+                              (wff-common-info (common-info object)))))
+  (monitor   (common-info object))) <span class="comment">;; a composite structure
+</span>
+(<span class="keyword">defun</span> <span class="function-name">obj-class-ptr</span> (object)  
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-obj object)
+                              (wff-common-info (common-info object)))))
+  (class-ptr (common-info object))) <span class="comment">;; a number 
+</span>
+(<span class="keyword">defun</span> <span class="function-name">obj-type</span> (obj)  <span class="comment">;; object's runtime type.
+</span>  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-obj obj)
+                              (wff-common-info (common-info obj)))))
+  (obj-class-ptr obj))
+
+<span class="comment">;;
+;; 08/27/03: Do we want to assert that hashcode is a number? (it could show up
+;; on the operand stack) We need some properties about native
+;; methods. asserting native method preserve the type and consistent-state!
+;;
+</span>
+<span class="comment">;;
+;; In the common info section of the Object representation: 
+;;
+;;     three fields -- hashcode, monitor, and class-ptr.
+;;
+;;     current class-ptr is a symbolic reference in our M6. We assume all the
+;;     symbolic reference recorded here are already loaded.  
+;;  
+;;     In real KVM this ptr is a pointer to the the obj of type java.lang.Class
+;;     that represent the type of this Object
+;;
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">common-info-set-hashcode</span> (h cminfo)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-common-info cminfo)))
+  (make-common-info h (monitor cminfo) (class-ptr cminfo)))
+
+(<span class="keyword">defun</span> <span class="function-name">common-info-set-monitor</span> (m cminfo)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-common-info cminfo)))
+  (make-common-info (hashcode cminfo) m (class-ptr cminfo)))
+
+(<span class="keyword">defun</span> <span class="function-name">common-info-set-class-ptr</span> (p cminfo)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-common-info cminfo)))
+  (make-common-info (hashcode cminfo) (monitor cminfo) p))
+
+<span class="comment">;---------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">make-monitor</span> (th mcount mqueue cqueue)
+  (list 'monitor th mcount mqueue cqueue))
+
+(<span class="keyword">defun</span> <span class="function-name">wff-monitor</span> (monitor)
+  (and (true-listp monitor)
+       (equal (length monitor) 5)))
+
+(<span class="keyword">defun</span> <span class="function-name">new-monitor</span> () 
+  (make-monitor -1 0 nil nil))
+
+(<span class="keyword">defun</span> <span class="function-name">owner</span> (monitor)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-monitor monitor)))
+  (nth 1 monitor))
+
+(<span class="keyword">defun</span> <span class="function-name">depth</span> (monitor) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-monitor monitor)))
+  (nth 2 monitor))
+
+
+(<span class="keyword">defun</span> <span class="function-name">mqueue</span> (monitor) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-monitor monitor)))
+  (nth 3 monitor)) <span class="comment">;; monitor     queue
+</span>(<span class="keyword">defun</span> <span class="function-name">cqueue</span> (monitor) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-monitor monitor)))
+  (nth 4 monitor)) <span class="comment">;; conditional variable queue
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">monitor-set-owner</span> (owner monitor)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-monitor monitor)))
+  (make-monitor owner
+                (depth monitor)
+                (mqueue monitor)
+                (cqueue monitor)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">monitor-set-depth</span> (d monitor)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-monitor monitor)))
+  (make-monitor (owner monitor)
+                d
+                (mqueue monitor)
+                (cqueue monitor)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">monitor-set-mqueue</span> (mqueue monitor)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-monitor monitor)))
+  (make-monitor (owner monitor)
+                (depth monitor)
+                mqueue
+                (cqueue monitor)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">monitor-set-cqueue</span> (cqueue monitor)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-monitor monitor)))
+  (make-monitor (owner monitor)
+                (depth monitor)
+                (mqueue monitor)
+                cqueue))
+
+<span class="comment">;---
+</span>
+(<span class="keyword">defun</span> <span class="function-name">make-INSTANCE_CLASS-specific-info</span> (class-desc)
+  (list 'specific-info 'INSTANCE_CLASS class-desc))
+
+<span class="comment">;;
+;; class-ptr is something we can used to find the class-desc in the internal
+;; class-table. (class-name)
+;; 
+;; This class-desc here is different from the class-ptr in the 
+;; common-info section of the obj repesentation.
+;;
+;; class-desc record what is the class this object of "java.lang.Class" representing
+;; while the class-ptr records what is the type of the object itself.
+;;
+</span> 
+
+
+(<span class="keyword">defun</span> <span class="function-name">make-ARRAY_CLASS-specific-info</span> (element-type)
+  (list 'specific-info 'ARRAY_CLASS  element-type))
+
+<span class="comment">;; Object of class "java.lang.Class" that represents Array Class that represent
+;; element-type.
+</span>
+
+
+<span class="comment">;;(defun make-ARRAY-specific-info (element-type length)
+;;  (list 'specific-info 'ARRAY  element-type length))
+</span>
+<span class="comment">;; THIS IS NOT USED!!!
+</span>(<span class="keyword">defun</span> <span class="function-name">make-ARRAY-specific-info</span> (internal-array length)
+  (list 'specific-info 'ARRAY  internal-array length))
+<span class="comment">;; this is right!
+</span>
+(<span class="keyword">defun</span> <span class="function-name">make-STRING-specific-info</span> ()
+  (list 'specific-info 'STRING))   
+
+
+<span class="comment">;; Comments: ;; how could we find out the java.lang.Class object that
+</span>             <span class="comment">;; represents the STRING class adding entries to the internal
+</span>             <span class="comment">;; class-table?  same is true for array...  we need special
+</span>             <span class="comment">;; handling for finding the reference for a particular type. Need
+</span>             <span class="comment">;; some work in internal-class-table. don't worry about it now.
+</span>
+             <span class="comment">;; we have an internal class-table which is used for lookup from
+</span>             <span class="comment">;; classname/array sig to class-obj ref.  8-27-2002
+</span>
+<span class="comment">;;
+;; although it is not necessary that there exists an java object representing
+;; Java array? Class.forName() have to return such an reference. 
+;;
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">make-INSTANCE-specific-info</span> () 
+  (list 'specific-info 'GENERIC_OBJECT))
+
+(<span class="keyword">defun</span> <span class="function-name">make-INSTANCECLASS-specific-info</span> (class-ptr)
+  (list 'specific-info class-ptr))
+
+(<span class="keyword">defun</span> <span class="function-name">make-instanceclassarrayclass-info</span> (type-desc)
+  (list 'specific-info 'ARRAY_CLASS type-desc))
+
+
+<span class="comment">;;
+;; message is a reference to a Java String Object, backtrace is an list of ?? 
+;;
+</span>
+(<span class="keyword">defun</span> <span class="function-name">make-THROWABLE-specific-info</span> (message backtrace) 
+  (list 'specific-info 'THROWABLE_OBJECT message backtrace))
+
+<span class="comment">;;
+;; Special specific-info
+;; 
+;;           INSTANCE-CLASS
+;;           ARRAY-CLASS
+;;           STRING
+;;           THROWABLE_OBJECT
+;;           ARRAY
+;;           GENERIC_OBJECT        
+;;
+</span>
+<span class="comment">;---------------------------------------------------------------------------
+; 
+; Tue Jan 13 14:41:23 2004 Define a set of wff predicated which will be used 
+;
+; in jvm-object-manipulation-primitives.lisp
+;
+; Originally from consistent-state.lisp
+</span>
+(<span class="keyword">defun</span> <span class="function-name">wff-internal-heap-obj</span> (obj)
+  (and (true-listp obj)
+       (equal (len obj) 4)
+       (equal (car obj) 'object)))
+
+<span class="comment">; (defun wff-internal-array (array-obj)
+;    (and (wff-internal-heap-obj array-obj)
+;         (wff-ARRAY-specific-info (specific-info array-obj))))
+</span>
+
+<span class="comment">;; (defun wff-class-ptr (class-ptr)
+;;   (and  (true-listp class-ptr)
+;;        (or ;; (isoClassType class-ptr)
+;;         ;; (stringp class-ptr) ;;  FIX: 10/27/03 to comply with M6's
+;;         ;;  usage. cf. consistent-test.lisp  
+;;         (isClassType class-ptr) ;;  10/28/03 FIX. changed the definition of
+;;         ;;  isClassType
+;;         (isArrayType class-ptr))))
+</span>
+(<span class="keyword">defun</span> <span class="function-name">wff-class-ptr</span> (class-ptr)
+  (or <span class="comment">;; (isoClassType class-ptr)
+</span>   <span class="comment">;; (stringp class-ptr) ;;  FIX: 10/27/03 to comply with M6's
+</span>   <span class="comment">;;  usage. cf. consistent-test.lisp  
+</span>   (isClassType class-ptr) <span class="comment">;;  10/28/03 FIX. changed the definition of
+</span>   <span class="comment">;;  isClassType
+</span>   (isArrayType class-ptr)))
+<span class="comment">;;; change the definition of wff-class-ptr
+;;; 
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">wff-common-info-strong</span> (common-info)
+  (and (true-listp common-info)
+       (equal (len common-info) 4)
+       (wff-class-ptr (nth 3 common-info))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">wff-jvp</span> (jvp)
+   (alistp jvp))
+
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">wff-INSTANCE_CLASS-specific-info</span> (specific-info)
+  (and (true-listp specific-info)
+       (equal (len specific-info) 3)
+       (equal (car specific-info) 'specific-info)
+       (equal (nth 1 specific-info) 'INSTANCE_CLASS)
+       (wff-type-desc (nth 2 specific-info))))
+
+(<span class="keyword">defun</span> <span class="function-name">wff-ARRAY_CLASS-specific-info</span> (specific-info)
+  (and (true-listp specific-info)
+       (equal (len specific-info) 3)
+       (equal (car specific-info) 'specific-info)
+       (equal (nth 1 specific-info) 'ARRAY_CLASS)
+       (wff-type-desc (nth 2 specific-info))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">wff-ARRAY-specific-info</span> (specific-info)
+   (and (true-listp specific-info)
+        (equal (len specific-info) 4)
+        (equal (car specific-info) 'specific-info)
+        (equal (nth 1 specific-info) 'ARRAY)
+        (integerp (nth 3 specific-info))
+        (true-listp (nth 2 specific-info))
+        (equal (len (nth 2 specific-info)) (nth 3 specific-info))))
+
+(<span class="keyword">defun</span> <span class="function-name">wff-STRING-specific-info</span> (specific-info)
+   (and (true-listp specific-info)
+        (equal (len specific-info) 2)
+        (equal (car specific-info) 'specific-info)
+        (equal (nth 1 specific-info) 'STRING)))
+        <span class="comment">;;(stringp (nth 3 specific-info))))
+;;            (equal (nth 3 specific-info) -1))
+;;            (nullp (nth 3 specific-info)))))
+</span>
+
+<span class="comment">;; (defun wff-STRING-specific-info (specific-info)
+;;    (and (true-listp specific-info)
+;;         (equal (len specific-info) 4)
+;;         (equal (car specific-info) 'specific-info)
+;;         (equal (nth 1 specific-info) 'STRING)
+;;         (stringp (nth 3 specific-info))))
+;; ;;            (equal (nth 3 specific-info) -1))
+;; ;;            (nullp (nth 3 specific-info)))))
+</span>
+
+<span class="comment">;; (defun make-THROWABLE-specific-info (message backtrace) 
+;;   (list 'specific-info 'THROWABLE_OBJECT message backtrace))
+</span>
+(<span class="keyword">defun</span> <span class="function-name">wff-THROWABLE-specific-info</span> (specific-info)
+   (and (true-listp specific-info)
+        (equal (len specific-info) 4)
+        (equal (car specific-info) 'specific-info)
+        (equal (nth 1 specific-info) 'THROWABLE_OBJECT)
+        (stringp (nth 2 specific-info))
+        (true-listp (nth 3 specific-info))))
+
+<span class="comment">;; (defun make-INSTANCE-specific-info () 
+;;   (list 'specific-info 'GENERIC_OBJECT))
+</span>
+(<span class="keyword">defun</span> <span class="function-name">wff-GENERIC_OBJECT-specific-info</span> (specific-info)
+  (equal specific-info 
+         (make-INSTANCE-specific-info)))
+
+(<span class="keyword">defun</span> <span class="function-name">wff-specific-info</span> (specific-info)
+  (or (wff-INSTANCE_CLASS-specific-info specific-info)
+      (wff-ARRAY_CLASS-specific-info specific-info)
+      (wff-ARRAY-specific-info specific-info)
+      (wff-STRING-specific-info specific-info)
+      (wff-THROWABLE-specific-info specific-info)
+      (wff-GENERIC_OBJECT-specific-info specific-info)))
+
+
+<span class="comment">;; (defun wff-specific-info (specific-info)
+;;   (and (true-listp specific-info)
+;;        (consp specific-info)
+;;        (equal (car specific-info) 'specific-info)
+;;        (cond ((equal (nth 1 specific-info) 'ARRAY) 
+;;               (and (equal (len specific-info) 4)
+;;                    (integerp (nth 3 specific-info))
+;;                    (equal (len (nth 2 specific-info)) (nth 3 specific-info))))
+;;              (t t))))
+</span>
+
+<span class="comment">; (defun make-object (commoninfo specific-info java-visible-part)
+;   (list 'object commoninfo specific-info java-visible-part))
+</span>
+<span class="comment">; (defun common-info   (object)     (nth 1 object))
+; (defun specific-info (object)     (nth 2 object))    ;; the format depends on types
+; (defun java-visible-portion (object) (nth 3 object))
+</span>
+
+<span class="comment">;; (defun common-info (obj)
+;;   (declare (xargs :guard (wff-internal-heap-obj obj)))
+;;   (nth 1 obj))
+</span>
+<span class="comment">;; (defun specific-info (obj)
+;;   (declare (xargs :guard (wff-internal-heap-obj obj)))
+;;   (nth 2 obj))
+</span>
+<span class="comment">;; (defun java-visible-portion (obj)
+;;   (declare (xargs :guard (wff-internal-heap-obj obj)))
+;;   (nth 3 obj))
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">wff-obj-strong</span> (obj)
+  (and (wff-internal-heap-obj obj)
+       (wff-common-info-strong (common-info obj))
+       (wff-specific-info (specific-info obj))
+       (wff-jvp (java-visible-portion obj))))
+
+
+<span class="comment">;;; WFF data structure. 
+</span>
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;;; some properties of wff-obj-strong
+</span>
+(defthm wff-obj-strong-implies-wff-obj
+  (implies (wff-obj-strong obj)
+           (wff-obj obj))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable wff-obj-strong))))
+
+(defthm wff-obj-strong-implies-wff-common-info
+  (implies (wff-obj-strong obj)
+           (wff-common-info (common-info obj)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable wff-obj-strong))))
+
+
+(in-theory (disable wff-obj wff-common-info common-info))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;;; Note this wff-field NEED FIX!!! Tue Jan 13 01:33:56 2004
+</span>
+(<span class="keyword">defun</span> <span class="function-name">wff-data-field</span> (field)
+  (and (consp field)
+       (equal (len field) 1)))
+
+(<span class="keyword">defun</span> <span class="function-name">fieldname</span> (data-field) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-data-field data-field)))
+  <span class="comment">;; as in a object rep
+</span>  (car data-field))
+
+(<span class="keyword">defun</span> <span class="function-name">fieldvalue</span> (data-field)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-data-field data-field)))
+  (cdr data-field))
+
+<span class="comment">;; this is part of OBJECT representation!
+;;
+;;---------------------------------------------------------------------
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">wff-internal-array</span> (array-obj)
+   (and (wff-obj-strong array-obj)
+        (wff-array-type (obj-type array-obj))
+        (wff-ARRAY-specific-info (specific-info array-obj))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">wff-heap</span> (hp)
+  (alistp hp))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+
+(<span class="keyword">defun</span> <span class="function-name">wff-heap-strong</span> (hp)
+  (and (wff-heap hp)
+       (<span class="keyword">if</span> (not (consp hp)) t  
+         (and (wff-obj-strong (cdar hp))
+              (wff-heap-strong (cdr hp))))))
+
+
+</pre>
+  </body>
+</html>

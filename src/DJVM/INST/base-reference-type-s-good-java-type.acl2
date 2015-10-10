@@ -1,0 +1,3 @@
+(ld "../../DJVM/djvm.pkg")
+(ld "../../BCV/bcv.pkg")
+(certify-book "base-reference-type-s-good-java-type" 6 t :skip-proofs-okp t)

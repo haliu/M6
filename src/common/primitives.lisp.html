@@ -1,0 +1,344 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>primitives.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      .type {
+        /* font-lock-type-face */
+        color: #98fb98;
+      }
+      .variable-name {
+        /* font-lock-variable-name-face */
+        color: #eedd82;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+<span class="comment">#|
+(certify-book <a href="primitives.lisp.html">"primitives"</a> 0)
+(acl2::set-verify-guards-eagerness 1)
+|#</span>
+<span class="comment">;;
+;; This file contains the definition needed by various machine definition. 
+;; 
+;; Sun Dec 21 22:37:03 2003. Merged from typechecker.lisp (from BCV)
+;; no-dup-set-facts.lisp (from M6).
+</span>(<span class="keyword">in-package</span> <span class="string">"ACL2"</span>)
+(acl2::set-verify-guards-eagerness 2)
+
+
+<span class="comment">;; Sun Dec 21 22:38:17 2003
+</span>
+<span class="comment">; interger handling contributed by Robert Krug Mon Dec 22 02:36:15 2003 
+;
+; The following are constants and functions related to fixed integer sizes
+; 
+; This set of function is needed by both DJVM and M6.
+</span>
+(<span class="keyword">defconst</span> <span class="variable-name">*largest-integer-value*</span> (- (expt 2 31) 1))
+(<span class="keyword">defconst</span> <span class="variable-name">*largest-long-value*</span> (- (expt 2 63) 1))
+(<span class="keyword">defconst</span> <span class="variable-name">*most-negative-integer*</span> (- (expt 2 31)))
+(<span class="keyword">defconst</span> <span class="variable-name">*most-negative-long*</span> (- (expt 2 63)))
+
+<span class="comment">; Coerce x to an unsigned integer which will fit in n bits.
+</span>(<span class="keyword">defun</span> <span class="function-name">u-fix</span> (x n)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (integerp n)))
+  (mod (ifix x) (expt 2 n)))
+
+<span class="comment">; Coerce x to a signed integer which will fit in n bits.
+</span>(<span class="keyword">defun</span> <span class="function-name">s-fix</span> (x n)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (integerp n)))
+  (<span class="keyword">let</span> ((temp (mod (ifix x) (expt 2 n))))
+    (<span class="keyword">if</span> (&lt; temp (expt 2 (1- n)))
+        temp
+      (- temp (expt 2 n)))))
+
+(<span class="keyword">defun</span> <span class="function-name">byte-fix</span> (x)
+  (s-fix x 8))
+
+(<span class="keyword">defun</span> <span class="function-name">ubyte-fix</span> (x)
+  (u-fix x 8))
+
+(<span class="keyword">defun</span> <span class="function-name">short-fix</span> (x)
+
+  (s-fix x 16))
+
+(<span class="keyword">defun</span> <span class="function-name">int-fix</span> (x)
+  (s-fix x 32))
+
+(<span class="keyword">defun</span> <span class="function-name">uint-fix</span> (x)
+  (u-fix x 32))
+
+(<span class="keyword">defun</span> <span class="function-name">long-fix</span> (x)
+  (s-fix x 64))
+
+(<span class="keyword">defun</span> <span class="function-name">ulong-fix</span> (x)
+  (u-fix x 64))
+
+(<span class="keyword">defun</span> <span class="function-name">char-fix</span> (x)
+  (u-fix x 16))
+
+(<span class="keyword">defun</span> <span class="function-name">6-bit-fix</span> (x)
+  (u-fix x 6))
+
+(<span class="keyword">defun</span> <span class="function-name">5-bit-fix</span> (x)
+  (u-fix x 5))
+
+(<span class="keyword">defun</span> <span class="function-name">expt2</span> (n)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (integerp n)))  
+  (expt 2 n))
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">shl</span> (x n)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (integerp n)
+                              (integerp x))))
+  (* x (expt2 n)))
+
+(<span class="keyword">defun</span> <span class="function-name">shr</span> (x n)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (integerp n)
+                              (integerp x))))
+  (floor (* x (expt2 (- n))) 1))
+
+<span class="comment">;-----------------------------------------
+; provides what DJVM will also need. 
+</span>
+<span class="comment">;----------------------------------------------------------------------
+; 
+; Mon Dec 22 21:46:49 2003
+</span>
+(<span class="keyword">defun</span> <span class="function-name">bound?</span> (x l)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:verify-guards</span> t <span class="builtin">:guard</span> (alistp l)))
+  (assoc-equal x l))
+
+(<span class="keyword">defun</span> <span class="function-name">binding</span> (x l)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:verify-guards</span> t <span class="builtin">:guard</span> (and (alistp l)
+                                               (bound? x l))))
+  (cdr (assoc-equal x l)))
+
+(<span class="keyword">defun</span> <span class="function-name">bind</span> (x y alist)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (alistp alist)))
+  (<span class="keyword">cond</span> ((endp alist) (list (cons x y)))
+        ((equal x (car (car alist)))
+         (cons (cons x y) (cdr alist)))
+        (t (cons (car alist) (bind x y (cdr alist))))))
+
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">int32p</span> (v)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> t))
+  (and (integerp v)
+       (&lt;= v *largest-integer-value*)
+       (&gt;= v *most-negative-integer*)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">int64p</span> (v)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> t))
+  (and (integerp v)
+       (&lt;= v *largest-long-value*)
+       (&gt;= v *most-negative-long*)))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;; Tue Dec 23 14:49:11 2003 macros that expands a term with a list of
+;; abbrevation
+</span>
+(mutual-recursion
+ (<span class="keyword">defun</span> <span class="function-name">expand-mylet*-2-l</span> (binding term-l)
+   (<span class="keyword">declare</span> (xargs <span class="builtin">:verify-guards</span> nil
+                   <span class="builtin">:measure</span> (acl2-count term-l)))
+   (<span class="keyword">if</span> (endp term-l) nil
+     (cons (expand-mylet*-2 binding (car term-l))
+           (expand-mylet*-2-l binding (cdr term-l)))))
+
+ (<span class="keyword">defun</span> <span class="function-name">expand-mylet*-2</span> (binding term)
+   (<span class="keyword">declare</span> (xargs <span class="builtin">:verify-guards</span> nil
+                   <span class="builtin">:measure</span> (acl2-count term)))
+   (<span class="keyword">let</span> ((key (car binding))
+         (value (cdr binding)))
+     (<span class="keyword">cond</span> ((atom term) 
+            (<span class="keyword">if</span> (equal term key)
+                value
+              term))
+           ((consp term)
+            (<span class="keyword">if</span> (consp term)
+                (cons (car term) 
+                      (expand-mylet*-2-l binding (cdr term)))
+              term))
+           (t term)))))
+                
+<span class="comment">; (expand-mylet*-2 '(x . (f (+ x y))) 
+;                  '(G (f (x x))))
+</span>
+(<span class="keyword">defun</span> <span class="function-name">expand-mylet*-1</span> (binding alist)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:verify-guards</span> nil))
+  (<span class="keyword">if</span> (endp alist) nil
+    (cons (cons (caar alist)
+                (expand-mylet*-2 binding (cdar alist)))
+          (expand-mylet*-1 binding (cdr alist)))))
+          
+
+(<span class="keyword">defun</span> <span class="function-name">expand-mylet*</span> (bindings topTerm)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:verify-guards</span> nil
+                  <span class="builtin">:measure</span> (len bindings)))
+  (<span class="keyword">if</span> (endp bindings) 
+      topTerm
+    (expand-mylet* (expand-mylet*-1 (car bindings) (cdr bindings))
+                   (expand-mylet*-2 (car bindings) topTerm))))
+
+<span class="comment">;; this is a flaky substitution implementation. 
+;; Only used by myself. It is ok.
+</span>
+<span class="comment">; (expand-mylet* '((x . (f x)) 
+;                  (y . (f x (f (+ x y)))))
+;                '(G (f (+ x y) (y y x))))
+</span>
+(<span class="keyword">defun</span> <span class="function-name">extract-bindings</span> (assignments)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:verify-guards</span> nil))
+  (<span class="keyword">if</span> (endp assignments) nil
+    (cons (cons (caar assignments) (cadar assignments))
+          (extract-bindings (cdr assignments)))))
+
+<span class="comment">; (extract-bindings 
+;  '((cid (current-thread s))
+;    (tt  (thread-table s))
+;    (thread (thread-by-id cid tt))
+;    (callstack (thread-call-stack thread))
+;    (topframe  (top callstack))))
+</span>
+
+(<span class="keyword">defmacro</span> <span class="function-name">mylet*</span> (assignments theTerm)
+ (<span class="keyword">let</span> ((expanded (expand-mylet* (extract-bindings assignments) theTerm)))
+      `,expanded))
+
+<span class="comment">;;(defmacro debug-print (&amp;rest args)
+;;   `(acl2::cw ,@args))
+</span>
+<span class="comment">;; (acl2::set-ignore-ok :warn)
+</span>
+(<span class="keyword">defmacro</span> <span class="function-name">debug-print</span> (<span class="type">&amp;rest</span> args)
+  (<span class="keyword">declare</span> (ignore args))
+   t)
+
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">ADDRp</span> (v) 
+  (integerp v))
+
+(<span class="keyword">defun</span> <span class="function-name">CHARp</span> (v)
+  <span class="comment">;; temp implementation
+</span>  <span class="comment">;; should be 16 bit unsigned integer.
+</span>  <span class="comment">;;
+</span>  (INT32p v))
+
+(<span class="keyword">defun</span> <span class="function-name">jvmBOOLEANp</span> (v)
+  <span class="comment">;; temp implementation
+</span>  <span class="comment">;; should be 1 bit unsigned integer.
+</span>  (INT32p v))
+
+
+(<span class="keyword">defun</span> <span class="function-name">SHORTp</span> (v)
+  (INT32p v)) <span class="comment">;; Mon May 30 14:40:10 2005
+</span>
+(<span class="keyword">defun</span> <span class="function-name">BYTEp</span> (v)
+  (INT32p v))
+
+(<span class="keyword">defun</span> <span class="function-name">jvmFLOATp</span> (v) 
+  (stringp v))
+
+(<span class="keyword">defun</span> <span class="function-name">DOUBLEp</span> (v) 
+  (stringp v))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(include-book <span class="string"><a href="gen-guards.lisp.html">"gen-guards"</a></span>)
+
+(<span class="keyword">defconst</span> <span class="variable-name">*primitives*</span> 
+  '(mem 
+    notMem 
+    subset 
+    del 
+    app 
+    u-fix 
+    s-fix 
+    byte-fix 
+    ubyte-fix 
+    short-fix 
+    int-fix 
+    uint-fix 
+    long-fix 
+    ulong-fix 
+    char-fix 
+    6-bit-fix 
+    5-bit-fix 
+    expt2 
+    shl 
+    shr 
+    bound? 
+    binding 
+    bind
+    int32p 
+    int64p
+    mylet*
+    ADDRp
+    CHARp
+    jvmBOOLEANp
+    SHORTp
+    BYTEp
+    jvmFLOATp
+    DOUBLEp
+    defpredicate
+    debug-print))
+
+(<span class="keyword">defconst</span> <span class="variable-name">*base-bind-free*</span>
+  '(replace-occurance-binding
+    default-bind-free
+    ))
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+</pre>
+  </body>
+</html>

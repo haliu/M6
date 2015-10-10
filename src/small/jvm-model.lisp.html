@@ -1,0 +1,284 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>jvm-model.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"ACL2"</span>)
+<span class="comment">;; definition of a tiny machine + its safe version + its bcv.
+;; 
+;; with ifeq, push, pop, invoke, return, halt
+</span>
+<span class="comment">;------------------------------------------------------------
+;
+;   The SMALL Machine (with a more "correct" BCV)
+;
+;------------------------------------------------------------
+</span>
+(include-book <span class="string">"misc/records"</span> <span class="builtin">:dir</span> <span class="builtin">:system</span>)
+
+<span class="comment">; Stacks
+</span>(<span class="keyword">defun</span> <span class="function-name">pushx</span> (obj stack) (cons obj stack))
+(<span class="keyword">defun</span> <span class="function-name">topx</span> (stack) (car stack))
+(<span class="keyword">defun</span> <span class="function-name">popx</span> (stack) (cdr stack))
+
+
+<span class="comment">; Alists
+</span>(<span class="keyword">defun</span> <span class="function-name">bound?</span> (x alist) (assoc-equal x alist))
+
+(<span class="keyword">defun</span> <span class="function-name">bind</span> (x y alist)
+  (<span class="keyword">cond</span> ((endp alist) (list (cons x y)))
+        ((equal x (car (car alist)))
+         (cons (cons x y) (cdr alist)))
+        (t (cons (car alist) (bind x y (cdr alist))))))
+
+(<span class="keyword">defun</span> <span class="function-name">binding</span> (x alist) (cdr (bound? x alist))) 
+
+<span class="comment">; Instructions
+</span>(<span class="keyword">defun</span> <span class="function-name">op-code</span> (inst) (car inst))
+(<span class="keyword">defun</span> <span class="function-name">arg</span> (inst) (car (cdr inst)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">popStack</span> (st)
+  (<span class="keyword">let*</span> ((call-stack (g 'call-stack st))
+         (top-frame  (topx call-stack))
+         (op-stack   (g 'op-stack top-frame)))
+    (s 'call-stack 
+       (pushx (s 'op-stack 
+                 (popx op-stack)
+                 top-frame)
+              (popx call-stack))
+       st)))
+
+(<span class="keyword">defun</span> <span class="function-name">pushStack</span> (v st)
+  (<span class="keyword">let*</span> ((call-stack (g 'call-stack st))
+         (top-frame  (topx call-stack))
+         (op-stack   (g 'op-stack top-frame)))
+    (s 'call-stack 
+       (pushx (s 'op-stack 
+                 (pushx v op-stack)
+                 top-frame)
+              (popx call-stack))
+       st)))
+
+(<span class="keyword">defun</span> <span class="function-name">topStack</span> (st)
+  (<span class="keyword">let*</span> ((call-stack (g 'call-stack st))
+         (top-frame  (topx call-stack))
+         (op-stack   (g 'op-stack top-frame)))
+    (topx op-stack)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">set-pc</span> (pc st)
+  (<span class="keyword">let*</span> ((call-stack (g 'call-stack st))
+         (top-frame  (topx call-stack)))
+    (s 'call-stack 
+       (pushx (s 'pc pc top-frame)
+              (popx call-stack))
+       st)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">get-pc</span> (st)
+  (g 'pc (topx (g 'call-stack st))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">execute-IFEQ</span> (inst st)
+  (<span class="keyword">let*</span> ((target     (arg inst))
+         (v          (topstack st))
+         (pc         (get-pc st)))
+    (<span class="keyword">if</span> (equal v 0) 
+        (set-pc target
+                (popStack st))
+      (set-pc (+ 1 pc)
+              (popStack st)))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">execute-PUSH</span> (inst st)
+  (<span class="keyword">let*</span> ((v     (arg inst))
+         (pc    (get-pc st)))
+    (set-pc (+ 1 pc)
+            (pushStack v st))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">createInitFrame</span> (method-name initial-locals st)
+  (s 'max-stack (g 'max-stack 
+                   (binding method-name (g 'method-table st)))
+     (s 'pc 0
+        (s 'method-name method-name
+           (s 'locals initial-locals
+              (s 'op-stack nil nil))))))
+  
+
+(<span class="keyword">defun</span> <span class="function-name">pushInitFrame</span> (method-name initial-locals st)
+  (s 'call-stack  
+     (pushx 
+      (createInitFrame method-name initial-locals st)
+      (g 'call-stack st))
+     st))
+
+
+(<span class="keyword">defun</span> <span class="function-name">op-stack</span> (st)
+  (g 'op-stack 
+     (topx (g 'call-stack st))))
+
+(<span class="keyword">defun</span> <span class="function-name">popStack-n</span> (st n) 
+  (<span class="keyword">if</span> (zp n) st
+    (popStack-n (popStack st)
+                (- n 1))))
+
+(<span class="keyword">defun</span> <span class="function-name">init-locals</span> (stack n)
+  (<span class="keyword">if</span> (zp n) nil
+    (s n (topx stack)
+       (init-locals (popx stack) (- n 1)))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">execute-INVOKE</span> (inst st)
+  (<span class="keyword">let*</span> ((method-name  (arg inst))
+         (method-table (g 'method-table st))
+         (method   (binding method-name method-table))
+         (nargs    (g 'nargs method)))
+    (pushInitFrame
+     method-name 
+     (init-locals (op-stack st) nargs)
+     (set-pc (+ 1 (get-pc st))  
+             <span class="comment">;;
+</span>             <span class="comment">;; we could avoid modifying the pc
+</span>             <span class="comment">;; and make the return instruction to modify the pc of caller
+</span>             <span class="comment">;; however we still face the problem that 
+</span>             <span class="comment">;; the caller's operand stack does not comply with the signature
+</span>             <span class="comment">;;
+</span>             (popStack-n st nargs)))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">execute-HALT</span> (inst st)
+  (<span class="keyword">declare</span> (ignore inst))
+  st)
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">execute-POP</span> (inst st)
+  (<span class="keyword">declare</span> (ignore inst))
+  (set-pc (+ 1 (get-pc st))
+          (popStack st)))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">execute-RETURN</span> (inst st)
+  (<span class="keyword">declare</span> (ignore inst))
+  <span class="comment">;; update it to halt, when we know this is the very first frame!!  or update
+</span>  <span class="comment">;; our <a href="consistent-state.lisp.html">consistent-state</a> predicate!
+</span>  (<span class="keyword">if</span> (not (consp (popx (g 'call-stack st))))
+      st
+    (pushStack 
+     (topStack st)
+     (s 'call-stack
+        (popx (g 'call-stack st))
+        st))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>  
+    
+(<span class="keyword">defun</span> <span class="function-name">current-method</span> (st)
+  (<span class="keyword">let*</span> ((method-name (g 'method-name (topx (g 'call-stack st))))
+         (method-table (g 'method-table st)))
+    (binding method-name method-table)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">pc-in-range</span> (st)
+  (<span class="keyword">let</span> ((pc (g 'pc (topx (g 'call-stack st))))
+        (code (g 'code (binding (g 'method-name 
+                                   (topx (g 'call-stack st)))
+                                (g 'method-table st)))))
+    (and (integerp pc)
+         (&lt;= 0 pc)
+         (&lt; pc (len code)))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">next-inst</span> (st)
+  (<span class="keyword">let*</span> ((pc (get-pc st))
+         (code (g 'code (current-method st))))
+    (<span class="keyword">if</span> (not (pc-in-range st))
+        nil
+      (nth pc code))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">m-step</span> (st)
+  (<span class="keyword">let*</span> ((inst (next-inst st))
+         (opcode (op-code inst)))
+    (<span class="keyword">cond</span> ((equal opcode '<a href="INVOKE.lisp.html">INVOKE</a>) 
+           (execute-INVOKE inst st))
+          ((equal opcode '<a href="PUSH.lisp.html">PUSH</a>)
+           (execute-PUSH inst st))
+          ((equal opcode '<a href="IFEQ.lisp.html">IFEQ</a>)
+           (execute-IFEQ inst st))
+          ((equal opcode '<a href="HALT.lisp.html">HALT</a>)
+           (execute-HALT inst st))
+          ((equal opcode '<a href="POP.lisp.html">POP</a>)
+           (execute-POP inst st))
+          ((equal opcode '<a href="RETURN.lisp.html">RETURN</a>)
+           (execute-RETURN inst st))
+          (t st))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">m-run</span> (st n)
+  (<span class="keyword">if</span> (zp n) st
+    (m-run (m-step st) (- n 1))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+</pre>
+  </body>
+</html>

@@ -1,0 +1,180 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>jvm-loader-primitives.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"JVM"</span>)
+(include-book <span class="string"><a href="jvm-object-manipulation-primitives.lisp.html">"../M6-DJVM-shared/jvm-object-manipulation-primitives"</a></span>)
+(include-book <span class="string"><a href="jvm-state.lisp.html">"../M6-DJVM-shared/jvm-state"</a></span>)
+(include-book <span class="string"><a href="jvm-type-value.lisp.html">"../M6-DJVM-shared/jvm-type-value"</a></span>)
+
+
+(acl2::set-verify-guards-eagerness 2)
+
+<span class="comment">; ---- <a href="../common/primitives.lisp.html">primitives</a> for converting ACL2 string 
+;      to m6 array object, futher to a m6 string.
+</span>
+(<span class="keyword">defun</span> <span class="function-name">countdown-measure-guard</span> (bound offset)
+  (and (integerp bound)
+       (integerp offset)
+       (&lt;= offset bound)))
+
+(<span class="keyword">defun</span> <span class="function-name">countdown-measure</span> (bound offset)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (countdown-measure-guard bound offset)))
+  (<span class="keyword">if</span> (zp (- bound offset))
+             0
+           (+ 1 (- bound offset))))
+
+(<span class="keyword">defun</span> <span class="function-name">str-to-array-char-data</span> (str offset bound) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:measure</span>  (countdown-measure bound offset)
+                  <span class="builtin">:guard</span> (and (countdown-measure-guard bound offset)
+                              (&lt;= 0 offset)
+                              (stringp str)
+                              (&lt;= bound (length str)))))
+    (<span class="keyword">if</span> (zp (- bound offset))
+        nil
+      (cons (char-code (char str offset))
+            (str-to-array-char-data str (+ offset 1) bound))))
+
+(<span class="keyword">defun</span> <span class="function-name">str-to-array-obj</span> (str s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (stringp str)
+                              (build-a-java-visible-instance-guard
+                               <span class="string">"java.lang.Object"</span> s))))
+  (<span class="keyword">let*</span> ((array-data (str-to-array-char-data str 0 (length str)))
+         (bound (len array-data)))
+    (make-array (make-array-type 'char) 
+                bound 
+                array-data
+                S)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">make-immediate-string-part</span> (array offset bound)
+  (cons <span class="string">"java.lang.String"</span> 
+        (list (cons <span class="string">"value"</span>  array)
+              (cons <span class="string">"offset"</span> offset)
+              (cons <span class="string">"count"</span>  bound))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">make-java-lang-string-visible-part</span> (str S)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (stringp str)
+                              (wff-state s)
+                              (wff-heap (heap s))
+                              (build-a-java-visible-instance-guard
+                               <span class="string">"java.lang.Object"</span> s))))
+  (mv-let (Object-jvp new-s1)
+          (build-a-java-visible-instance <span class="string">"java.lang.Object"</span> s)
+          <span class="comment">;; build-a-javaString assume the String's superclass is Object.
+</span>          (mv-let (array new-s2)
+                  (str-to-array-obj str new-s1)
+                  (<span class="keyword">let*</span> ((heap1 (heap new-s2))
+                         (new-array-addr (alloc heap1))
+                         (heap2 (bind new-array-addr array heap1))
+                         (bound (length str))
+                         (offset 0)
+                         (string-obj  
+                          (cons (make-immediate-string-part 
+                                 new-array-addr offset bound)
+                                Object-jvp)))
+                    (mv string-obj
+                        (update-trace new-array-addr (state-set-heap heap2 new-s2)))))))
+
+(defthm alistp-bind-alistp
+  (implies (alistp l)
+           (alistp (bind x any l))))
+
+
+(defthm make-java-lang-string-visible-part-preserve-wff-state
+  (implies (wff-state s)
+           (wff-state (mv-nth 1 (make-java-lang-string-visible-part str S)))))
+
+(defthm make-java-lang-string-visible-part-preserve-wff-heap
+  (implies (wff-heap (heap s))
+           (wff-heap (heap  (mv-nth 1 (make-java-lang-string-visible-part str S))))))
+
+(defthm make-java-lang-string-visible-part-no-change-class-table
+  (equal (class-table (mv-nth 1 (make-java-lang-string-visible-part str S)))
+         (class-table s)))
+
+
+<span class="comment">;; this functions are used in building the string object when we load constant
+;; pool
+</span>
+(<span class="keyword">defun</span> <span class="function-name">ACL2-str-to-JavaString</span> (str S)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (stringp str)
+                              (wff-state s)
+                              (wff-heap (heap s))
+                              (build-a-java-visible-instance-guard
+                               <span class="string">"java.lang.Object"</span> s))))
+  (<span class="keyword">let</span> ((common-info     (build-common-info <span class="string">"java.lang.String"</span>))
+        (specific-info   (build-STRING-specific-info)))
+    (mv-let (java-visible-portion new-state)
+            (make-java-lang-string-visible-part str S)
+            (mv (make-object common-info specific-info java-visible-portion)
+                new-state))))
+
+
+<span class="comment">;; (in-theory (disable ACL2-str-to-JavaString))
+</span>
+(<span class="keyword">defun</span> <span class="function-name">create-string-guard</span> (str s)
+  (and (stringp str)
+       (wff-state s)
+       (wff-heap (heap s))
+       (build-a-java-visible-instance-guard <span class="string">"java.lang.Object"</span> s)))
+
+(<span class="keyword">defun</span> <span class="function-name">ACL2-str-to-JavaString-ref</span> (str S)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (create-string-guard str s)))
+  (mv-let (the-String-obj new-S)
+          (ACL2-str-to-JavaString str S)
+          (<span class="keyword">let*</span> ((heap   (heap new-S))
+                 (new-addr (alloc heap))
+                 (new-heap (bind new-addr the-String-obj heap)))
+            (mv new-addr
+                (update-trace new-addr (state-set-heap new-heap new-s))))))
+
+<span class="comment">;-----------------
+</span>
+
+
+</pre>
+  </body>
+</html>

@@ -1,0 +1,2 @@
+(ld "../BCV/bcv.pkg")
+(certify-book "bcv-collected-frames-are-good-frames" 5 t :skip-proofs-okp t)

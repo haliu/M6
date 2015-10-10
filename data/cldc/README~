@@ -1,0 +1,8 @@
+how to generate from cldc-2 to cldc-3
+
+cd <...>/currentwork/
+source set-env 
+
+cd <...>/currentwork/data/
+
+java 

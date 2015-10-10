@@ -1,0 +1,257 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>djvm-check-succeed-implies-jvm-equiv-state.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"ACL2"</span>)
+(include-book <span class="string"><a href="jvm-model.lisp.html">"jvm-model"</a></span>)
+(include-book <span class="string"><a href="djvm-model.lisp.html">"djvm-model"</a></span>)
+(include-book <span class="string"><a href="state-equiv-def.lisp.html">"state-equiv-def"</a></span>)
+(include-book <span class="string"><a href="generic.lisp.html">"generic"</a></span>)
+
+
+(local 
+ (in-theory (enable
+             djvm-check-INVOKE
+             djvm-check-POP
+             djvm-check-PUSH
+             djvm-check-RETURN
+             djvm-check-IFEQ)))
+
+
+
+(defthm state-equiv-implies-pushStack-state-equiv
+  (implies (state-equiv jvm-s djvm-s)
+           (state-equiv (pushStack v jvm-s)
+                        (pushStack v djvm-s))))
+
+
+
+
+(defthm state-equiv-implies-call-frame-equiv-equal
+  (implies (and (state-equiv jvm-s djvm-s)
+                (consp (g 'call-stack djvm-s)))
+           (call-frame-equiv (car (g 'call-stack jvm-s))
+                             (car (g 'call-stack djvm-s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable state-equiv))))
+
+
+
+(defthm state-equiv-implies-topStack-equal
+  (implies (state-equiv jvm-s djvm-s)
+           (equal (topstack jvm-s)
+                  (topstack djvm-s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:cases</span> ((consp (g 'call-stack djvm-s)))
+           <span class="builtin">:in-theory</span> (disable state-equiv-implies-call-frame-equiv-equal))
+          (<span class="string">"Subgoal 1"</span> <span class="builtin">:use</span> ((<span class="builtin">:instance</span> state-equiv-implies-call-frame-equiv-equal)))))
+
+
+(defthm state-equiv-implies-method-name-equal
+  (implies (state-equiv jvm-s djvm-s)
+           (equal (g 'method-name (car (g 'call-stack jvm-s)))
+                  (g 'method-name (car (g 'call-stack djvm-s)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:cases</span> ((consp (g 'call-stack djvm-s)))
+           <span class="builtin">:in-theory</span> (disable state-equiv-implies-call-frame-equiv-equal))
+          (<span class="string">"Subgoal 1"</span> <span class="builtin">:use</span> ((<span class="builtin">:instance</span>
+                              state-equiv-implies-call-frame-equiv-equal)))))
+
+
+
+(defthm state-equiv-implies-op-stack-equal
+  (implies (state-equiv jvm-s djvm-s)
+           (equal (g 'op-stack (car (g 'call-stack jvm-s)))
+                  (g 'op-stack (car (g 'call-stack djvm-s)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:cases</span> ((consp (g 'call-stack djvm-s)))
+           <span class="builtin">:in-theory</span> (disable state-equiv-implies-call-frame-equiv-equal))
+          (<span class="string">"Subgoal 1"</span> <span class="builtin">:use</span> ((<span class="builtin">:instance</span>
+                              state-equiv-implies-call-frame-equiv-equal)))))
+
+
+
+
+
+
+(defthm state-equiv-implies-popStack-state-equiv
+  (implies (state-equiv jvm-s djvm-s)
+           (state-equiv (popStack jvm-s)
+                        (popStack djvm-s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> ((<span class="builtin">:instance</span>  state-equiv-implies-op-stack-equal)))))
+                                    
+
+
+
+(defthm state-equiv-implies-set-pc-state-equiv
+  (implies (state-equiv jvm-s djvm-s)
+           (state-equiv (set-pc pc jvm-s)
+                        (set-pc pc djvm-s))))
+
+
+(defthm state-equiv-implies-get-pc-equal
+  (implies (state-equiv jvm-s djvm-s)
+           (equal (get-pc jvm-s)
+                  (get-pc djvm-s))))
+
+
+(defthm state-equiv-implies-push-init-frame
+  (implies (state-equiv jvm-s djvm-s)
+           (state-equiv (pushInitFrame 
+                           name locals jvm-s)
+                        (pushInitFrame 
+                          name locals djvm-s))))
+
+
+
+
+(defthm state-equiv-implies-pop-call-stack
+  (implies (state-equiv jvm-s djvm-s)
+           (state-equiv (s 'call-stack
+                           (cdr (g 'call-stack jvm-s))
+                           jvm-s)
+                        (s 'call-stack
+                           (cdr (g 'call-stack djvm-s))
+                           djvm-s))))
+
+  
+
+(in-theory (disable pushStack popStack set-pc get-pc
+                    state-equiv
+                    pushInitFrame
+                    pushStack))
+
+
+
+
+(defthm state-equiv-implies-popStack-n
+  (implies (state-equiv jvm-s djvm-s)
+           (state-equiv (popStack-n jvm-s n)
+                        (popStack-n djvm-s n)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize))))
+
+
+
+(defthm call-stack-equiv-implies-consp
+  (implies (CALL-STACK-EQUIV jvm-cs djvm-cs)
+           (equal (consp jvm-cs)
+                  (consp djvm-cs))))
+
+
+
+(defthm state-equiv-implies-consp-call-stack
+  (implies (state-equiv jvm-s djvm-s)
+           (equal (consp (g 'call-stack jvm-s))
+                  (consp (g 'call-stack djvm-s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable state-equiv call-stack-equiv))))
+
+
+
+(defthm state-equiv-implies-consp-call-stack-2
+  (implies (state-equiv jvm-s djvm-s)
+           (equal (consp (cdr (g 'call-stack jvm-s)))
+                  (consp (cdr (g 'call-stack djvm-s)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable state-equiv call-stack-equiv))))
+
+
+(defthm class-table-equiv-implies-method-equiv
+  (implies (and (class-table-equiv jvm-cl djvm-cl)
+                (bound? name djvm-cl))
+           (method-equiv (cdr (assoc-equal name jvm-cl))
+                         (cdr (assoc-equal name djvm-cl)))))
+
+
+
+(defthm state-equiv-implies-method-code-equal
+  (implies (and (state-equiv jvm-s djvm-s)
+                (case-split (bound? name (g 'method-table djvm-s))))
+           (equal (g 'code (cdr (assoc-equal name (g 'method-table jvm-s))))
+                  (g 'code (cdr (assoc-equal name (g 'method-table djvm-s))))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (state-equiv)
+                                  (class-table-equiv 
+                                   class-table-equiv-implies-method-equiv))
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span> class-table-equiv-implies-method-equiv
+                            (jvm-cl  (g 'method-table jvm-s))
+                            (djvm-cl (g 'method-table djvm-s)))))))
+           
+(defthm state-equiv-implies-nargs-equal
+  (implies (and (state-equiv jvm-s djvm-s)
+                (case-split (bound? name (g 'method-table djvm-s))))
+           (equal (g 'nargs (cdr (assoc-equal name (g 'method-table jvm-s))))
+                  (g 'nargs(cdr (assoc-equal name (g 'method-table djvm-s))))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (state-equiv)
+                                  (class-table-equiv 
+                                   class-table-equiv-implies-method-equiv))
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span> class-table-equiv-implies-method-equiv
+                            (jvm-cl  (g 'method-table jvm-s))
+                            (djvm-cl (g 'method-table djvm-s)))))))
+
+
+
+(defthm if-not-nil-next-inst-then-bound-general
+  (implies (not (assoc-equal name cl))
+           (not (car (nth pc (G 'CODE (CDR (ASSOC-EQUAL name cl))))))))
+
+
+(defthm if-not-nil-next-inst-then-bound-specific
+  (implies (car (nth (get-pc djvm-s) 
+                     (G 'CODE (CDR (ASSOC-EQUAL name (g 'method-table djvm-s))))))
+           (assoc-equal name (g 'method-table djvm-s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> ((<span class="builtin">:instance</span> if-not-nil-next-inst-then-bound-general
+                                   (pc (get-pc djvm-s))
+                                   (cl (g 'method-table djvm-s)))))))
+
+
+(defthm djvm-check-step-implies-method-bound
+  (implies (djvm-check-step djvm-s)
+           (assoc-equal (g 'method-name 
+                           (car (g 'call-stack djvm-s)))
+                        (g 'method-table djvm-s))))
+           
+
+(defthm get-pc-noramlize
+  (equal (G 'PC (CAR (G 'CALL-STACK JVM-S)))
+         (get-pc jvm-s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable get-pc))))
+
+
+(defthm <a href="djvm-check-succeed-implies-jvm-equiv-state.lisp.html">djvm-check-succeed-implies-jvm-equiv-state</a>
+  (implies (and (state-equiv jvm-s djvm-s)
+                (djvm-check-step djvm-s))
+           (state-equiv (m-step jvm-s)
+                        (djvm-step djvm-s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+           <span class="builtin">:in-theory</span> (disable <a href="consistent-state.lisp.html">consistent-state</a>))))
+
+</pre>
+  </body>
+</html>

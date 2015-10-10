@@ -1,0 +1,252 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>perm.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"HANOI"</span>)
+
+(acl2::set-verify-guards-eagerness 2)
+
+(include-book <span class="string"><a href="basic.lisp.html">"basic"</a></span>)
+
+(<span class="keyword">defun</span> <span class="function-name">mem</span> (e x)
+  (<span class="keyword">if</span> (consp x)
+      (<span class="keyword">if</span> (equal e (car x))
+          x
+        (mem e (cdr x)))
+    nil))
+
+
+(<span class="keyword">defun</span> <span class="function-name">del</span> (e x)
+  (<span class="keyword">if</span> (consp x)
+      (<span class="keyword">if</span> (equal e (car x))
+          (cdr x)
+        (cons (car x) (del e (cdr x))))
+    nil))
+
+(<span class="keyword">defun</span> <span class="function-name"><a href="perm.lisp.html">perm</a></span> (x y)
+  (<span class="keyword">if</span> (consp x)
+      (and (mem (car x) y)
+           (<a href="perm.lisp.html">perm</a> (cdr x)
+                 (del (car x) y)))
+    (not (consp y))))
+
+
+
+(encapsulate ()
+   (local (encapsulate ()
+            (defthm mem-del
+              (implies (not (mem v1 x))
+                       (not (mem v1 (del v2 x)))))
+
+            (defthm mem-perm
+              (IMPLIES (AND (<a href="perm.lisp.html">perm</a> x y)
+                            (mem v x))
+                       (mem v y))
+              <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize))))
+
+            (defthm mem-del2
+              (implies (and (mem v1 x)
+                            (not (equal v2 v1)))
+                       (mem v1 (del v2 x))))
+
+            (defthm del-del-norm
+              (equal (DEL Y (DEL X Z))
+                     (del x (del y z))))
+ 
+
+            (defthm perm-del
+              (implies (<a href="perm.lisp.html">perm</a> x y)
+                       (<a href="perm.lisp.html">perm</a> (del v x)
+                             (del v y)))
+              <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize))))
+
+            (defthm perm-transitive
+              (implies (and (<a href="perm.lisp.html">perm</a> x y)
+                            (<a href="perm.lisp.html">perm</a> y z))
+                       (<a href="perm.lisp.html">perm</a> x z)))
+
+            (defthm perm-reflexive
+              (<a href="perm.lisp.html">perm</a> x x))
+
+            (defthm perm-cons
+              (IMPLIES (mem v x)
+                       (equal (PERM X (CONS v y))
+                              (<a href="perm.lisp.html">perm</a> (del v x) y)))
+              <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:induct</span> (<a href="perm.lisp.html">perm</a> x y))))
+
+            (defthm perm-commutitive
+              (implies (<a href="perm.lisp.html">perm</a> y x)
+                       (<a href="perm.lisp.html">perm</a> x y))
+              <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize))))))
+   
+   (defequiv <a href="perm.lisp.html">perm</a>))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(encapsulate () 
+  (local (encapsulate ()
+     (defthmd mem-app-cons
+       (mem v (app l1 (cons v l2))))
+
+     (defthmd perm-app-del
+       (<a href="perm.lisp.html">perm</a> (del v (app l1 (cons v l2)))
+             (app l1 l2))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+                <span class="builtin">:in-theory</span> (enable mem-app-cons))))
+
+     (defthmd perm-app-comm
+       (<a href="perm.lisp.html">perm</a> (app l2 l1)
+             (app l1 l2))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+                <span class="builtin">:in-theory</span> (enable mem-app-cons
+                                   perm-app-del))))
+
+     (defthmd perm-app-assoc
+       (<a href="perm.lisp.html">perm</a> (app (app l1 l2) l3)
+             (app l1 (app l2 l3)))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize))))
+
+
+     (defthmd perm-app-reduce-1
+       (equal (<a href="perm.lisp.html">perm</a> (app l1 l3)
+                    (app l1 l2))
+              (<a href="perm.lisp.html">perm</a> l3 l2)))
+
+
+     (defthmd app-app-swap-lema
+       (PERM (APP L (APP L1 L2))
+             (APP L1 (APP L L2)))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> 
+                <span class="builtin">:in-theory</span> (e/d (perm-app-assoc
+                                 perm-app-comm
+                                 perm-app-reduce-1)
+                                (<a href="perm.lisp.html">perm</a> app))
+                <span class="builtin">:use</span> ((<span class="builtin">:instance</span> perm-app-comm
+                                 (l2 l1)
+                                 (l1 (app l l2)))))))
+
+
+     (defthmd perm-app-reduce-2
+       (equal (<a href="perm.lisp.html">perm</a> (app l1 (app l l2))
+                    (app s1 (app l s2)))
+              (<a href="perm.lisp.html">perm</a> (app l1 l2)
+                    (app s1 s2)))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> 
+                <span class="builtin">:do-not</span> '(generalize)
+                <span class="builtin">:do-not-induct</span> t
+                <span class="builtin">:in-theory</span> (e/d (perm-app-comm
+                                 perm-app-assoc
+                                 app-app-swap-lema
+                                 perm-app-reduce-1)
+                                (<a href="perm.lisp.html">perm</a>))
+                <span class="builtin">:cases</span> ((not (and  (<a href="perm.lisp.html">perm</a> (app l (app l1 l2))
+                                         (app l1 (app l l2)))
+                                   (<a href="perm.lisp.html">perm</a> (app l (app s1 s2))
+                                         (app s1 (app l s2)))))))))
+                        
+
+     (defthmd perm-app-cons-norm-lemma
+        (equal (<a href="perm.lisp.html">perm</a> (cons v l2)
+                     (cons v l1))
+               (<a href="perm.lisp.html">perm</a> l2 l1)))
+
+     (defthmd perm-app-cons-norm-0
+       (<a href="perm.lisp.html">perm</a> (cons v (app l1 l2))
+             (app l1 (cons v l2))))
+
+     (defthmd perm-app-cons-norm-1
+        (equal (<a href="perm.lisp.html">perm</a> (app l1 (cons v l2))
+                     (cons v l))
+               (<a href="perm.lisp.html">perm</a> (app l1 l2)
+                     l))
+        <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> 
+                 <span class="builtin">:do-not</span> '(generalize)
+                 <span class="builtin">:do-not-induct</span> t
+                 <span class="builtin">:in-theory</span> (e/d (perm-app-cons-norm-lemma) 
+                                 (<a href="perm.lisp.html">perm</a>))
+                 <span class="builtin">:use</span> ((<span class="builtin">:instance</span> perm-app-comm
+                                  (l2 l1)
+                                  (l1 (cons v l2)))
+                       (<span class="builtin">:instance</span> perm-app-comm
+                                  (l2 l1)
+                                  (l1 l2))))))))
+
+
+  (defthmd perm-app-reduce-1
+    (equal (<a href="perm.lisp.html">perm</a> (app l1 l3)
+                 (app l1 l2))
+           (<a href="perm.lisp.html">perm</a> l3 l2)))
+
+  (defthmd perm-app-reduce-2
+    (equal (<a href="perm.lisp.html">perm</a> (app l1 (app l l2))
+                 (app s1 (app l s2)))
+           (<a href="perm.lisp.html">perm</a> (app l1 l2)
+                 (app s1 s2))))
+  
+  (defthmd perm-app-comm
+       (<a href="perm.lisp.html">perm</a> (app l2 l1)
+             (app l1 l2))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+                <span class="builtin">:in-theory</span> (enable mem-app-cons
+                                   perm-app-del))))
+
+   (defthmd perm-app-assoc
+       (<a href="perm.lisp.html">perm</a> (app (app l1 l2) l3)
+             (app l1 (app l2 l3)))
+       <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize))))
+
+
+   (defthmd perm-app-cons-norm-0
+       (<a href="perm.lisp.html">perm</a> (cons v (app l1 l2))
+             (app l1 (cons v l2))))
+
+   (defthmd perm-app-cons-norm-1
+     (equal (<a href="perm.lisp.html">perm</a> (app l1 (cons v l2))
+                  (cons v l))
+            (<a href="perm.lisp.html">perm</a> (app l1 l2)
+                  l))))
+                             
+</pre>
+  </body>
+</html>

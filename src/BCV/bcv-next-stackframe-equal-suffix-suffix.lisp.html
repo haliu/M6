@@ -1,0 +1,454 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>bcv-next-stackframe-equal-suffix-suffix.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"BCV"</span>)
+(include-book <span class="string"><a href="typechecker.lisp.html">"typechecker"</a></span>)
+(include-book <span class="string"><a href="typechecker-ext.lisp.html">"typechecker-ext"</a></span>)
+(include-book <span class="string"><a href="typechecker-simple.lisp.html">"typechecker-simple"</a></span>)
+(include-book <span class="string"><a href="bcv-base.lisp.html">"bcv-base"</a></span>)
+
+
+
+(defthm is-suffix-then-is-suffix-suffix
+  (implies (and (is-suffix mergedcode all-merged-code)
+                (consp mergedcode))
+           (is-suffix mergedcode (suffix (car mergedcode) all-merged-code))))
+
+
+<span class="comment">;; (defun prefix (mergedcode1 mergedcode)
+;;   (if (equal mergedcode mergedcode1) nil
+;;     (if (endp mergedcode) "impossible"
+;;       (cons (car mergedcode)
+;;             (prefix mergedcode1 (cdr mergedcode))))))
+</span>
+
+
+(<span class="keyword">defun</span> <span class="function-name">all-stack-frame</span> (frames)
+  (<span class="keyword">if</span> (endp frames) t
+    (and (isStackMap (car frames))
+         (all-stack-frame (cdr frames)))))
+
+(defthm next-stackframe-append-stack-frames-in-front
+  (implies (and (isStackMap frame)
+                (isStackMap (car any)))
+           (equal (next-stackframe (cons frame any))
+                  (next-stackframe any)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isInstruction
+                                      isStackMap
+                                      isEnd))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">induct-append</span> (frames any)
+  (<span class="keyword">if</span> (endp frames) (list frames any)
+    (induct-append (cdr frames)
+                   (cons (car frames) any))))
+
+(defthm next-stackframe-append-stack-frames-in-front-2
+  (implies (and (all-stack-frame frames)
+                (isStackMap (car any)))
+           (equal (next-stackframe (append frames any))
+                  (next-stackframe any)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isInstruction
+                                      isStackMap
+                                      next-stackframe
+                                      isEnd)
+           <span class="builtin">:do-not</span> '(generalize fertilize)
+           <span class="builtin">:induct</span> (induct-append frames any))))
+
+
+(defthm suffix-is-append-prefix
+  (implies (is-suffix mergedcode1 mergedcode)
+           (equal (append (prefix mergedcode1  mergedcode)
+                          mergedcode1)
+                  mergedcode)))
+                  
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;; (defthm member-instruction
+;;   (implies (and (member instr prefix)
+;;                 (wff-stack-map-offset-2 (append prefix mergedcode))
+;;                 (wff-merged-code-weak (append prefix mergedcode))
+;;                 (ordered (extract-pc (append prefix mergedcode))))
+;;            (&lt; (next-pc (car prefix))
+;;               (next-pc mergedcode)))
+;;   :hints (("Goal" :in-theory (disable isInstruction isStackMap
+;;                                       isEnd mapOffset instrOffset))))
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">all-less-than</span> (x l)
+  (<span class="keyword">if</span> (endp l) t
+    (and (&lt;= (car l) x)
+         (all-less-than x (car l)))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">wff-merged-code-weak-2</span> (l)
+  (<span class="keyword">if</span> (endp l) t
+    (and (or (isStackMap (car l))
+             (isInstruction (car l)))
+         (wff-merged-code-weak-2 (cdr l)))))
+
+
+(defthm wff-stack-map-offset-2-implies-strictly-less-than
+  (implies (and (wff-stack-map-offset-2 mergedcode)
+                (wff-merged-code-weak-2 mergedcode)
+                (member <a href="../DJVM/INST/inst.lisp.html">inst</a> mergedcode)
+                (isInstruction <a href="../DJVM/INST/inst.lisp.html">inst</a>)
+                (consp (cdr (suffix <a href="../DJVM/INST/inst.lisp.html">inst</a> mergedcode))))
+           (&lt; (<a href="../DJVM/INST/inst.lisp.html">inst</a>rOffset <a href="../DJVM/INST/inst.lisp.html">inst</a>)
+              (next-pc (cdr (suffix <a href="../DJVM/INST/inst.lisp.html">inst</a> mergedcode))))))
+
+
+(defthm wff-stack-map-offset-2-wff-stack-map-offset
+  (implies (wff-stack-map-offset-2 (append prefix (cons x any)))
+           (wff-stack-map-offset-2 (append prefix (list x))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isEnd isInstruction isStackMap
+                                      instrOffset
+                                      mapOffset next-pc)
+           <span class="builtin">:do-not</span> '(generalize))))
+
+(defthm wff-merged-code-weak-implies-wff-merged-code-weak-2
+  (implies (and (wff-merged-code-weak (append prefix (cons x any)))
+                (isStackMap x))
+           (wff-merged-code-weak-2 (append prefix (list x))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isEnd isInstruction isStackMap
+                                      instrOffset
+                                      mapOffset next-pc)
+           <span class="builtin">:do-not</span> '(generalize))))
+
+(defthm ordered-implies-no-less-than
+  (implies (and (member x l)
+                (ordered l))
+           (&lt;= x (car (last l)))))
+
+(defthm extract-pc-apppend
+  (implies (wff-merged-code-weak-2 (append prefix mergedcode))
+           (equal (extract-pc (append prefix mergedcode))
+                  (append (extract-pc prefix) (extract-pc mergedcode)))))
+
+(defthm car-last-append
+  (equal (car (last (append l (list x))))
+         x))
+
+
+(defthm member-inst-member
+  (implies (and (member <a href="../DJVM/INST/inst.lisp.html">inst</a> prefix)
+                (consp mergedcode))
+           (member (car (cdr (suffix <a href="../DJVM/INST/inst.lisp.html">inst</a> (append prefix mergedcode))))
+                   (append prefix mergedcode))))
+
+
+(defthm member-pc-member
+  (implies (and (member <a href="../DJVM/INST/inst.lisp.html">inst</a> mergedcode)
+                (wff-merged-code-weak-2 mergedcode)
+                (isInstruction <a href="../DJVM/INST/inst.lisp.html">inst</a>))
+           (member (<a href="../DJVM/INST/inst.lisp.html">inst</a>rOffset <a href="../DJVM/INST/inst.lisp.html">inst</a>) (extract-pc mergedcode)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isInstruction isStackMap
+                                      mapOffset
+                                      isEnd instrOffset))))
+
+
+(defthm member-next-pc-member
+  (implies (and (member (car l) (append l1 l2))
+                (wff-merged-code-weak-2 (append l1 l2)))
+           (member (next-pc l) 
+                   (append (extract-pc l1) 
+                           (extract-pc l2)))))
+
+(defthm ordered-append-nil
+  (equal (ordered (append l nil))
+         (ordered l)))
+
+(defthm isStackMap-consp
+  (implies (ISSTACKMAP MERGEDCODE1)
+           (consp mergedcode1))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+(defthm ordered-append-1
+  (implies (ORDERED (append l1 l2))
+           (ordered l1))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+(defthm ordered-append-1-specific
+  (implies (ordered (extract-pc (append prefix (cons x l))))
+           (ordered (extract-pc (append prefix (list x)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isEnd isInstruction isStackMap
+                                      instrOffset
+                                      mapOffset next-pc)
+           <span class="builtin">:do-not</span> '(generalize)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+(defthm ordered-append-1-specific-further
+  (implies (and (wff-merged-code-weak-2 (append prefix (list x)))
+                (isStackMap x))
+           (equal (extract-pc (append prefix (list x)))
+                  (append (extract-pc prefix) (list (mapOffset (getMap x)))))))
+  
+
+(defthm member-inst-prefix
+  (implies (member <a href="../DJVM/INST/inst.lisp.html">inst</a> prefix)
+           (CONSP (CDR (SUFFIX INST
+                               (APPEND PREFIX (LIST MERGEDCODE1)))))))
+
+
+(defthm member-inst-member-append
+  (implies (member <a href="../DJVM/INST/inst.lisp.html">inst</a> prefix)
+           (MEMBER INST
+                   (APPEND PREFIX (LIST MERGEDCODE1)))))
+
+
+(defthm wff-stack-map-offset-member-then-last-pc-larger
+  (implies (and (ordered (extract-pc (append prefix mergedcode)))
+                (wff-stack-map-offset-2 (append prefix mergedcode))
+                (wff-merged-code-weak (append prefix mergedcode))
+                (isInstruction <a href="../DJVM/INST/inst.lisp.html">inst</a>)
+                (consp mergedcode)
+                (isStackMap (car mergedcode))
+                (member <a href="../DJVM/INST/inst.lisp.html">inst</a> prefix))
+           (&lt; (<a href="../DJVM/INST/inst.lisp.html">inst</a>rOffset <a href="../DJVM/INST/inst.lisp.html">inst</a>)
+              (mapOffset (getMap (car mergedcode)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isEnd isInstruction isStackMap
+                                      instrOffset getMap
+                                      mapOffset next-pc)
+            <span class="builtin">:use</span> ((<span class="builtin">:instance</span> wff-stack-map-offset-2-implies-strictly-less-than
+                             (mergedcode (append prefix (list (car
+                                                               mergedcode)))))
+                  (<span class="builtin">:instance</span> ordered-implies-no-less-than
+                             (x (NEXT-PC (CDR (SUFFIX INST
+                                                      (APPEND PREFIX (LIST (car MERGEDCODE)))))))
+                             (l (extract-pc (append prefix (list (car
+                                                                  mergedcode))))))
+                  (<span class="builtin">:instance</span> member-inst-member
+                             (mergedcode (append prefix (list (car
+                                                               mergedcode)))))
+                  (<span class="builtin">:instance</span> member-next-pc-member
+                             (l (cdr (suffix <a href="../DJVM/INST/inst.lisp.html">inst</a> (append prefix (list (car
+                                                                        mergedcode))))))
+                             (l1 prefix)
+                             (l2 (list (car mergedcode))))
+                  (<span class="builtin">:instance</span> wff-merged-code-weak-implies-wff-merged-code-weak-2
+                             (x (car mergedcode))
+                             (any (cdr mergedcode)))
+                  (<span class="builtin">:instance</span> ordered-append-1-specific
+                             (x (car mergedcode))
+                             (l (cdr mergedcode))))
+           <span class="builtin">:do-not-induct</span> t))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:linear</span>)
+                                      
+  
+<span class="comment">;; stupid!! Fri Dec 30 20:56:18 2005
+</span>
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+
+
+(defthm extract-pc-is-consp
+  (implies (and (WFF-MERGED-CODE-WEAK (APPEND PREFIX MERGEDCODE))
+                (isStackMap (car mergedcode)))
+           (CONSP (EXTRACT-PC (APPEND PREFIX MERGEDCODE)))))
+
+
+(defthm extract-pc-ordered-fact
+  (implies (and (ORDERED (EXTRACT-PC (APPEND PREFIX mergedcode)))
+                (wff-merged-code-weak (append prefix mergedcode))
+                (isStackMap (car mergedcode)))
+           (&lt;= (car (extract-pc (append prefix mergedcode)))
+               (mapOffset (getMap (car mergedcode)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isEnd isInstruction isStackMap
+                                      instrOffset getMap
+                                      mapOffset)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+(defthm wff-merged-code-weak-never-end
+  (implies (and (wff-merged-code-weak (append prefix mergedcode))
+                (isStackMap (car mergedcode)))
+           (not (isEnd (car (append prefix mergedcode)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isEnd isInstruction isStackMap
+                                      instrOffset getMap
+                                      mapOffset))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(defthm wff-stack-map-offset-2-implies-all-frames-lemma
+  (implies (and (wff-stack-map-offset-2 (append prefix mergedcode))
+                (wff-merged-code-weak (append prefix mergedcode))
+                (isStackMap (car mergedcode))
+                (ordered (extract-pc (append prefix mergedcode)))
+                (equal (next-pc prefix)
+                       (mapOffset (getMap (car mergedcode)))))
+           (all-stack-frame prefix))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isEnd isInstruction isStackMap
+                                      instrOffset getMap
+                                      mapOffset)
+           <span class="builtin">:do-not</span> '(generalize fertilize))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(defthm car-prefix-is-car
+   (implies (and (is-suffix mergedcode1 mergedcode)
+                 (not (equal mergedcode1 mergedcode))
+                 (consp mergedcode))
+            (equal (car (prefix mergedcode1 mergedcode))
+                   (car mergedcode))))
+
+<span class="comment">;; (NEXT-PC (PREFIX MERGEDCODE1 MERGEDCODE))
+</span>
+
+
+(defthm wff-stack-map-offset-2-implies-all-frames
+  (implies (and (wff-stack-map-offset-2 mergedcode)
+                (wff-merged-code-weak mergedcode)
+                (ordered (extract-pc mergedcode))
+                (is-suffix mergedcode1 mergedcode)
+                (isStackMap (car mergedcode1))
+                (isStackMap (car mergedcode))
+                (equal (mapOffset (getMap (car mergedcode)))
+                       (mapOffset (getMap (car mergedcode1)))))
+           (all-stack-frame (prefix mergedcode1 mergedcode)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isEnd isInstruction isStackMap
+                                      instrOffset getMap
+                                      mapOffset)
+           <span class="builtin">:do-not-induct</span> t
+           <span class="builtin">:cases</span> ((equal mergedcode1 mergedcode)))
+          (<span class="string">"Subgoal 2"</span>   <span class="builtin">:use</span> ((<span class="builtin">:instance</span> wff-stack-map-offset-2-implies-all-frames-lemma
+                                          (prefix (prefix mergedcode1 mergedcode))
+                                          (mergedcode mergedcode1))))))
+          
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;; (defthm next-stackframe-append-stack-frames-in-front-2
+;;   (implies (and (all-stack-frame frames)
+;;                 (isStackMap (car any)))
+;;            (equal (next-stackframe (append frames any))
+;;                   (next-stackframe any)))
+;;   :hints (("Goal" :in-theory (disable isInstruction
+;;                                       isStackMap
+;;                                       next-stackframe
+;;                                       isEnd)
+;;            :do-not '(generalize fertilize)
+;;            :induct (induct-append frames any))))
+</span>
+
+(defthm is-suffix-suffix
+  (implies (member x l)
+           (IS-SUFFIX (SUFFIX x l) l)))
+
+
+(defthm car-suffix-is-car
+  (implies (member x all-merged-code)
+           (equal (car (SUFFIX x ALL-MERGED-CODE))
+                  x)))
+
+(defthm wff-stack-map-offset-2-suffix
+  (implies (and (wff-stack-map-offset-2 all-merged-code)
+                (member x all-merged-code))
+           (WFF-STACK-MAP-OFFSET-2 (SUFFIX x  ALL-MERGED-CODE))))
+
+(defthm wff-merged-code-weak-suffix
+  (implies (and (wff-merged-code-weak all-merged-code)
+                (member x all-merged-code)
+                (not (isEnd x)))
+           (WFF-MERGED-CODE-WEAK (SUFFIX x ALL-MERGED-CODE))))
+
+
+(defthm ordered-suffix
+  (implies (and (ordered (extract-pc all-merged-code))
+                (member x all-merged-code)
+                (wff-merged-code-weak all-merged-code))
+           (ORDERED (EXTRACT-PC (SUFFIX x ALL-MERGED-CODE))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isEnd isInstruction isStackMap
+                                      instrOffset getMap
+                                      mapOffset))))
+
+
+(defthm is-suffix-suffix-2
+  (implies (and (is-suffix mergedcode all-merged-code)
+                (consp mergedcode))
+           (IS-SUFFIX MERGEDCODE (SUFFIX (CAR MERGEDCODE) ALL-MERGED-CODE))))
+
+(defthm isStackMap-consp-x
+  (implies (isStackMap (car mergedcode))
+           (consp mergedcode))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+(defthm is-suffix-then-suffix-is
+  (implies (and (is-suffix mergedcode all-merged-code)
+                (ordered (extract-pc all-merged-code))
+                (wff-stack-map-offset-2 all-merged-code)
+                (wff-merged-code-weak all-merged-code)
+                (member (car mergedcode) all-merged-code)
+                (isStackMap (car mergedcode)))
+           (equal (next-stackframe (suffix (car mergedcode) all-merged-code))
+                  (next-stackframe mergedcode)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isInstruction
+                                      isStackMap
+                                      isEnd
+                                      next-stackframe
+                                      mapOffset
+                                      mapFrame
+                                      instrOffset
+                                      getMap)
+           <span class="builtin">:do-not-induct</span> t
+           <span class="builtin">:do-not</span> '(generalize fertilize)
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span> next-stackframe-append-stack-frames-in-front-2
+                            (frames (prefix mergedcode
+                                            (suffix (car mergedcode)
+                                                    all-merged-code)))
+                            (any mergedcode))))))
+                                 
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+</pre>
+  </body>
+</html>

@@ -1,0 +1,226 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>consistent-state-obj-init.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="consistent-state.lisp.html">"../DJVM/consistent-state"</a></span>)
+
+
+<span class="comment">;; (include-book <a href="djvm-env.lisp.html">"../DJVM/djvm-env"</a>)
+;; (include-book <a href="djvm-class-table.lisp.html">"../DJVM/djvm-class-table"</a>)
+;; (include-book <a href="djvm-thread.lisp.html">"../DJVM/djvm-thread"</a>)
+;; (include-book <a href="djvm-obj.lisp.html">"../DJVM/djvm-obj"</a>)
+;; (include-book <a href="djvm-type-value.lisp.html">"../DJVM/djvm-type-value"</a>)
+;; (include-book <a href="djvm-linker.lisp.html">"../DJVM/djvm-linker"</a>)
+</span>
+
+<span class="comment">;;; The predicate defined in this section: asserts that if local or operand
+;;; stack contains uninitialized reference, then, these references should be
+;;; kept tracked of in frame-obj-init-map.
+;;; 
+;;; Mon Oct 24 13:52:01 2005
+</span>
+(acl2::set-verify-guards-eagerness 2)
+
+(<span class="keyword">defun</span> <span class="function-name">frame-obj-init-map</span> (frame) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-call-frame frame)))
+  (acl2::g 'frame-obj-init-map (frame-aux frame)))
+
+(<span class="keyword">defun</span> <span class="function-name">collect-keys</span> (obj-init-map) 
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (alistp obj-init-map)))
+  (<span class="keyword">if</span> (endp obj-init-map) nil
+    (cons (car (car obj-init-map))
+          (collect-keys (cdr obj-init-map)))))
+
+(<span class="keyword">defun</span> <span class="function-name">collect-values</span> (obj-init-map)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (alistp obj-init-map)
+                              (nodup-set (collect-keys obj-init-map)))))
+  (<span class="keyword">if</span> (endp obj-init-map) nil
+    (cons (cdr (car obj-init-map))
+          (collect-values (cdr obj-init-map)))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">initialized-ref</span> (ref hp-init)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-heap-init-map-strong hp-init)))
+  (or (not (bound? ref hp-init))
+      (not (consp (binding ref hp-init)))))
+
+
+<span class="comment">;; (defun consistent-locals-obj-init (locals hp-init valid-obj-refs)
+;;   (declare (xargs :guard (and (wff-heap-init-map-strong hp-init)
+;;                               (true-listp valid-obj-refs))))
+;;   (if (not (consp locals)) t
+;;     (cond ((category1loc locals)
+;;            (and (or (not (equal (tag-of (car locals)) 'REF)) 
+;;                     ;; not a reference value! 
+;;                     (NULLp (car locals))
+;;                     (initialized-ref (value-of (car locals)) hp-init)
+;;                     (mem (value-of (car locals)) valid-obj-refs))
+;;                 (consistent-locals-obj-init (shift1slot locals) hp-init 
+;;                                             valid-obj-refs)))
+;;           ((category2loc locals)
+;;            (consistent-locals-obj-init (shift2slot locals) hp-init valid-obj-refs)))))
+</span>      
+
+<span class="comment">;; (defun wff-tagged-locals (l)
+;;   (if (not (consp l)) t
+;;     (and (wff-tagged-value (car l))
+;;          (wff-tagged-locals (cdr l)))))
+</span>
+<span class="comment">;; ;;;
+;; ;;; this will make the guard verification for <a href="consistent-state-strong.lisp.html">consistent-state-strong</a> 
+;; ;;; a bit complicated! 
+;; ;;; 
+;; ;;; the benefit is that we can have some nice lemma about pushStack and
+;; ;;; popStack without thinking too much about the guard! --- by ignoring the
+;; ;;; difference between size two value and size one value!! 
+;; ;;; 
+;;;;;; 
+</span>
+(<span class="keyword">defun</span> <span class="function-name">consistent-locals-obj-init</span> (locals hp-init valid-obj-refs)
+   (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-heap-init-map-strong hp-init)
+                               (true-listp valid-obj-refs))))
+   (<span class="keyword">if</span> (not (consp locals)) t
+     (and (wff-tagged-value (car locals))
+          (or (not (equal (tag-of (car locals)) 'REF))
+              (NULLp (car locals))
+              (initialized-ref (value-of (car locals)) hp-init)
+              (mem (value-of (car locals)) valid-obj-refs))
+          (consistent-locals-obj-init (cdr locals) hp-init valid-obj-refs))))
+
+
+<span class="comment">;; (defun consistent-opstack-obj-init (stack hp-init valid-obj-refs)
+;;   (declare (xargs :guard (and (wff-heap-init-map-strong hp-init)
+;;                               (true-listp valid-obj-refs))))
+;;   (if (not (consp stack)) t
+;;     (cond ((canPopCategory1 stack)
+;;            (and (or (not (equal (tag-of (topCategory1 stack)) 'REF))
+;;                     ;; not a reference value! 
+;;                     (NULLp (topCategory1 stack))
+;;                     (initialized-ref (value-of (topCategory1 stack)) hp-init)
+;;                     (mem (value-of (topCategory1 stack)) valid-obj-refs))
+;;                 (consistent-opstack-obj-init (popCategory1 stack) hp-init 
+;;                                             valid-obj-refs)))
+;;           ((canPopCategory2 stack)
+;;            (consistent-opstack-obj-init (popCategory2 stack) hp-init valid-obj-refs)))))
+</span>
+(<span class="keyword">defun</span> <span class="function-name">consistent-opstack-obj-init</span> (stack hp-init valid-obj-refs)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-heap-init-map-strong hp-init)
+                              (true-listp valid-obj-refs))))
+  (<span class="keyword">if</span> (not (consp stack)) t
+    (and (wff-tagged-value (car stack))
+         (or (not (equal (tag-of (car stack)) 'REF))
+             (NULLp (car stack))
+             (initialized-ref (value-of (car stack)) hp-init)
+             (mem (value-of (car stack)) valid-obj-refs))
+         (consistent-opstack-obj-init (cdr stack) hp-init 
+                                      valid-obj-refs))))
+
+      
+(<span class="keyword">defun</span> <span class="function-name">isConstructorFrame</span> (frame)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-call-frame frame)
+                  <span class="builtin">:guard-hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable wff-call-frame)))))
+  (equal (method-ptr-methodname (method-ptr frame))
+         <span class="string">"&lt;init&gt;"</span>))
+          
+(<span class="keyword">defun</span> <span class="function-name">consistent-frame-obj-init</span> (frame hp-init)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-call-frame frame)
+                              (wff-heap-init-map-strong hp-init))))
+  (mylet* ((obj-refs  (collect-values (frame-obj-init-map frame)))
+           (this      (acl2::g 'this (frame-aux frame)))
+           (vars      (locals frame))
+           (stack     (operand-stack frame)))
+    (and (alistp (frame-obj-init-map frame))
+       (nodup-set (collect-keys (frame-obj-init-map frame)))
+       (<span class="keyword">cond</span> ((isConstructorFrame frame)
+               (and (consistent-locals-obj-init vars hp-init (cons this obj-refs))
+                    (consistent-opstack-obj-init stack hp-init (cons this obj-refs))))
+             (t (and (consistent-locals-obj-init vars hp-init obj-refs)
+                     (consistent-opstack-obj-init stack hp-init obj-refs)))))))
+
+
+          
+(<span class="keyword">defun</span> <span class="function-name">consistent-call-stack-obj-init</span> (call-stack hp-init)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-heap-init-map-strong hp-init)))
+  (<span class="keyword">if</span> (not (consp call-stack)) t
+    (and (wff-call-frame (car call-stack))
+         (consistent-frame-obj-init (car call-stack) hp-init)
+         (consistent-call-stack-obj-init (cdr call-stack) hp-init))))
+
+          
+(<span class="keyword">defun</span> <span class="function-name">consistent-thread-entry-obj-init</span> (thread-entry hp-init)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-heap-init-map-strong hp-init)))
+  (and (wff-thread thread-entry)
+       (consistent-call-stack-obj-init (thread-call-stack thread-entry)
+                                       hp-init)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">consistent-thread-table-obj-init</span> (tt hp-init)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-heap-init-map-strong hp-init)))
+  (<span class="keyword">if</span> (not (consp tt)) t
+    (and (consistent-thread-entry-obj-init (car tt) hp-init)
+         (consistent-thread-table-obj-init (cdr tt) hp-init))))
+
+
+
+(<span class="keyword">defun</span> <span class="function-name"><a href="consistent-state-obj-init.lisp.html">consistent-state-obj-init</a></span> (s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-state s)
+                              (wff-heap-init-map-strong (heap-init-map (aux s))))))
+  (consistent-thread-table-obj-init (thread-table s) (heap-init-map (aux s))))
+
+
+(in-theory (disable <a href="consistent-state-obj-init.lisp.html">consistent-state-obj-init</a>
+                    consistent-thread-table-obj-init
+                    consistent-thread-entry-obj-init
+                    consistent-call-stack-obj-init
+                    consistent-frame-obj-init
+                    consistent-opstack-obj-init
+                    consistent-locals-obj-init))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+</pre>
+  </body>
+</html>

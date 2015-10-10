@@ -1,0 +1,118 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-skip-proofs.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="../consistent-state.lisp.html">"../../DJVM/consistent-state"</a></span>)
+(include-book <span class="string"><a href="../djvm-exceptions.lisp.html">"../../DJVM/djvm-exceptions"</a></span>)
+(include-book <span class="string"><a href="../../BCV/typechecker.lisp.html">"../../BCV/typechecker"</a></span>)
+(include-book <span class="string"><a href="../../BCV/bcv-functions.lisp.html">"../../BCV/bcv-functions"</a></span>)
+(include-book <span class="string"><a href="../consistent-state-to-sig-state.lisp.html">"../../DJVM/consistent-state-to-sig-state"</a></span>)
+(include-book <span class="string"><a href="../consistent-state-strong.lisp.html">"../../DJVM/consistent-state-strong"</a></span>)
+
+(skip-proofs 
+ (defthm raise-exception-consistent-state
+   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+            (<a href="../consistent-state.lisp.html">consistent-state</a> (raise-exception any s)))))
+
+
+(skip-proofs 
+ (defthm raise-exception-consistent-state-strong
+   (implies (<a href="../consistent-state-strong.lisp.html">consistent-state-strong</a> s)
+            (<a href="../consistent-state-strong.lisp.html">consistent-state-strong</a> (raise-exception any s)))))
+
+
+(skip-proofs 
+ (defthm bcv-isJavaAssignable-fact-2
+   (BCV::ISJAVAASSIGNABLE '(ARRAY (CLASS <span class="string">"java.lang.Object"</span>))
+                          '(ARRAY (CLASS <span class="string">"java.lang.Object"</span>))
+                          (BCV::CLASSTABLEENVIRONMENT ENV))))
+
+
+
+(skip-proofs 
+ (defthm djvm-isjavaassignment-compatible-cl-implies-BCV-isJavaAssignable
+   (implies (and (isJavaAssignmentCompatible rtype type cl)
+                 (reference-type-s rtype cl)
+                 (reference-type-s type cl)
+                 (consistent-class-hierachy cl)
+                 (class-table-is-loaded-from cl (bcv::scl-bcv2jvm scl)))
+            (bcv::isjavaassignable (fix-sig rtype) (fix-sig type) scl))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:induct</span> (isJavaAssignmentCompatible rtype type cl)
+            <span class="builtin">:in-theory</span> (e/d () (array-component-type component-type))
+            <span class="builtin">:do-not</span> '(generalize)))))
+
+<span class="comment">;;; this may be proved in context of consistent-properties.lisp
+;;; or base-bcv!! 
+</span>
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(skip-proofs 
+ (defthm isAssignableTo-isAssignableTo-if-class-table-same
+   (implies (equal (instance-class-table s2) 
+                   (instance-class-table s1))
+            (iff (car (isAssignableTo typ1 typ2 s2))
+                 (car (isAssignableTo typ1 typ2 s1))))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+<span class="comment">; this need updates to <a href="../consistent-state.lisp.html">consistent-state</a> to assert consistent-instrs!! 
+</span>
+
+(skip-proofs 
+ (defthm method-ptr-no-change-after-raise-exception
+   (equal (METHOD-PTR
+           (CURRENT-FRAME (RAISE-EXCEPTION any S)))
+          (METHOD-PTR (CURRENT-FRAME S)))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(skip-proofs 
+  (defthm deref-method-no-change-after-raise-exception
+    (implies (class-loaded? (method-ptr-classname method-ptr) s)
+             (equal (deref-method method-ptr (instance-class-table 
+                                              (raise-exception any s)))
+                    (deref-method method-ptr (instance-class-table s))))))</pre>
+  </body>
+</html>

@@ -1,0 +1,179 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>djvm-consistent-state-facts.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="djvm-simple.lisp.html">"djvm-simple"</a></span>)
+
+
+(defthm consistent-state-wff-state-f 
+  (implies (<a href="../DJVM/consistent-state.lisp.html">consistent-state</a> s)
+           (wff-state s))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+
+(defthm consistent-state-wff-thread-table-f 
+  (implies (<a href="../DJVM/consistent-state.lisp.html">consistent-state</a> s)
+           (wff-thread-table (thread-table s)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+(defthm consistent-state-wff-thread-f 
+  (implies (<a href="../DJVM/consistent-state.lisp.html">consistent-state</a> s)
+           (wff-thread (thread-by-id (current-thread s)
+                                     (thread-table s))))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+(defthm consistent-state-wff-thread-call-stack-f 
+  (implies (<a href="../DJVM/consistent-state.lisp.html">consistent-state</a> s)
+           (wff-call-stack 
+            (thread-call-stack (thread-by-id (current-thread s)
+                                             (thread-table s)))))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+(defthm consistent-state-current-frame-guard-f
+  (implies (<a href="../DJVM/consistent-state.lisp.html">consistent-state</a> s)
+           (current-frame-guard s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable current-frame-guard)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+
+(defthm consistent-state-current-frame-f
+  (implies (<a href="../DJVM/consistent-state.lisp.html">consistent-state</a> s)
+           (wff-call-frame (current-frame s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable current-frame)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+
+(defthm consistent-state-wff-method-ptr-f
+  (implies (<a href="../DJVM/consistent-state.lisp.html">consistent-state</a> s)
+           (wff-method-ptr (current-method-ptr s)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+(defthm consistent-state-wff-class-table-f
+  (implies (<a href="../DJVM/consistent-state.lisp.html">consistent-state</a> s)
+           (wff-class-table (class-table s)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+(defthm consistent-state-wff-instance-class-table-f
+  (implies (<a href="../DJVM/consistent-state.lisp.html">consistent-state</a> s)
+           (wff-instance-class-table (instance-class-table s)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+
+(defthm consistent-state-wff-method-decl-f
+  (implies (<a href="../DJVM/consistent-state.lisp.html">consistent-state</a> s)
+           (wff-method-decl (deref-method (current-method-ptr s)
+                                          (instance-class-table s))))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+<span class="comment">;----------------------------------------------------------------------
+;----------------------------------------------------------------------
+</span>
+
+(skip-proofs 
+ (defthm consistent-state-wff-code-f
+   (implies (<a href="../DJVM/consistent-state.lisp.html">consistent-state</a> s)
+            (wff-code (method-code (deref-method (current-method-ptr s)
+                                                 (instance-class-table s)))))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+
+(skip-proofs 
+ (defthm consistent-state-wff-insts-f
+   (implies (<a href="../DJVM/consistent-state.lisp.html">consistent-state</a> s)
+            (wff-insts (code-instrs (method-code (deref-method (current-method-ptr s)
+                                                               (instance-class-table s))))))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+<span class="comment">;;; these two that I have not added into the <a href="../DJVM/consistent-state.lisp.html">consistent-state</a> assertions!!! 
+</span> 
+<span class="comment">;----------------------------------------------------------------------
+;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;; (defthm consistent-state-strong-implies-next-inst-guard
+;;   (implies (<a href="../DJVM/consistent-state-strong.lisp.html">consistent-state-strong</a> jvm::s)
+;;            (AND
+;;             (WFF-STATE JVM::S)
+;;             (CURRENT-FRAME-GUARD JVM::S)
+;;             (WFF-CALL-FRAME (CURRENT-FRAME JVM::S))
+;;             (WFF-METHOD-PTR (CURRENT-METHOD-PTR JVM::S))
+;;             (WFF-CLASS-TABLE (CLASS-TABLE JVM::S))
+;;             (WFF-INSTANCE-CLASS-TABLE (INSTANCE-CLASS-TABLE JVM::S))
+;;             (WFF-METHOD-DECL
+;;              (DEREF-METHOD (CURRENT-METHOD-PTR JVM::S)
+;;                            (INSTANCE-CLASS-TABLE JVM::S)))
+;;             (WFF-CODE
+;;              (METHOD-CODE
+;;               (DEREF-METHOD (CURRENT-METHOD-PTR JVM::S)
+;;                             (INSTANCE-CLASS-TABLE JVM::S))))
+;;             (WFF-INSTS
+;;              (CODE-INSTRS
+;;               (METHOD-CODE
+;;                (DEREF-METHOD (CURRENT-METHOD-PTR JVM::S)
+;;                              (INSTANCE-CLASS-TABLE JVM::S)))))))
+;;   :hints (("Goal" :in-theory (e/d (<a href="../DJVM/consistent-state-strong.lisp.html">consistent-state-strong</a>)
+;;                                   (wff-state 
+;;                                    method-code
+;;                                    code-instrs
+;;                                    current-method-ptr
+;;                                    current-frame-guard
+;;                                    wff-call-frame
+;;                                    wff-method-ptr
+;;                                    wff-class-table
+;;                                    wff-instance-class-table
+;;                                    wff-method-decl
+;;                                    wff-code
+;;                                    wff-insts)))))
+</span>
+</pre>
+  </body>
+</html>

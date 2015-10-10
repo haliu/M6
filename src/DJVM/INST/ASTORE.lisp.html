@@ -1,0 +1,543 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>ASTORE.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+
+(include-book <span class="string"><a href="base.lisp.html">"base"</a></span>)
+(include-book <span class="string"><a href="base-consistent-state.lisp.html">"base-consistent-state"</a></span>)
+(include-book <span class="string"><a href="base-locals.lisp.html">"base-locals"</a></span>)
+(include-book <span class="string"><a href="base-extra.lisp.html">"base-extra"</a></span>)
+
+<span class="comment">;----------------------------------------------------------------------
+;
+;  <a href="ASTORE.lisp.html">ASTORE</a>  
+;
+;----------------------------------------------------------------------
+</span>
+<span class="comment">;;(i-am-here) ;; Fri Aug  5 22:44:04 2005
+;
+; J2ME does not use returnAddress type to implement Finally clauses!! 
+;
+; So <a href="ASTORE.lisp.html">ASTORE</a> only need to assign Reference Type into the local
+</span>
+(acl2::set-verify-guards-eagerness 2)
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+
+(<span class="keyword">defun</span> <span class="function-name">wff-ASTORE</span> (<a href="inst.lisp.html">inst</a>)
+  (and  (wff-one-arg <a href="inst.lisp.html">inst</a>)
+        (integerp (arg <a href="inst.lisp.html">inst</a>))
+        (&lt;= 0 (arg <a href="inst.lisp.html">inst</a>))
+        (&lt; (arg <a href="inst.lisp.html">inst</a>) *local-index-limit*)))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;; (defmacro SET-LP (index value)
+;;   `(state-set-local-at ,index ,value s))
+</span>
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">ASTORE-guard</span> (<a href="inst.lisp.html">inst</a> s)
+     (mylet* ((cframe (current-frame s))
+              (locals (locals cframe))
+              (opstack (operand-stack cframe))
+              (index  (arg <a href="inst.lisp.html">inst</a>)))
+             (and (<a href="../consistent-state-strong.lisp.html">consistent-state-strong</a> s)
+                  (wff-ASTORE <a href="inst.lisp.html">inst</a>)
+                  (&lt;= 0 index)
+                  (&lt; index (len locals))
+                  (topStack-guard-strong s)
+                  (REFp (topStack s) (heap s))
+                  (and (not (mem '*abstract* (method-accessflags (current-method s))))
+                       <span class="comment">;; Mon Oct 18 09:33:08 2004. This above is implied by <a href="../consistent-state.lisp.html">consistent-state</a> 
+</span>                       (not (mem '*native* (method-accessflags (current-method s)))))))))
+                    <span class="comment">;; this is not implied by <a href="../consistent-state.lisp.html">consistent-state</a>
+</span>
+
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(include-book <span class="string"><a href="base-state-set-local-at.lisp.html">"base-state-set-local-at"</a></span>)
+(include-book <span class="string"><a href="base-consistent-state-more.lisp.html">"base-consistent-state-more"</a></span>)
+
+<span class="comment">;;(in-theory (disable arg))
+</span>
+<span class="comment">;; need to add something to base.lisp or base-consistent-state.lisp
+;; to make sure the guard verification of this function go through! 
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">execute-ASTORE</span> (<a href="inst.lisp.html">inst</a> s)
+   (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (ASTORE-guard <a href="inst.lisp.html">inst</a> s)))
+   (mylet* ((index (arg <a href="inst.lisp.html">inst</a>))
+            (v1 (topStack s)))
+           (ADVANCE-PC (state-set-local-at index v1 
+                                           (invalidate-category2-value
+                                            (- index 1) (popStack s))))))
+
+<span class="comment">;; (defun execute-ASTORE (<a href="inst.lisp.html">inst</a> s)
+;;    (declare (xargs :guard (ASTORE-guard <a href="inst.lisp.html">inst</a> s)))
+;;    (mylet* ((index (arg <a href="inst.lisp.html">inst</a>))
+;;             (v1 (topStack s)))
+;;            (ADVANCE-PC (popStack 
+;;                         (state-set-local-at index v1 
+;;                                             (invalidate-category2-value
+;;                                               (- index 1) s))))))
+</span>
+<span class="comment">;;
+;;         (ADVANCE-PC (state-set-local-at index v1 
+;;                                           (invalidate-category2-value
+;;                                            (- index 1) (popStack s)))
+;; will make a difference!!! 
+;;
+;;
+;; 
+;; how we define <a href="ASTORE.lisp.html">ASTORE</a> need to be examined!! 
+;; setting one slot will destroy at most one size 2 value! 
+;;
+;; it will be different from <a href="ASTORE.lisp.html">ASTORE</a> in M6.  In M6 we don't need to take care to
+;; destory the size 2 value because after verification, we will know that those
+;; slots will not read again before being written into!!
+</span>
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">check-ASTORE</span> (<a href="inst.lisp.html">inst</a> s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (<a href="../consistent-state.lisp.html">consistent-state</a> s)))
+  (mylet* ((cframe (current-frame s))
+           (locals (locals cframe))
+           (opstack (operand-stack cframe))
+           (index  (arg <a href="inst.lisp.html">inst</a>)))
+          (and (wff-ASTORE <a href="inst.lisp.html">inst</a>)
+               (topStack-guard-strong s)
+               (not (mem '*native* (method-accessflags (current-method s))))
+               (&lt; index (len locals)) 
+               <span class="comment">;; (valid-local-index index locals) ;; this is not necessary 
+</span>               (REFp (topStack s) (heap s))
+               (&lt; index (max-local s)))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm check-ASTORE-implies-guard-succeeds
+  (implies (and (<a href="../consistent-state-strong.lisp.html">consistent-state-strong</a> s)
+               (check-ASTORE <a href="inst.lisp.html">inst</a> s))
+          (ASTORE-guard <a href="inst.lisp.html">inst</a> s)))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;; the next is a more difficult! 
+;; in fact our current definition using update-nth 
+;; will not preserve the consistent-state!! 
+</span>
+<span class="comment">;;; Thu Jul 28 16:06:34 2005
+</span>
+
+<span class="comment">;; Fri Jul 29 01:14:12 2005
+</span>
+<span class="comment">;; (skip-proofs 
+;;  (defthm consistent-state-state-set-local-size-1-value
+;;    (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+;;                  (consistent-value-x v (instance-class-table s)
+;;                                      (heap s))
+;;                  (not (equal (type-size (tag-of v)) 2))
+;;                  (&lt;= 0 i)
+;;                  (&lt; i (len (locals (current-frame s)))))
+;;             (<a href="../consistent-state.lisp.html">consistent-state</a>
+;;              (STATE-SET-LOCAL-AT i v
+;;                                  (INVALIDATE-CATEGORY2-VALUE (+ -1 i)
+;;                                                             S))))))
+</span>
+<span class="comment">;;(include-book <a href="base-state-set-local-at.lisp.html">"base-state-set-local-at"</a>)
+</span>
+<span class="comment">;; (skip-proofs 
+;;  (defthm topStack-guard-strong-preserved-by-invalidate-type-size-2
+;;    (implies (topStack-guard-strong s)
+;;             (topStack-guard-strong (invalidate-category2-value i s)))))
+</span>
+<span class="comment">;; ;;(i-am-here) ;; Fri Aug  5 21:12:30 2005
+;; (defthm len-update-nth-x
+;;   (implies (and (integerp i)
+;;                 (&lt;= 0 i)
+;;                 (&lt; i (len locals)))
+;;            (equal (len (update-nth i v locals))
+;;                   (len locals))))
+;; ;;
+;; ;; shall only temporarily disable the following!! 
+;; ;;
+;; ;; (in-theory (disable LOCALS-INVALIDATE-CATEGORY2-VALUE-EFFECT-EXPANDER))
+;; ;;
+</span>
+
+
+<span class="comment">;; (skip-proofs 
+;;  (defthm len-invalidate-category2-value
+;;    (implies (and (integerp i)
+;;                  (&lt;=  -1  i)
+;;                  (&lt; i (len locals)))
+;;             (equal (len (locals (current-frame (invalidate-category2-value i s))))
+;;                    (len (locals (current-frame s)))))))
+</span>
+<span class="comment">;; (skip-proofs 
+;;  (defthm len-state-set-locals-at
+;;    (implies (and (integerp i)
+;;                  (&lt;=  0  i)
+;;                  (&lt; i (len locals)))
+;;             (equal (len (locals (current-frame (state-set-local-at i v s))))
+;;                    (len (locals (current-frame s)))))))
+</span>                                     
+
+<span class="comment">;; (skip-proofs 
+;;  (defthm invalidate-category2-value-thread-by-id
+;;    (implies (thread-by-id id (thread-table s))
+;;             (THREAD-BY-ID id (THREAD-TABLE (INVALIDATE-CATEGORY2-VALUE any
+;;                                                                        s))))))
+</span>
+
+<span class="comment">;; (skip-proofs 
+;;  (defthm popStack-thread-by-id
+;;    (implies (thread-by-id id (thread-table s))
+;;             (THREAD-BY-ID id (THREAD-TABLE (popStack s))))))
+</span>                                                                      
+
+<span class="comment">;; (in-theory (disable NULLp initialized-ref))
+</span>
+<span class="comment">;; (defthm len-update-nt-specific
+;;   (implies (&lt; i (len locals))
+;;            (EQUAL
+;;             (LEN (IF (&lt; i '0)
+;;                      locals
+;;                      (IF (EQUAL (TYPE-SIZE (TAG-OF (NTH i locals)))
+;;                                 '1)
+;;                          locals
+;;                          (UPDATE-NTH i
+;;                                      '(TOPX . TOPX)
+;;                                      locals))))
+;;             (LEN locals))))
+</span>
+<span class="comment">;; (defthm thread-by-id-back-chain-consistent-state
+;;   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+;;                 (equal (current-thread s) id))
+;;            (THREAD-BY-ID id (THREAD-TABLE s))))
+</span>
+<span class="comment">;;;
+;;; we have proved a lot theorems about consistent-state!!! 
+;;;
+</span>
+
+(defthm ASTORE-guard-implies-execute-ASTORE-perserve-consistency
+  (implies (ASTORE-guard <a href="inst.lisp.html">inst</a> s)
+           (<a href="../consistent-state-strong.lisp.html">consistent-state-strong</a> (execute-ASTORE <a href="inst.lisp.html">inst</a> s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () 
+                                  (state-set-local-at type-size arg locals
+                                                      REFp)))))
+
+
+
+
+
+<span class="comment">;----------------------------------------------------------------------
+;;(i-am-here)
+</span>
+(encapsulate ()
+  (local (include-book <span class="string"><a href="base-bcv.lisp.html">"base-bcv"</a></span>))
+  (local (include-book <span class="string"><a href="base-bcv-locals.lisp.html">"base-bcv-locals"</a></span>))
+  (defthm bcv-check-ASTORE-ensures-djvm-check-ASTORE
+    (implies (and (bcv::check-ASTORE <a href="inst.lisp.html">inst</a> (env-sig s) 
+                                     (frame-sig  (current-frame s)
+                                                 (instance-class-table s)
+                                                 (heap s)
+                                                 (heap-init-map (aux s))))
+                  
+                  (wff-ASTORE <a href="inst.lisp.html">inst</a>) 
+                  <span class="comment">;; implied by valid-local-index and in 
+</span>                  (not (mem '*native* (method-accessflags (current-method s))))
+                  (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+             (djvm::check-ASTORE <a href="inst.lisp.html">inst</a> s))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+
+
+<span class="comment">;-- BCV::check-ASTORE monotonic   -------------------------------------
+;;
+;; always the problem!! 
+;;
+</span>
+(encapsulate ()
+    (local (include-book <span class="string"><a href="base-bcv-check-monotonic.lisp.html">"base-bcv-check-monotonic"</a></span>)) 
+    (local (include-book <span class="string"><a href="base-bcv-fact-isMatchingType-consp-stk.lisp.html">"base-bcv-fact-isMatchingType-consp-stk"</a></span>))
+    (defthm sig-check-ASTORE-on-more-general-implies-more-specific
+      (implies (and (bcv::sig-frame-more-general gframe sframe env1)
+                     (bcv::consistent-sig-stack (bcv::frameStack gframe) icl)
+                     (bcv::consistent-sig-stack (bcv::frameStack sframe) icl)
+                     (bcv::check-ASTORE <a href="inst.lisp.html">inst</a> env1 gframe) 
+                     (bcv::good-icl icl)
+                     (bcv::good-scl (bcv::classtableEnvironment env1))
+                     (bcv::icl-scl-compatible icl (bcv::classtableEnvironment env1)))
+               (bcv::check-ASTORE <a href="inst.lisp.html">inst</a> env1 sframe))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;-- BCV::execute-ASTORE next step  monotonic ---------------------------
+</span>
+(encapsulate () 
+ (local (include-book <span class="string"><a href="base-bcv-step-monotonic.lisp.html">"base-bcv-step-monotonic"</a></span>)) 
+ <span class="comment">;; with new addition to base-bcv-step-monotonic.lisp
+</span> <span class="comment">;; base-bcv-modify-local-variable.lisp
+</span> (defthm ASTORE-monotonicity
+   (implies (and (bcv::sig-frame-more-general gframe sframe env1)
+                 (bcv::consistent-sig-locals (bcv::frameLocals gframe) icl)
+                 (bcv::consistent-sig-locals (bcv::frameLocals sframe) icl)
+                 (bcv::check-ASTORE <a href="inst.lisp.html">inst</a> env1 gframe) 
+                 (bcv::check-ASTORE <a href="inst.lisp.html">inst</a> env1 sframe))
+            (bcv::sig-frame-more-general 
+             (bcv::normal-frame (bcv::execute-ASTORE <a href="inst.lisp.html">inst</a> env gframe))
+             (bcv::normal-frame (bcv::execute-ASTORE <a href="inst.lisp.html">inst</a> env sframe))
+             env1))))
+
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;-- DJVM::execute-ASTORE expansion -------------------------------------
+</span>
+<span class="comment">;;
+;; The key is to prove that 
+;; 
+;; (state-set-local-at ....  (invalidate-category2-value ....))
+;;
+;; produce the same effect of 
+;;
+;; (bcv::modifylocalvariable ....)
+;;
+;; unfortunately, these two functions are quite different!!! 
+;;
+;; Fri Jul 29 23:57:14 2005
+</span>
+<span class="comment">;; (i-am-here) ;; Sat Jul 30 19:44:56 2005
+</span>
+<span class="comment">;;(i-am-here) ;; Sun Jul 31 16:38:48 2005
+</span>
+(encapsulate ()
+  (local (include-book <span class="string"><a href="base-frame-sig-expansion.lisp.html">"base-frame-sig-expansion"</a></span>))
+  (defthm execute-ASTORE-frame-sig-is
+    (mylet* ((ns (execute-ASTORE <a href="inst.lisp.html">inst</a> s)))
+            (implies 
+             (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                  (check-ASTORE <a href="inst.lisp.html">inst</a> s))
+             (equal (frame-sig (current-frame ns)
+                               (instance-class-table ns)
+                               (heap ns)
+                               (heap-init-map (aux ns)))
+                    (<span class="keyword">let*</span> ((locals 
+                            (locals-sig (locals (current-frame s))
+                                        (instance-class-table s)
+                                        (heap s)
+                                        (heap-init-map (aux s))
+                                        (method-ptr (current-frame s))))
+                           (opstack 
+                            (opstack-sig (operand-stack (current-frame
+                                                         (popStack s)))
+                                         (instance-class-table s)
+                                         (heap s)
+                                         (heap-init-map (aux s))
+                                         (method-ptr (current-frame s))))
+                           (new-locals 
+                            (bcv::modifylocalvariable 
+                             (arg <a href="inst.lisp.html">inst</a>)
+                             (value-sig (topStack s)
+                                        (instance-class-table s)
+                                        (heap s)
+                                        (heap-init-map
+                                         (aux s))
+                                        (method-ptr
+                                         (current-frame s))) locals)))
+                    (make-sig-frame 
+                     new-locals
+                     opstack
+                     (gen-frame-flags (current-frame s)
+                                      (heap-init-map (aux s))))))))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:cases</span> ((equal (arg <a href="inst.lisp.html">inst</a>) 0))
+             <span class="builtin">:in-theory</span> (disable bcv::make-sig-frame type-size)))))
+                      
+<span class="comment">;; note that <a href="ASTORE.lisp.html">ASTORE</a> may destroy some uninitialized value
+;;
+;; thus it the flag may change as a result!! 
+</span>
+
+<span class="comment">;-- BCV::execute-ASTORE expansion -------------------------------------
+;;(i-am-here) ;; Sat Aug  6 01:48:15 2005
+</span>
+(encapsulate ()
+  (local (include-book <span class="string"><a href="base-bcv-frame-sig-expansion.lisp.html">"base-bcv-frame-sig-expansion"</a></span>))  
+  (defthm bcv-execute-ASTORE-is
+    (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                  (check-ASTORE <a href="inst.lisp.html">inst</a> s)
+                  (bcv::check-ASTORE <a href="inst.lisp.html">inst</a> (env-sig s) 
+                                    (frame-sig (current-frame s)
+                                               (instance-class-table s)
+                                               (heap s)
+                                               (heap-init-map (aux s)))))
+             (equal (car (bcv::execute-ASTORE
+                          <a href="inst.lisp.html">inst</a> (env-sig s) 
+                          (frame-sig (current-frame s)
+                                     (instance-class-table s)
+                                     (heap s)
+                                     (heap-init-map (aux s)))))
+                    (<span class="keyword">let*</span> ((locals 
+                            (locals-sig (locals (current-frame s))
+                                        (instance-class-table s)
+                                        (heap s)
+                                        (heap-init-map (aux s))
+                                        (method-ptr (current-frame s))))
+                           (opstack 
+                            (opstack-sig (operand-stack (current-frame
+                                                         (popStack s)))
+                                         (instance-class-table s)
+                                         (heap s)
+                                         (heap-init-map (aux s))
+                                         (method-ptr (current-frame s))))
+                           (new-locals 
+                            (bcv::modifylocalvariable 
+                             (arg <a href="inst.lisp.html">inst</a>)
+                             (value-sig (topStack s)
+                                        (instance-class-table s)
+                                        (heap s)
+                                        (heap-init-map
+                                         (aux s))
+                                        (method-ptr
+                                         (current-frame s))) locals)))
+                      (make-sig-frame 
+                       new-locals
+                       opstack
+                       (gen-frame-flags (current-frame s)
+                                        (heap-init-map (aux s)))))))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(preprocess)))))
+
+
+
+<span class="comment">;--  bcv next-state is more general than djvm next-state ---------------
+</span>
+(encapsulate ()
+  (local (include-book <span class="string"><a href="base-next-state-more-specific.lisp.html">"base-next-state-more-specific"</a></span>))
+  (defthm next-state-no-more-general-ASTORE
+    (mylet* ((oframe (frame-sig (current-frame s)
+                                (instance-class-table s)
+                                (heap s)
+                                (heap-init-map (aux s))))
+             (ns   (execute-ASTORE <a href="inst.lisp.html">inst</a> s))
+             (nframe (frame-sig (current-frame ns)
+                                (instance-class-table ns)
+                                (heap ns)
+                                (heap-init-map (aux ns)))))
+            (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                          (bcv::check-ASTORE <a href="inst.lisp.html">inst</a> (env-sig s) oframe)
+                          (check-ASTORE <a href="inst.lisp.html">inst</a> s))
+                     (bcv::sig-frame-more-general 
+                      (mv-nth 0 (bcv::execute-ASTORE
+                                 <a href="inst.lisp.html">inst</a> 
+                                 (env-sig s)
+                                 oframe))
+                      nframe
+                      (env-sig s))))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable execute-ASTORE bcv::execute-ASTORE)))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;;(i-am-here) 
+</span>
+(include-book <span class="string"><a href="../../M6/m6-bytecode.lisp.html">"../../M6/m6-bytecode"</a></span>)
+(include-book <span class="string"><a href="../consistent-state-to-untag-state.lisp.html">"../../DJVM/consistent-state-to-untag-state"</a></span>)
+
+
+(encapsulate ()
+   (local (include-book <span class="string"><a href="base-state-equiv.lisp.html">"base-state-equiv"</a></span>))
+   (defthm equal-ASTORE-when-guard-succeeds
+      (implies (and (state-equiv M6::m6-s DJVM::djvm-s)
+                    (ASTORE-guard <a href="inst.lisp.html">inst</a> DJVM::djvm-s))
+               (state-equiv (m6::execute-ASTORE <a href="inst.lisp.html">inst</a> M6::m6-s)
+                            (djvm::execute-ASTORE <a href="inst.lisp.html">inst</a> DJVM::djvm-s)))
+      <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize fertilize)))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">; Mon Aug 15 21:37:16 2005
+</span>
+<span class="comment">;; (i-am-here) ;; Mon Aug 15 21:38:49 2005
+</span>
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-method-ptr-no-change.lisp.html">"base-method-ptr-no-change"</a></span>))
+  (defthm execute-ASTORE-change-no-method-ptr
+    (equal (method-ptr (current-frame (djvm::execute-ASTORE <a href="inst.lisp.html">inst</a> s)))
+           (method-ptr (current-frame s)))))
+
+<span class="comment">;;; next need to prove loaded class method-does-not-change! 
+</span>
+
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-method-no-change.lisp.html">"base-method-no-change"</a></span>))
+  (defthm deref-method-no-change-if-already-loaded-ASTORE
+    (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+             (equal (deref-method (method-ptr (current-frame s))
+                                  (instance-class-table 
+                                   (djvm::execute-ASTORE <a href="inst.lisp.html">inst</a> s)))
+                    (deref-method (method-ptr (current-frame s))
+                                  (instance-class-table s))))))
+
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(in-theory (disable check-ASTORE ASTORE-guard execute-ASTORE wff-ASTORE))</pre>
+  </body>
+</html>

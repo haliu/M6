@@ -1,0 +1,87 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>m6-simple.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"M6"</span>)
+(include-book <span class="string"><a href="../M6/m6-bytecode.lisp.html">"../M6/m6-bytecode"</a></span>)
+
+(ENCAPSULATE NIL
+             (DEFUN M6-STEP (INST S)
+               (<span class="keyword">if</span> (not (no-fatal-error? s)) s
+                 (LET ((OPCODE (INST-OPCODE INST)))
+                      (COND ((EQUAL OPCODE 'HALT) S)
+                            ((EQUAL OPCODE '<a href="../DJVM/INST/AALOAD.lisp.html">AALOAD</a>)
+                             (EXECUTE-AALOAD INST S))
+                            ((EQUAL OPCODE '<a href="../DJVM/INST/AASTORE.lisp.html">AASTORE</a>)
+                             (EXECUTE-AASTORE INST S))
+                            ((EQUAL OPCODE '<a href="../DJVM/INST/ALOAD.lisp.html">ALOAD</a>)
+                             (EXECUTE-ALOAD INST S))
+                            ((EQUAL OPCODE '<a href="../DJVM/INST/ASTORE.lisp.html">ASTORE</a>)
+                             (EXECUTE-ASTORE INST S))
+                            ((EQUAL OPCODE '<a href="../DJVM/INST/ANEWARRAY.lisp.html">ANEWARRAY</a>)
+                             (EXECUTE-ANEWARRAY INST S))
+                            ((EQUAL OPCODE '<a href="../DJVM/INST/IFEQ.lisp.html">IFEQ</a>)
+                             (EXECUTE-IFEQ INST S))
+                            ((EQUAL OPCODE '<a href="../DJVM/INST/GETFIELD.lisp.html">GETFIELD</a>)
+                             (EXECUTE-GETFIELD INST S))
+                            ((EQUAL OPCODE '<a href="../DJVM/INST/ACONST_NULL.lisp.html">ACONST_NULL</a>)
+                             (EXECUTE-ACONST_NULL INST S))
+                            (T 'ERROR_STATE))))))
+
+<span class="comment">;; (defun m6-simple-run (n program s)
+;;   (if (zp n) s
+;;     (mylet* ((<a href="../DJVM/INST/inst.lisp.html">inst</a> (<a href="../DJVM/INST/inst.lisp.html">inst</a>-by-offset1 (pc s) program))
+;;              (ns   (m6-step <a href="../DJVM/INST/inst.lisp.html">inst</a> s)))
+;;             (m6-simple-run (- n 1) program ns))))
+</span>
+
+
+(<span class="keyword">defun</span> <span class="function-name">m6-simple-run</span> (n s)
+  (<span class="keyword">if</span> (zp n) s
+    (mylet* ((<a href="../DJVM/INST/inst.lisp.html">inst</a> (next-<a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+             (ns   (m6-step <a href="../DJVM/INST/inst.lisp.html">inst</a> s)))
+            (m6-simple-run (- n 1) ns))))
+
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span></pre>
+  </body>
+</html>

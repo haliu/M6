@@ -1,0 +1,214 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>bcv-if-verified-then-pc-ordered.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"ACL2"</span>)
+(include-book <span class="string"><a href="bcv-model.lisp.html">"bcv-model"</a></span>)
+(include-book <span class="string"><a href="bcv-simple-model.lisp.html">"bcv-simple-model"</a></span>)
+(include-book <span class="string"><a href="generic.lisp.html">"generic"</a></span>)
+
+(local (encapsulate () 
+
+   (local (include-book <span class="string"><a href="bcv-find-correct-witness-bcv-check-pre.lisp.html">"bcv-find-correct-witness-bcv-check-pre"</a></span>))
+
+   (defthm collect-pc-merged-code-merged-code-1
+     (implies (and (merged-code-safe merged-code init-frame)
+                   (case-split (not (equal init-frame 'aftergoto))))
+              (equal (car (collect-pc-merged-code merged-code))
+                     (g 'pc init-frame)))
+     <span class="builtin">:rule-classes</span> <span class="builtin">:linear</span>)
+
+
+   <span class="comment">;; (defthm collect-pc-merged-code-merged-code-2
+</span>   <span class="comment">;;    (implies (and (merged-code-safe merged-code init-frame)
+</span>   <span class="comment">;;                  (wff-code1 (extract-code merged-code) 
+</span>   <span class="comment">;;                             (g 'pc (car merged-code))))
+</span>   <span class="comment">;;             (equal (car (collect-pc-merged-code merged-code))
+</span>   <span class="comment">;;                    (g 'pc (car merged-code))))
+</span>   <span class="comment">;;    :rule-classes :linear)
+</span>
+   <span class="comment">;; (defthm wff-code1-uniqueness
+</span>   <span class="comment">;;   (IMPLIES
+</span>   <span class="comment">;;    (AND (WFF-CODE1 (EXTRACT-CODE MERGED-CODE4) any)
+</span>   <span class="comment">;;         (MERGED-CODE-SAFE MERGED-CODE4 MERGED-CODE3))
+</span>   <span class="comment">;;     (wff-code1 (extract-code merged-code4)
+</span>   <span class="comment">;;                (g 'pc (car merged-code4))))
+</span>   <span class="comment">;;   :rule-classes :forward-chaining)
+</span>
+   (encapsulate () 
+    (local (include-book <span class="string"><a href="bcv-find-correct-witness-bcv-check-pre.lisp.html">"bcv-find-correct-witness-bcv-check-pre"</a></span>))
+    (defthm merged-code-safe-implies-extract-code-pc-is-same-strong-linear
+      (implies (merged-code-safe merged-code sig-frame)
+               (equal (g 'pc (car (extract-code merged-code)))
+                      (g 'pc (car merged-code))))
+      <span class="builtin">:rule-classes</span> <span class="builtin">:linear</span>))
+
+
+   (defthm wff-code1-implies-pc-less
+     (implies (and (wff-code1 code (+ 1 pc))
+                   (consp code))
+              (&lt; pc (g 'pc (car code))))
+     <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+   (defthm merged-code-safe-implies-pc-less-than
+     (implies (and (WFF-CODE1 (EXTRACT-CODE MERGED-CODE)
+                              (+ 1 pc))
+                   (consp (extract-code merged-code))
+                   (merged-code-safe merged-code sig-frame))
+              (&lt; pc 
+                 (g 'pc (car merged-code))))
+     <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not-induct</span> t
+              <span class="builtin">:in-theory</span> (disable wff-code1
+                                  extract-code
+                                  merged-code-safe)
+              <span class="builtin">:use</span> ((<span class="builtin">:instance</span> wff-code1-implies-pc-less
+                               (code (extract-code merged-code))))))
+     <span class="builtin">:rule-classes</span> <span class="builtin">:linear</span>)
+              
+   <span class="comment">;;
+</span>   <span class="comment">;; not necessary! 
+</span>
+   (defthm merged-code-safe-stack-map-implies-consp-extract-code
+     (implies (and (merged-code-safe merged-code init-frame)
+                   (stack-map? init-frame))
+              (consp (extract-code merged-code)))
+     <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+   (encapsulate () 
+     (local       
+      (defthm get-is-stack-map-sig-frame-pop-n
+        (equal (g 'is-stack-map (sig-frame-pop-n n sig-frame))
+               (g 'is-stack-map sig-frame))))
+     (local 
+      (defthm get-is-inst-sig-frame-pop-n
+        (equal (g 'is-inst (sig-frame-pop-n n sig-frame))
+               (g 'is-inst sig-frame))))
+
+      (local 
+       (defthm get-pc-sig-frame-pop-n
+         (equal (g 'pc (sig-frame-pop-n n sig-frame))
+                (g 'pc sig-frame))))
+
+      (defthm bcv-execute-step-produce-stack-map-or-aftergoto
+        (implies (and (stack-map? stack-map)
+                      (bcv-check-step-pre inst stack-map)
+                      (not (stack-map? (bcv-execute-step inst stack-map))))
+                 (equal (bcv-execute-step inst stack-map) 'aftergoto))))
+
+
+   (defthm merged-code-is-safe-implies-ordered-lemma
+      (implies (and (merged-code-safe merged-code init-frame)
+                    (consp (extract-code merged-code))
+                    (wff-code1 (extract-code merged-code)
+                               (g 'pc (car merged-code))))
+               (ordered (collect-pc-merged-code merged-code)))
+      <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable sig-frame-compatible
+                                          bcv-check-step-pre
+                                          bcv-execute-step
+                                          inst? stack-map?)
+               <span class="builtin">:do-not</span> '(generalize fertilize))))
+
+   <span class="comment">;----------------------------------------------------------------------
+</span>
+
+   (defthm collect-pc-merged-code-merged-code-3
+       (implies (and (merged-code-safe merged-code init-frame)
+                     (not (consp (extract-code merged-code))))
+                (equal (car (collect-pc-merged-code merged-code))
+                       (g 'pc init-frame)))
+       <span class="builtin">:rule-classes</span> <span class="builtin">:linear</span>)
+
+
+
+   (defthm collect-pc-merged-code-merged-code-4
+       (implies (and (merged-code-safe merged-code init-frame)
+                     (not (consp (extract-code merged-code))))
+                (ordered (collect-pc-merged-code merged-code))))
+
+   <span class="comment">;----------------------------------------------------------------------
+</span>
+   (defthm merged-code-is-safe-implies-ordered
+      (implies (and (merged-code-safe merged-code init-frame)
+                    (wff-code1 (extract-code merged-code)
+                               (g 'pc (car merged-code))))
+               (ordered (collect-pc-merged-code merged-code)))
+      <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable sig-frame-compatible
+                                          bcv-check-step-pre
+                                          bcv-execute-step
+                                          inst? stack-map?)
+               <span class="builtin">:do-not</span> '(generalize fertilize)
+               <span class="builtin">:cases</span> ((consp (extract-code merged-code))))))
+
+))
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm merged-code-is-safe-implies-ordered
+   (implies (and (merged-code-safe merged-code init-frame)
+                 (wff-code1 (extract-code merged-code)
+                            (g 'pc (car merged-code))))
+            (ordered (collect-pc-merged-code merged-code)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable sig-frame-compatible
+                                       bcv-check-step-pre
+                                       bcv-execute-step
+                                       inst? stack-map?)
+            <span class="builtin">:do-not</span> '(generalize fertilize)
+            <span class="builtin">:cases</span> ((consp (extract-code merged-code))))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm merged-code-safe-implies-pc-less-than
+  (implies (and (WFF-CODE1 (EXTRACT-CODE MERGED-CODE)
+                           (+ 1 pc))
+                (consp (extract-code merged-code))
+                (merged-code-safe merged-code sig-frame))
+           (&lt; pc 
+              (g 'pc (car merged-code))))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:linear</span>)
+           
+(defthm merged-code-safe-stack-map-implies-consp-extract-code
+  (implies (and (merged-code-safe merged-code init-frame)
+                (stack-map? init-frame))
+           (consp (extract-code merged-code)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+</pre>
+  </body>
+</html>

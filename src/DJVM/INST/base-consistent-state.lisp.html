@@ -1,0 +1,1539 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-consistent-state.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="../consistent-state.lisp.html">"../../DJVM/consistent-state"</a></span>)
+(include-book <span class="string"><a href="../consistent-state-properties.lisp.html">"../../DJVM/consistent-state-properties"</a></span>)
+(include-book <span class="string"><a href="base-array.lisp.html">"../../DJVM/INST/base-array"</a></span>)
+(include-book <span class="string"><a href="../../BCV/bcv-functions.lisp.html">"../../BCV/bcv-functions"</a></span>)
+
+
+(in-theory (disable consistent-object))
+
+(local 
+ (defthm consistent-heap1-bound?-heap-consistent-object
+  (implies (and (consistent-heap1 hp1 hp cl id)
+                (bound? ref hp1))
+           (consistent-object (binding ref hp1) hp cl))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (binding bound?) (consistent-object))))))
+
+
+(local 
+ (defthm consistent-heap1-bound?-heap-consistent-object-specific
+  (implies (and (consistent-heap1 hp1 hp cl 0)
+                (bound? ref hp1))
+           (consistent-object (binding ref hp1) hp cl))))
+
+
+
+(local 
+ (defthm consistent-state-implies-consistent-heap1
+   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+            (consistent-heap1 (heap s) (heap s) (instance-class-table s) 0))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a> consistent-heap))))))
+
+
+(local 
+ (defthm consistent-value-x-tag-REF-check-NULL-implies-bound?
+   (implies (and (not (check-NULL tagged-ref))
+                 (consistent-value-x tagged-ref cl hp)
+                 (equal (tag-of tagged-ref) 'REF))
+            (bound? (rREF tagged-ref) hp))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (rREF consistent-value) ())))))
+
+
+(defthm consistent-state-not-null-wff-REFp-implies-consistent-object
+  (implies (and (not (check-NULL tagged-ref))
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (consistent-value-x tagged-ref (instance-class-table s) 
+                                    (heap s))
+                (equal (tag-of tagged-ref) 'REF))
+           (consistent-object (deref2 tagged-ref (heap s))
+                              (heap s)
+                              (instance-class-table s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (deref2) (binding-rREF-normalize
+                                            consistent-value-x)))))
+
+
+
+(defthm consistent-state-not-null-wff-REFp-implies-consistent-object-f
+  (implies (and (consistent-value-x tagged-ref (instance-class-table s) 
+                                    (heap s))
+                (not (check-NULL tagged-ref))
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (equal (tag-of tagged-ref) 'REF))
+           (consistent-object (deref2 tagged-ref (heap s))
+                              (heap s)
+                              (instance-class-table s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (deref2) (binding-rREF-normalize
+                                            consistent-value-x))))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+
+(defthm REFp-consistent-state-not-null
+  (implies (and (REFp v (heap s))
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (equal (instance-class-table s) cl)
+                (not (nullp v)))
+           (consistent-object (deref2 v (heap s)) (heap s) cl))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (REFp consistent-heap deref2) (binding-rref-normalize)))))
+
+(defthm consistent-object-wff-object-strong
+  (implies (consistent-object obj hp cl)
+           (wff-obj-strong obj))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable consistent-object)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+(defthm wff-obj-strong-wff-obj-f
+  (implies (wff-obj-strong obj)
+           (wff-obj obj))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+(defthm safe-topStack-normalize
+  (equal (safe-topStack s)
+         (topStack s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable safe-topStack current-frame))))
+
+(defthm safe-popStack-normalize
+  (equal (safe-popStack s)
+         (popStack s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable safe-popStack 
+                                     popstack-of-thread
+                                     frame-set-operand-stack current-frame))))
+
+(defthm consistent-state-topStack-guard-strong-implies-consistent-value-x
+  (implies (and (topstack-guard-strong s)
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+           (consistent-value-x (topStack s) (instance-class-table s) (heap s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (safe-topstack) (consistent-value-x))
+           <span class="builtin">:use</span> CONSISTENT-STATE-TOPSTACK-CONSISTENT-VALUE-X))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+(defthm consistent-state-topStack-guard-strong-implies-consistent-value-x-b
+  (implies (and (topstack-guard-strong s)
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+           (consistent-value-x (topStack s) (instance-class-table s) (heap s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (safe-topstack) (consistent-value-x)))))
+
+
+
+
+<span class="comment">;;
+;; Mon Apr 18 22:05:52 2005. The idea is now how to make acl2 to derive these. 
+;;
+;; when the value is not on the top!!
+;;
+</span>
+(in-theory (disable topStack popStack consistent-value-x))
+
+
+(defthm consistent-state-popStack
+  (implies (and (topstack-guard-strong s)
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+           (<a href="../consistent-state.lisp.html">consistent-state</a> (popStack s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> consistent-state-popStack-consistent-state)))
+           
+
+(defthm consistent-state-topStack-guard-strong-implies-consistent-value-x-2
+  (implies (and (topstack-guard-strong (popStack s))
+                (topstack-guard-strong s)
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+           (consistent-value-x (topStack (popStack s)) 
+                               (instance-class-table s)
+                               (heap s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span>
+           ((<span class="builtin">:instance</span> consistent-state-topStack-guard-strong-implies-consistent-value-x
+                       (s (popStack s))))))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+  
+
+(defthm consistent-state-topStack-guard-strong-implies-consistent-value-x-2-b
+  (implies (and (topstack-guard-strong (popStack s))
+                (topstack-guard-strong s)
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+           (consistent-value-x (topStack (popStack s)) 
+                               (instance-class-table s)
+                               (heap s))))
+
+
+(in-theory (enable safe-secondstack secondstack-guard-strong))
+
+(in-theory (disable tag-of))
+
+(defthm wff-REFp-implies-tag-of-being-REF
+  (implies (wff-REFp v)
+           (equal (tag-of v) 'REF))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable wff-REFp tag-of))))
+
+(defthm wff-obj-consistent-object-back
+  (implies (consistent-object (deref2 x (heap s)) (heap s) (instance-class-table s))
+           (WFF-OBJ (deref2 x (heap s)))))
+
+
+(defthm wff-obj-strong-consistent-object-back
+  (implies (consistent-object (deref2 x (heap s)) (heap s) (instance-class-table s))
+           (WFF-OBJ-strong (deref2 x (heap s)))))
+
+
+
+(defthm wff-common-info-wff-obj-strong-b
+  (implies (wff-obj-strong obj)
+           (wff-common-info (common-info obj))))
+  
+
+(defthm safe-pushStack-normalize
+  (equal (safe-pushStack v s)
+         (pushStack v s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable safe-pushStack push-stack-of-thread))))
+
+
+(local (defthm method-ptr-frame-set-opstack
+   (equal (method-ptr (frame-set-operand-stack opstack frame))
+          (method-ptr frame))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable frame-set-operand-stack)))))
+
+<span class="comment">;;(i-am-here)
+</span>
+(local 
+ (defthm method-ptr-does-not-change-after-pop
+   (implies (topstack-guard-strong s)
+           (equal (method-ptr (current-frame (safe-popStack s)))
+                  (method-ptr (current-frame s))))
+           <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (safe-popStack 
+                                            topstack-guard-strong
+                                            current-frame)
+                                           (safe-popStack-normalize
+                                            topframe-normalization))))))
+
+(defthm method-ptr-does-not-change-after-pop-popStack
+  (implies (topstack-guard-strong s)
+           (equal (method-ptr (current-frame (popStack s)))
+                  (method-ptr (current-frame s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> method-ptr-does-not-change-after-pop)))
+
+
+(in-theory (disable pushStack tag-REF))
+(in-theory (disable max-stack CODE-MAX-STACK
+                    method-maxstack))
+
+
+(defthm method-ptr-reduce
+  (implies (topstack-guard-strong s)
+           (equal (method-ptr (CAR (THREAD-CALL-STACK (THREAD-BY-ID (CURRENT-THREAD S)
+                                                                    (THREAD-TABLE (POPSTACK
+                                                                                   S))))))
+                  (method-ptr (current-frame s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> method-ptr-does-not-change-after-pop-popStack
+           <span class="builtin">:in-theory</span> (e/d (current-frame) (method-ptr-does-not-change-after-pop-popStack)))))
+
+(defthm max-stack-no-change
+  (implies (topstack-guard-strong s)
+           (equal (max-stack (popStack s))
+                  (max-stack s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (max-stack) ()))))
+
+
+(local (defthm operand-stack-frame-set-opstack
+         (equal (operand-stack (frame-set-operand-stack opstack frame))
+                opstack)
+         <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable make-frame frame-set-operand-stack operand-stack)))))
+
+(local 
+ (defthm popStack-popOpStack
+      (implies   (TOPSTACK-GUARD-STRONG S)
+                  (equal (operand-stack (current-frame (safe-popStack s)))
+                         (cdr (operand-stack (current-frame s)))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (safe-popStack 
+                                    current-frame
+                                    topstack-guard-strong)
+                                   (topframe-normalization
+                                    safe-popStack-normalize))))))
+
+
+(local (defthm topstack-guard-strong-implies-consp-opstack
+         (implies (topstack-guard-strong s)
+                  (consp (operand-stack (current-frame s))))
+         <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable topstack-guard-strong)))))
+
+(local 
+ (defthm popStack-decrease-stack-size
+   (implies (TOPSTACK-GUARD-STRONG S)
+            (equal (len (operand-stack (current-frame (safe-popStack s))))
+                   (- (len (operand-stack (current-frame s))) 1)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable safe-popStack-normalize)))))
+
+(defthm popStack-decrease-stack-size-popStack
+  (implies (TOPSTACK-GUARD-STRONG S)
+           (equal (len (operand-stack (current-frame (popStack s))))
+                    (- (len (operand-stack (current-frame s))) 1)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> popStack-decrease-stack-size)))
+
+
+(defthm consistent-state-pushStack-consistent-state-pushStack
+   (implies (and (consistent-value-x v (instance-class-table s) (heap s))
+                 (Category1 v)
+                 (&lt;= (+ 1 (len (operand-stack (current-frame s))))
+                     (max-stack s))
+                 (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+            (<a href="../consistent-state.lisp.html">consistent-state</a> (pushStack v s)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> consistent-state-pushStack-consistent-state)))
+
+
+
+(defthm wff-state-consistent-state-specific-back
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> (pushStack v s))
+           (wff-state (pushStack v s))))
+
+<span class="comment">;;;
+;;; the strategy is to go upward and derive everything from consistent-state! 
+;;; 
+</span>
+
+(in-theory (disable tag))
+
+
+(in-theory (disable state-set-pc))
+
+(defthm state-set-pc-consistent-state
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (integerp pc))
+           (<a href="../consistent-state.lisp.html">consistent-state</a> (state-set-pc pc s))))
+
+<span class="comment">;; (i-am-here) ;; Fri Jul 22 16:52:17 2005
+</span>
+(defthm consistent-value-x-and-tag-INT-implies-INT32p
+  (implies (and (equal (djvm-translate-int-type (tag-of v)) 'INT)
+                (consistent-value-x v cl hp))
+           (INT32p (value-of v)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable consistent-value INT32p consistent-value-x)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+(defthm consistent-value-x-and-tag-INT-implies-INT32p-b
+  (implies (and (equal (djvm-translate-int-type (tag-of (topStack s))) 'INT)
+                (consistent-value-x (topStack s) (instance-class-table s) (heap s)))
+           (INT32p (value-of (topStack s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable consistent-value INT32p consistent-value-x))))
+
+
+(defthm consistent-value-x-and-tag-REF-implies-wff-refp
+  (implies (and (equal (tag-of tagged-value) 'REF)
+                (consistent-value-x tagged-value cl hp))
+           (wff-refp tagged-value))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable consistent-value consistent-value-x)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+(defthm consistent-value-x-and-tag-REF-implies-wff-refp-b
+  (implies (and (equal (tag-of (topStack s)) 'REF)
+                (consistent-value-x (topStack s) (instance-class-table s) (heap s)))
+           (wff-refp (topStack s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable consistent-value consistent-value-x))))
+
+
+(defthm consistent-state-thread-by-id-replace-thread-entry
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (equal (thread-id thread) (current-thread s)))
+           (equal (thread-by-id (current-thread s)
+                                (replace-thread-table-entry 
+                                 (thread-by-id (current-thread s)
+                                               (thread-table s))
+                                 thread
+                                 (thread-table s)))
+                  thread)))
+
+(defthm thread-id-thread-set-call-stack
+  (equal (thread-id (thread-set-call-stack cs thread))
+         (thread-id thread)))
+
+
+(defthm thread-id-thread-by-id 
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (equal (thread-id (thread-by-id (current-thread s)
+                                           (thread-table s)))
+                  (current-thread s))))
+
+(defthm method-ptr-no-change
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (equal (method-ptr (current-frame (popStack s)))
+                  (method-ptr (current-frame s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (current-frame popStack
+                                                 aux frame-set-operand-stack
+                                                 popStack-of-thread
+                                                 replace-thread-table-entry
+                                                 state-set-thread-table
+                                                 thread-by-id
+                                                 thread-table 
+                                                 current-thread)
+                                  (topFrame-normalization 
+                                   thread-table
+                                   method-ptr 
+                                   current-thread)))))
+
+(defthm env-popStack-not-change
+  (equal (env (popStack s))
+         (env s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (current-frame popStack
+                                                 aux frame-set-operand-stack
+                                                 replace-thread-table-entry
+                                                 state-set-thread-table
+                                                 thread-by-id
+                                                 thread-table 
+                                                 current-thread)
+                                  (topFrame-normalization)))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+
+(defthm car-thread-call-normalization
+  (implies (equal (current-thread s) id)
+           (equal 
+            (CAR (THREAD-CALL-STACK (THREAD-BY-ID id 
+                                                  (THREAD-TABLE s))))
+            (current-frame s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (current-frame)
+                                  (topframe-normalization)))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(defthm env-sig-popStack
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (equal (env-sig (popstack s))
+                  (env-sig s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable env-sig))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+
+(defthm consistent-state-implies-op-stack-primitive-shared-guard
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (NOT (MEM '*NATIVE*
+                          (METHOD-ACCESSFLAGS (CURRENT-METHOD S)))))
+           (op-stack-primitive-shared-guard s)))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(defthm canPopCategory1-implies-consistent-state
+  (implies (and (canPopCategory1 (operand-stack (current-frame s)))
+                (NOT (MEM '*NATIVE*
+                          (METHOD-ACCESSFLAGS (CURRENT-METHOD S))))
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+           (<a href="../consistent-state.lisp.html">consistent-state</a> (popStack s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (topstack-guard-strong) 
+                                  (canPopCategory1 op-stack-primitive-shared-guard))
+           <span class="builtin">:use</span> consistent-state-popStack)))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(defthm current-frame-popStack                           
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)                      
+           (equal (frame-pop-opstack (current-frame s))  
+                  (current-frame (popStack s))))         
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable popStack current-frame
+                                     frame-pop-opstack
+                                     frame-set-operand-stack
+                                     popstack-of-thread))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(local 
+ (defthm consistent-heap2-bound?-array-type-implies-consistent-array-object
+   (implies (and (consistent-heap2 hp1 hp cl acl id)
+                 (bound? v hp1)
+                 (isArrayType (obj-type (binding v hp1))))
+            (consistent-array-object (binding v hp1) hp cl acl))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (bound? binding) 
+                                   (consistent-array-object isArrayType))
+            <span class="builtin">:do-not</span> '(generalize)))))
+
+
+(local (defthm REFp-consistent-heap-implies-consistent-array-object-if-array-type
+  (implies (and (REFp v hp1)
+                (not (nullp v))
+                (isArrayType (obj-type (deref2 v hp1)))
+                (consistent-heap2 hp1 hp cl acl id))
+           (consistent-array-object (deref2 v hp1) hp cl acl))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (deref2 REFp)
+                                  (consistent-array-object 
+                                   isArrayType
+                                   binding-rref-normalize))))))
+
+
+(local (defthm consistent-state-consistent-heap2
+         (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                  (consistent-heap2 (heap s) (heap s) 
+                                    (instance-class-table s)
+                                    (array-class-table s) 0))
+         <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a>)))))
+         
+
+(defthm REFp-consistent-state-implies-consistent-array-object-if-array-type
+  (implies (and (REFp (topStack s) (heap s))
+                (not (nullp (topStack s)))
+                (isArrayType (obj-type (deref2 (topStack s) (heap s))))
+                (equal (heap s) hp)
+                (equal (instance-class-table s) cl)
+                (equal (array-class-table s) acl)
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+           (consistent-array-object (deref2 (topStack s) hp) hp cl acl))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:restrict</span>
+           ((REFp-consistent-heap-implies-consistent-array-object-if-array-type
+            ((id 0)))))))
+
+
+(defthm REFp-consistent-state-implies-consistent-array-object-if-array-type-2
+  (implies (and (REFp v (heap s))
+                (not (nullp v))
+                (isArrayType (obj-type (deref2 v (heap s))))
+                (equal (instance-class-table s) cl)
+                (equal (array-class-table s) acl)
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+           (consistent-array-object (deref2 v  (heap s)) (heap s) cl acl))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:restrict</span>
+           ((REFp-consistent-heap-implies-consistent-array-object-if-array-type
+            ((id 0)))))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(local (defthm consistent-array-object-implies-array-type-s
+  (implies (consistent-array-object obj hp cl acl)
+           (array-type-s (obj-type obj) cl))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable consistent-array-object)))))
+
+
+(defthm consistent-array-object-implies-array-type-s-specific
+  (implies (and (consistent-array-object (deref2 (topStack s) (heap s))
+                                         (heap s)
+                                         (instance-class-table s)
+                                         (array-class-table s))
+                (equal (heap s) hp)
+                (equal (instance-class-table s) cl))
+           (array-type-s (obj-type (deref2 (topStack s) hp))
+                         cl)))
+
+
+
+
+(defthm consistent-array-object-implies-array-type-s-specific-2
+  (implies (and (consistent-array-object (deref2 v (heap s))
+                                         (heap s)
+                                         (instance-class-table s)
+                                         (array-class-table s))
+                (equal (instance-class-table s) cl))
+           (array-type-s (obj-type (deref2 v (heap s)))
+                         cl)))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;;(i-am-here)
+</span>
+(defthm current-frame-not-changed-by-state-set-pc
+  (equal (current-frame (state-set-pc any s))
+         (current-frame s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable state-set-pc))))
+
+(defthm aux-pushStack
+  (equal (aux (pushStack v s))
+         (aux s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable pushStack))))
+
+(defthm method-ptr-current-frame
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (equal (method-ptr (current-frame (pushStack v s)))
+                  (method-ptr (current-frame s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (pushStack current-frame
+                                             push-stack-of-thread)
+                                  (car-thread-call-normalization 
+                                   topframe-normalization)))))
+
+<span class="comment">;; (i-am-here)
+</span>
+(defthm no-pending-exception
+  (equal  (PENDING-EXCEPTION
+           (pushstack v s))
+          (pending-exception s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable pending-exception))))
+
+
+<span class="comment">;;; these are generally useful. 
+</span>
+<span class="comment">;----------------------------------------------------------------------
+;
+; Some properties about values that come out of a consistent array-object
+;
+</span>
+<span class="comment">;; (i-am-here) ;; Sat Apr 30 17:27:13 2005
+</span>
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;; (defthm consistent-state-topStack-tag-REF-then-REFp
+;;   (implies (and (equal (tag-of (topStack s)) 'REF)
+;;                 (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+;;                 (equal (heap s) 
+;;            (REFp (topStack s) 
+</span>
+<span class="comment">;; (i-am-here) ;; Tue May  3 20:57:40 2005
+;; i-am-here!!
+</span>
+<span class="comment">;;; We want this one! 
+</span>
+(defthm consistent-value-tag-REF-implies-REFp-specific
+  (implies (and (consistent-value-x v (instance-class-table s) (heap s))
+                (equal (tag-of v) 'REF))
+           (REFp v (heap s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable consistent-value-x consistent-value REFp))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">; really just to only used when NULLp is disabled
+</span>
+(defthm not-NULLp-tag-REF-not-equal-minus-1
+  (implies (not (NULLp (tag-REF v)))
+           (not (equal v -1))))
+
+
+(defthm value-of-tag-REF 
+  (equal (value-of (tag-REF v)) v)
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable value-of tag-REF))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+
+(defthm not-NULLp-tag-REF-not-equal-minus-1-f
+  (implies (not (NULLp (tag-REF v)))
+           (not (equal v -1)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+
+(defthm tag-of-tag-REF
+  (equal (tag-of (tag-REF v)) 'REF)
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable tag-REF tag-of))))
+
+<span class="comment">;
+; We have value-of, rREF
+;
+</span>
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(defthm consistent-state-implies-consistent-heap-array-init3
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (consistent-heap-array-init-state3 (heap s) (heap-init-map (aux
+                                                                       s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a>
+                                     consistent-heap-array-init-state))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm check-null-not-equal-value-of-minus-1
+  (implies (not (check-null v))
+           (not (equal (value-of v) -1))))
+
+(defthm check-null-not-equal-value-of-minus-1-f
+  (implies (not (check-null v))
+           (not (equal (value-of v) -1)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(defthm isArrayType-implies-consistent-array-object
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (not (NULLp v))
+                (REFp v (heap s))
+                (isArrayType (obj-type (deref2 v (heap s)))))
+           (consistent-array-object (deref2 v (heap s))
+                                    (heap s) (instance-class-table s)
+                                    (array-class-table s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a> consistent-heap consistent-heap)
+                                  (consistent-array-object nullp)))))
+
+
+
+(local 
+ (defthm consistent-state-ipmlies-consistent-heap2
+   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+            (consistent-heap2 (heap s) (heap s)
+                              (instance-class-table s)
+                              (array-class-table s) 0))))
+
+<span class="comment">;;(i-am-here) ;; Thu Jun 16 19:31:13 2005
+</span>
+(local 
+ (defthm consistent-heap2-implies-isArrayType-is-consistent-array-object
+   (implies (and (consistent-heap2 hp1 hp cl acl id)
+                 (isArrayType (obj-type (binding v hp1))))
+            (consistent-array-object (binding v hp1) hp cl acl))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (binding)
+                                   (consistent-array-object))))))
+
+(defthm isArrayType-implies-consistent-array-object-strong
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (isArrayType (obj-type (deref2 v (heap s)))))
+           (consistent-array-object (deref2 v (heap s))
+                                    (heap s) (instance-class-table s)
+                                    (array-class-table s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (deref2  rREF
+                                   consistent-heap consistent-heap)
+                                  (consistent-array-object
+                                   obj-type
+                                   isArrayType
+                                   binding-rref-normalize
+                                   consistent-heap2-implies-isArrayType-is-consistent-array-object
+                                   <a href="../consistent-state.lisp.html">consistent-state</a>
+                                   binding
+                                   nullp))
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span>
+                  consistent-heap2-implies-isArrayType-is-consistent-array-object
+                  (hp1 (heap s)) 
+                  (hp (heap s))
+                  (v (cdr v))
+                  (cl (instance-class-table s))
+                  (acl (array-class-table s))
+                  (id 0))))))
+
+
+
+<span class="comment">;; (defthm isArrayType-implies-consistent-array-object-strong
+;;   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+;;                 (isArrayType (obj-type (deref2 v (heap s)))))
+;;            (consistent-array-object (deref2 v (heap s))
+;;                                     (heap s) (instance-class-table s)
+;;                                     (array-class-table s)))
+;;   :hints (("Goal" :in-theory (e/d (<a href="../consistent-state.lisp.html">consistent-state</a> consistent-heap consistent-heap)
+;;                                   (consistent-array-object nullp)))))
+</span>
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm consistent-state-consistent-heap-init-state3
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (consistent-heap-array-init-state3 (heap s) (heap-init-map (aux s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable consistent-heap-array-init-state3
+                                     <a href="../consistent-state.lisp.html">consistent-state</a>))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm consistent-value-tag-REF
+   (implies (and (not (primitive-type? (array-component-type type)))
+                 (consistent-value (tag x (array-component-type type))
+                                   (array-component-type type) cl hp))
+            (consistent-value (tag-REF x) (array-component-type type) cl hp))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable tag tag-REF))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;; (DEFTHM PUSHSTACK-WFFSTATE
+;;   (IMPLIES (WFF-STATE S)
+;;            (WFF-STATE (SAFE-PUSHSTACK V S)))
+;;   :HINTS
+;;   (("Goal" :IN-THEORY (DISABLE CONSISTENT-STATE))))
+;;
+;; from consistent-state-properties.lisp!! 
+;;
+</span>
+<span class="comment">;; (i-am-here) ;; Wed May 11 00:31:02 2005
+</span>
+(DEFTHM PUSHSTACK-WFFSTATE-base
+  (IMPLIES (WFF-STATE S)
+           (WFF-STATE (PUSHSTACK V S)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable pushstack))))
+
+
+<span class="comment">;; Sat May  7 15:13:18 2005 should be easy to fix!! 
+</span>
+(DEFTHM POPSTACK-WFFSTATE-base
+  (IMPLIES (WFF-STATE S)
+           (WFF-STATE (POPSTACK S)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable popStack))))
+
+
+
+
+(DEFTHM update-trace-WFFSTATE-base
+  (IMPLIES (WFF-STATE S)
+           (WFF-STATE (update-trace th  S)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable update-trace))))
+
+
+
+
+(DEFTHM state-set-heap-WFFSTATE-base
+  (IMPLIES (WFF-STATE S)
+           (WFF-STATE (state-set-heap hp  S)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable state-set-heap))))
+
+
+(in-theory (disable pushstack-wffstate popstack-wffstate))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm consistent-state-state-set-pc-pc
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (integerp pc))
+            (<a href="../consistent-state.lisp.html">consistent-state</a> (state-set-pc pc s))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm consistent-value-x-NULL-REF
+  (CONSISTENT-VALUE-X '(REF . -1) cl hp)
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable consistent-value-x consistent-value))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm len-opstack-sig-is-len-stack
+  (implies (consistent-opstack stack cl hp)
+           (equal (len (opstack-sig stack cl hp hp-init method-ptr))
+                  (len stack))))
+
+
+(in-theory (disable heap-init-map))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(defthm consistent-state-implies-consistent-heap-array-init
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (consistent-heap-array-init-state (heap s)
+                                             (instance-class-table s)
+                                             (array-class-table s)
+                                             (heap-init-map (aux s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a>) 
+                                  (consistent-heap-array-init-state))))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+(defthm consistent-heap-array-init-implies-alistp
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (alistp (heap-init-map (aux s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a>) ())))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(defthm not-value-of-v-implies-not-nullp
+  (implies (not (equal (value-of v) -1))
+           (not (NULLp v)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable value-of NULLp rREF))))
+
+
+(defthm REFp-not-value-minus-1-implies-consistent-object
+  (implies (and (REFp v (heap s))
+                (not (equal (value-of v) -1))
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+           (consistent-object (deref2 v (heap s))
+                              (heap s)
+                              (instance-class-table s))))
+                                      
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(defthm consistent-heap-array-init-implies-wff-heap-init-state
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (wff-heap-init-map (heap-init-map (aux s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a>) ())))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+
+(defthm consistent-heap-array-init-implies-wff-heap-init-state-strong
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (wff-heap-init-map-strong (heap-init-map (aux s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a>) ())))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;; (defthm topStack-guard-strong-implies-wff-tagged-value
+;;   (implies (topStack-guard-strong s)
+;;            (wff-tagged-value (safe-topStack s)))
+;;   :hints (("Goal" :in-theory (enable topStack-guard-strong canPopCategory1
+;;                                      category1 safe-topStack))))
+</span>
+
+
+(defthm check-array-implies-wff-internal-array
+  (implies (CHECK-ARRAY-guard  (RREF v) hp)
+           (WFF-INTERNAL-ARRAY (DEREF2 v hp)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable check-array-guard))))
+
+(defthm wff-internal-array-implies-array-bound-integerp
+  (implies (wff-internal-array array)
+           (integerp (array-bound array)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable wff-internal-array array-bound))))
+
+(defthm check-array-implies-within-bound-1
+  (implies (check-array (rREF v) index s)
+           (&lt;= 0 index))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable check-array)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+(defthm check-array-implies-within-bound-2
+  (implies (check-array (rREF v) index s)
+           (&lt; index (array-bound (deref2 v (heap s)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable check-array)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:linear</span>)
+
+
+
+<span class="comment">;; (defthm topStack-guard-strong-implies-wff-tagged-value
+;;   (implies (topStack-guard-strong s)
+;;            (wff-tagged-value (safe-topStack s)))
+;;   :hints (("Goal" :in-theory (enable topStack-guard-strong canPopCategory1
+;;                                      category1 safe-topStack))))
+</span>
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+
+(defthm consistent-state-implies-build-a-java-visible-instance-guard
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (build-a-java-visible-instance-guard <span class="string">"java.lang.Object"</span> s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a>
+                                     build-a-java-visible-instance-guard))))
+
+
+(defthm consistent-state-implies-build-a-java-visible-instance-guard-java-lang-Class
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (build-a-java-visible-instance-guard <span class="string">"java.lang.Class"</span> s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a>
+                                     build-a-java-visible-instance-guard))))
+
+
+
+(defthm consistent-state-implies-build-a-java-visible-instance-guard-java-lang-String
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (build-a-java-visible-instance-guard <span class="string">"java.lang.String"</span> s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a>
+                                     build-a-java-visible-instance-guard))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(defthm REF-qual-minus-1-value-equal-minus-1
+  (iff (equal (rREF v) -1)
+       (equal (value-of v) -1))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable rREF value-of))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(in-theory (disable <a href="../consistent-state.lisp.html">consistent-state</a> array-bound array-data))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm consistent-state-consistent-value-x
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (topStack-guard-strong s)
+                (equal (instance-class-table s) cl)
+                (equal (heap s) hp))
+           (consistent-value-x (topStack s) cl hp)))
+                
+  
+
+(defthm wff-REFp-implies-tag-of-equal-REF
+  (implies (wff-REFp v)
+           (equal (tag-of v) 'REF)))
+
+
+(defthm bound?-rREFp
+  (implies (and (REFp v hp)
+                (not (equal (value-of v) -1)))
+           (bound? (rREF v) hp)))
+
+
+
+(defthm wff-tagged-value-implied-by-consistent-value-x
+  (implies (consistent-value-x (topStack s) (instance-class-table s) (heap s))
+           (WFF-TAGGED-VALUE (TOPSTACK s))))
+
+
+(defthm pc-set-element-at-array
+  (equal (pc (set-element-at-array index value array-ref s))
+         (pc s)))
+
+
+<span class="comment">; (i-am-here)
+</span>
+(defthm pc-set-element-at
+  (equal (pc (mv-nth 1 (set-element-at index value array s)))
+         (pc s)))
+
+
+(defthm consistent-state-state-set-pc
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (integerp pc))
+           (<a href="../consistent-state.lisp.html">consistent-state</a> (state-set-pc pc s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a>))))
+
+
+(defthm integerp-inst-size
+  (integerp (<a href="inst.lisp.html">inst</a>-size <a href="inst.lisp.html">inst</a>)))
+
+
+
+(defthm wff-state-implies-integer-pc
+  (implies (wff-state s)
+           (integerp (pc s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable pc wff-state)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+
+<span class="comment">;; (defthm consistent-state-implies-integer-pc
+;;   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+;;            (integerp (pc s)))
+;;   :hints (("Goal" :in-theory (enable wff-state <a href="../consistent-state.lisp.html">consistent-state</a>)))
+;;   :rule-classes :forward-chaining)
+</span>                 
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(local 
+ (encapsulate ()
+  (local (include-book <span class="string"><a href="base-skip-proofs.lisp.html">"base-skip-proofs"</a></span>))
+  (defthm isAssignableTo-isAssignableTo-if-class-table-same
+     (implies (equal (instance-class-table s2) 
+                     (instance-class-table s1))
+              (iff (car (isAssignableTo typ1 typ2 s2))
+                   (car (isAssignableTo typ1 typ2 s1))))
+     <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable isAssignableTo))))))
+
+(local 
+ (defthm popStack-change-no-cl
+   (equal (instance-class-table (popStack s))
+          (instance-class-table s))))
+
+<span class="comment">;;; consider move this into base??  Wed May 11 00:39:15 2005
+</span>
+(defthm isAssignableTo-isAssignableTo-popStack
+  (iff (car (isAssignableTo typ1 typ2 (popstack s)))
+       (car (isAssignableTo typ1 typ2 s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> ((<span class="builtin">:instance</span>
+                         isAssignableTo-isAssignableTo-if-class-table-same
+                         (s2 (popstack s))
+                         (s1 s))))))
+
+       
+<span class="comment">;----------------------------------------------------------------------
+</span>
+  
+
+(defthm wff-REFp-implies-tag-of-equal-REF
+  (implies (wff-REFp v)
+           (equal (tag-of v) 'REF)))
+
+
+(defthm bound?-rREFp
+  (implies (and (REFp v hp)
+                (not (equal (value-of v) -1)))
+           (bound? (rREF v) hp)))
+
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm bcv-isAssignable-fact-null
+  (BCV::ISASSIGNABLE 'NULL 'NULL ENV))
+
+<span class="comment">;; (defthm locals-not-change-pushStack
+;;   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+;;            (equal (LOCALS (CURRENT-FRAME (PUSHSTACK V S)))
+;;                   (locals (current-frame s)))))
+</span>
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(local 
+ (defthm consistent-frame-integerp-max-local
+   (implies (and (consistent-frame frame cl hp)
+                 (not (mem '*native* 
+                           (method-accessflags 
+                            (deref-method (method-ptr frame) cl)))))
+            (integerp (method-maxlocals (deref-method 
+                                         (method-ptr frame) cl))))))
+
+(in-theory (disable method-maxlocals))
+
+(defthm consistent-state-integerp-max-local
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (not (mem '*native* 
+                          (method-accessflags 
+                           (current-method s)))))
+           (integerp (method-maxlocals (current-method s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (current-method) (method-maxlocals 
+                                                    current-method-normalization)))))
+
+
+(defthm consistent-state-integerp-max-local-f
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (not (mem '*native* 
+                          (method-accessflags 
+                           (current-method s)))))
+           (integerp (method-maxlocals (current-method s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (current-method) (method-maxlocals 
+                                                    current-method-normalization))))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;; (i-am-here) ;;; Wed May 18 13:01:48 2005
+</span>
+(local 
+ (defthm nth-index-cons
+   (implies (and (integerp index)
+                 (&gt;= index 1))
+            (equal (nth index (cons x l))
+                   (nth (+ -1 index) l)))))
+
+
+(local (defthm two-minus-is-minus-two
+         (equal (+ -1 -1 index)
+                (+ -2 index))))
+
+(local (defthm nth-minus-2-cddr-n
+         (implies (and (integerp index)
+                       (&gt;= index 2))
+                  (equal (nth index (cons any1 (cons any2 locals)))
+                         (nth (+ -2 index) locals)))))
+                                    
+
+(include-book <span class="string"><a href="base-locals.lisp.html">"base-locals"</a></span>)
+
+<span class="comment">;; (i-am-here) ;; Sat May 21 18:53:19 2005 
+;; need to be fixed 
+</span>
+<span class="comment">;;(skip-proofs 
+</span>(local (defthm consistent-locals-consistent-value-x-if-at-valid-index
+         (implies (and (consistent-locals locals cl hp)
+                       (integerp index)
+                       (valid-local-index index locals))
+                  (consistent-value-x (nth index locals) cl hp))
+         <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (consistent-value-x category2Loc
+                                                                category1loc))
+                  <span class="builtin">:do-not</span> '(generalize)))))
+
+<span class="comment">;;; We need to modify the consistent-locals to assert types exists!
+</span>  
+
+(defthm local-at-is-consistent-value-x
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (valid-local-index i (locals (current-frame s)))
+                (integerp i)
+                (&lt;= 0 i)
+                (&lt; i (len (locals (current-frame s)))))
+           (consistent-value-x (local-at i s)
+                               (instance-class-table s)
+                               (heap s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (local-at) 
+                                  (consistent-value-x locals consistent-locals))))))
+
+
+
+(defthm REFp-implies-category1
+  (implies (REFp v hp)
+           (category1 v))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable tag-of WFF-REFp REFp valid-REFp category1)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+<span class="comment">;; (defthm REFp-implies-category1-b
+;;   (implies (REFp v hp)
+;;            (category1 v))
+;;   :hints (("Goal" :in-theory (enable tag-of WFF-REFp REFp valid-REFp category1))))
+</span>
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(defthm int32p-implies-rationalp
+  (implies (INT32p (value-of v))
+           (rationalp (value-of v)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable INT32p))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+
+(defthm topstack-guard-strong-implies-consp-opstack
+  (implies (topstack-guard-strong s)
+           (consp (operand-stack (current-frame s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable topstack-guard-strong))))
+
+<span class="comment">;; it appears that we want export this. 
+;; necessary for execute-ANEWARRY guard verification. 
+</span>
+
+(defthm consistent-state-popstack-consistent-state-normalized
+  (implies (and (topstack-guard-strong s)
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+           (<a href="../consistent-state.lisp.html">consistent-state</a> (popstack s))))
+
+
+<span class="comment">;;;
+;;; originally we only have consistent-state-safe-popStack... 
+;----------------------------------------------------------------------
+</span>
+
+
+(defthm consistent-state-popstack-consistent-state-normalized
+  (implies (and (topstack-guard-strong s)
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+           (<a href="../consistent-state.lisp.html">consistent-state</a> (popstack s))))
+
+
+
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+
+(defthm consistent-state-pc-integerp
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (integerp (pc s))))
+
+
+
+
+(defthm consistent-state-acl2-numberp
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (acl2-numberp (pc s))))
+
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+
+(defthm wff-call-frame-current-frame
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (wff-call-frame (current-frame s))))
+
+
+<span class="comment">;;; need to for guard verification of ANEWARRAY!! 
+</span>
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm consistent-state-wff-state
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (wff-state s)))
+
+<span class="comment">;;; these are not very good rules!! 
+;;; We may want more specific rules
+;;; so that ACL2 does not do unecessary backchaining!! 
+;;; But so far let it be. 
+;;; Note it can slow down proofs and distract the proof. 
+;;;
+;;;
+;;; Let me see if this affect a lot proofs.  we will move it into
+;;; guard-verification.lisp!!
+</span>
+<span class="comment">;; (i-am-here) ;; 
+</span>
+(defthm topstack-guard-strong-topStack-guard
+  (implies (topstack-guard-strong s)
+           (topstack-guard s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable topstack-guard-strong))))
+
+
+
+(defthm consistent-state-wff-heap
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (wff-heap (heap s))))
+
+
+
+(defthm consistent-state-wff-thread-table
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (wff-thread-table (thread-table s))))
+
+
+(defthm acl2-numberp-pc
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (integerp (pc s))))
+
+
+(defthm inst-size-integerp
+  (integerp (inst-size anyinst)))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+
+(encapsulate () 
+  (local 
+   (defthm REFp-not-NULLp-consistent-object
+     (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                   (REFp v (heap s))
+                   (not (NULLp v))
+                   (equal (instance-class-table s) cl))
+              (consistent-object (deref2 v (heap s))
+                                 (heap s)
+                                 cl))))
+                              
+
+   (local (defthm REFp-check-NULL-not-NULLp
+            (implies (and (REFp v hp)
+                          (not (check-NULL v)))
+                     (not (NULLp v)))))
+
+ (defthm REFp-not-NULLp-consistent-object-alternative
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (REFp v (heap s))
+                 (not (check-NULL v))
+                 (equal (instance-class-table s) cl))
+            (consistent-object (deref2 v (heap s))
+                               (heap s)
+                               cl))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(defthm can-load-array-class-in-consistent-state
+  (implies (CONSISTENT-STATE S)
+           (JVM::LOAD_ARRAY_CLASS_GUARD S))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a>
+                                     jvm::load_array_class_guard))))
+
+
+(defthm can-load-class-in-consistent-state
+  (implies (CONSISTENT-STATE S)
+           (JVM::LOAD_CLASS-GUARD S))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a>
+                                     jvm::load_class-guard))))
+
+                              
+
+<span class="comment">;----------------------------------------------------------------------
+</span>(local 
+ (defthm bound?-bind-any-hp
+   (bound? any (bind any obj hp))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bound? bind)))))
+
+
+(defthm consistent-value-x-fact
+  (consistent-value-x (tag-ref (len hp)) cl (bind (len hp) any
+                                                  hp))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable 
+                              tag-ref consistent-value-x 
+                              wff-REFp tag-of
+                              rREF value-of 
+                              wff-tagged-value))))
+
+
+
+(defthm category1-tag-ref-len
+  (category1 (tag-ref (len any)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable tag-ref category1 tag-of 
+                                     wff-tagged-value value-of))))
+
+
+(in-theory (enable max-stack))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(defthm consistent-state-implies-method-max-stack-integerp
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (not (mem '*native* (method-accessflags (current-method s)))))
+           (integerp (METHOD-MAXSTACK (CURRENT-METHOD S))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (method-maxstack) 
+                                  (<a href="../consistent-state.lisp.html">consistent-state</a> 
+                                   code-max-stack
+                                   consistent-code))))
+     <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;; (i-am-here) ;;; Sat Jun 18 00:55:05 2005
+</span>
+
+(local 
+ (defthm
+   class-hierachy-consistent1-class-n-implies-not-java-lang-Object-super-bounded
+   (implies 
+    (and (class-hierachy-consistent1-class-n name cl)
+         (not (equal name <span class="string">"java.lang.Object"</span>)))
+    (isClassTerm (class-by-name (super (class-by-name name cl))
+                                       cl)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (class-exists? class-loaded?) (isClassTerm))))))
+
+(local 
+ (defthm
+   class-hierachy-consistent1-aux-implies-bounded-class-hierachy-consistent1-class-n
+   (implies (and (class-hierachy-consistent1-aux cl1 cl)
+                 (isClassTerm (class-by-name name cl1)))
+            (class-hierachy-consistent1-class-n name cl))))
+
+(local 
+ (defthm consistent-state-implies-class-hierachy-consistent1-aux
+   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+            (class-hierachy-consistent1-aux (instance-class-table s)
+                                            (instance-class-table s)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a> consistent-class-hierachy)))))
+
+
+
+(defthm consistent-state-implies-not-equal-java-lang-Object-super-bounded
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (not (equal name <span class="string">"java.lang.Object"</span>))
+                (isClassTerm (class-by-name name (instance-class-table s))))
+           (isClassTerm (class-by-name (super (class-by-name name
+                                                             (instance-class-table s)))
+                                       (instance-class-table s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (consistent-class-hierachy)
+                                  (class-hierachy-consistent1-class-n
+                                   <a href="../consistent-state.lisp.html">consistent-state</a>
+                                   isClassTerm))
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span>
+                  class-hierachy-consistent1-aux-implies-bounded-class-hierachy-consistent1-class-n
+                  (cl1 (instance-class-table s))
+                  (cl (instance-class-table s)))))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm not-type-size2
+    (implies (REFp v hp)
+             (not (equal (type-size (tag-of v)) 2)))
+    <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(skip-proofs 
+ (defthm consistent-state-implies-local-size-ok
+   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+            (&lt;=  (len (locals (current-frame s)))
+                 (max-local s)))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:linear</span>))
+
+
+(skip-proofs 
+ (defthm consistent-state-nth-local-wff-tagged-value
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (&lt;= 0 i)
+                 (&lt; i (len (locals (current-frame s)))))
+            (wff-tagged-value (nth i (locals (current-frame s)))))))
+
+<span class="comment">;; this is proved somewhere!! 
+</span>
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(local 
+ (defthm equal-minus-one-minus-one-plus-negative-two
+   (equal (+ -1 -1 i)
+          (+ -2 i))))
+
+(local 
+ (defthm nth-i-specific
+   (implies (and (&lt; 0 i)
+                 (integerp i))
+            (equal (nth (- i 1) (cdr locals))
+                   (nth i locals)))))
+
+
+(local 
+ (defthm nth-i-specific-2
+   (implies (and (&lt; 1 i)
+                 (integerp i))
+            (equal (nth (- i 2) (cddr locals))
+                   (nth i locals)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> 
+            <span class="builtin">:in-theory</span> (disable nth-i-specific)
+            <span class="builtin">:use</span> ((<span class="builtin">:instance</span> nth-i-specific
+                             (i (- i 1))
+                             (locals (cdr locals)))
+                  (<span class="builtin">:instance</span> nth-i-specific))
+            <span class="builtin">:do-not-induct</span> t))))
+
+
+
+(defthm valid-local-index-implies-not-topx
+  (implies (and (valid-local-index i locals)
+                (integerp i)
+                (&lt;= 0 i)
+                (&lt; i (len locals)))
+           (not (equal (tag-of (nth i locals)) 'topx)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+           <span class="builtin">:induct</span> (valid-local-index i locals))
+          (<span class="string">"Subgoal *1/6.5"</span> <span class="builtin">:cases</span> ((&lt; 1 i)))
+          (<span class="string">"Subgoal *1/6.1"</span> <span class="builtin">:cases</span> ((&lt; 1 i)))))
+
+</pre>
+  </body>
+</html>

@@ -1,0 +1,711 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>bcv-model.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"ACL2"</span>)
+(include-book <span class="string"><a href="jvm-model.lisp.html">"jvm-model"</a></span>)
+
+<span class="comment">;------------------------------------------------------------
+;
+;   The BCV for the Small Machine 
+;
+;------------------------------------------------------------
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">stack-map?</span> (map)
+  (and (equal (g 'is-stack-map map) t)
+       (equal (g 'is-inst map) nil)
+       (integerp (g 'pc map))))
+
+(<span class="keyword">defun</span> <span class="function-name">inst?</span> (inst)
+  (and (equal (g 'is-inst inst) t)
+       (equal (g 'is-stack-map inst) nil)
+       (integerp (g 'pc inst))))
+
+(<span class="keyword">defun</span> <span class="function-name">wff-code1</span> (code pc)
+  (<span class="keyword">if</span> (endp code) 
+      (equal code nil)
+    (and (and (inst? (car code))
+              (equal (g 'pc (car code)) pc)
+              (not (stack-map? (car code))))
+         (wff-code1 (cdr code) (+ 1 pc)))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">wff-code</span> (code)
+  (and (consp code)
+       (wff-code1 code 0)))
+
+(<span class="keyword">defun</span> <span class="function-name">wff-maps</span> (maps)
+  (<span class="keyword">if</span> (endp maps) (equal maps nil)
+    (and (stack-map? (car maps))
+         (wff-maps (cdr maps)))))
+
+(<span class="keyword">defun</span> <span class="function-name">bcv-op-code</span> (inst)
+  (op-code (g 'inst inst)))
+
+(<span class="keyword">defun</span> <span class="function-name">bcv-arg</span> (inst)
+  (arg (g 'inst inst)))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">max-stack</span> (sig-frame)
+  (g 'max-stack sig-frame))
+
+(<span class="keyword">defun</span> <span class="function-name">bcv-check-PUSH</span> (inst sig-frame)
+  (<span class="keyword">declare</span> (ignore inst))
+  (&lt;= (+ 1 (g 'op-stack sig-frame))
+      (max-stack sig-frame)))
+
+(<span class="keyword">defun</span> <span class="function-name">advance-pc</span> (sig-frame)
+  (s 'pc 
+     (+ 1 (g 'pc sig-frame))
+     sig-frame))
+
+(<span class="keyword">defun</span> <span class="function-name">sig-frame-push-value</span> (v sig-frame)
+  (<span class="keyword">declare</span> (ignore v))
+  (s 'op-stack
+     (+ 1 (g 'op-stack sig-frame))
+     sig-frame))
+
+(<span class="keyword">defun</span> <span class="function-name">bcv-execute-PUSH</span> (inst sig-frame)
+  (advance-pc 
+   (sig-frame-push-value (bcv-arg inst)
+                         sig-frame)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">bcv-check-POP</span> (inst sig-frame)
+  (<span class="keyword">declare</span> (ignore inst))
+  (&lt;= 1 (g 'op-stack sig-frame)))
+
+(<span class="keyword">defun</span> <span class="function-name">sig-frame-pop-value</span> (sig-frame)
+  (<span class="keyword">if</span> (zp (g 'op-stack sig-frame))
+         sig-frame
+    (s 'op-stack 
+       (-  (g 'op-stack sig-frame) 1)
+       sig-frame)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">bcv-execute-POP</span> (inst sig-frame)
+  (<span class="keyword">declare</span> (ignore inst))
+  (advance-pc 
+   (sig-frame-pop-value sig-frame)))
+
+<span class="comment">;;; The only important thing we care (in this example) is the size of the
+;;; operand stack.
+;;;
+;;; Our BCV examine a program, method by method.
+;;;
+;;; We will show that verified program will never violate the operand stack
+;;; size limit.
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">sig-local-compatible</span> (slocals glocals)
+  (<span class="keyword">declare</span> (ignore slocals glocals))
+  <span class="comment">;; temp implementation
+</span>  t)
+
+(<span class="keyword">defun</span> <span class="function-name">sig-opstack-compatible</span> (sframe gframe)
+  (equal (g 'op-stack sframe)
+         (g 'op-stack gframe)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">sig-frame-compatible</span> (sframe gframe)
+  (and (equal (g 'pc sframe)
+              (g 'pc gframe))
+       (equal (g 'max-stack sframe)
+              (g 'max-stack gframe))
+       (equal (g 'method-name sframe)
+              (g 'method-name gframe))
+       (equal (g 'method-table sframe)
+              (g 'method-table gframe))
+       (sig-opstack-compatible sframe gframe)
+       (sig-local-compatible (g 'locals sframe)
+                             (g 'locals gframe))))
+
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">targetIsSafe</span> (pc sig-frame partial-sig-vector)
+  (and (bound? pc partial-sig-vector)
+       (stack-map? (binding pc partial-sig-vector))
+       (sig-frame-compatible 
+        sig-frame 
+        (binding pc partial-sig-vector))))
+
+
+
+<span class="comment">;; (i-am-here) ;; Fri Oct 28 21:01:16 2005
+</span>
+(<span class="keyword">defun</span> <span class="function-name">extract-partial-sig-vector</span> (maps)
+  (<span class="keyword">if</span> (endp maps) nil
+    (cons (cons (g 'pc (car maps))
+                (car maps))
+          (extract-partial-sig-vector (cdr maps)))))
+
+
+
+<span class="comment">;; (defun bcv-check-IFEQ (inst sig-frame)
+;;   (and (&lt;= 1 (g 'op-stack sig-frame))
+;;        (targetIsSafe 
+;;         (arg inst)
+;;         (sig-frame-pop-value sig-frame)
+;;         (extract-partial-sig-vector 
+;;          (g 'stackmaps
+;;             (binding (g 'method-name sig-frame)
+;;                      (g 'method-table sig-frame)))))))
+;;   ;; (extract-sig-vector (g 'stackmaps sig-frame)))
+</span>        
+
+(<span class="keyword">defun</span> <span class="function-name">update-maps-with-method-table</span> (maps method-name method-table)
+  (<span class="keyword">if</span> (endp maps) maps
+    (cons (s 'method-name method-name (s 'method-table method-table 
+                                         (s 'max-stack 
+                                            (g 'max-stack
+                                               (binding method-name 
+                                                        method-table))
+                                            (car maps))))
+          (update-maps-with-method-table (cdr maps) method-name method-table))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">bcv-check-IFEQ</span> (inst sig-frame)
+  (and (&lt;= 1 (g 'op-stack sig-frame))
+       (targetIsSafe 
+        (bcv-arg inst)
+        (s 'pc (bcv-arg inst)
+           (sig-frame-pop-value sig-frame))
+        (extract-partial-sig-vector 
+         (update-maps-with-method-table 
+          (g 'stackmaps
+             (binding (g 'method-name sig-frame)
+                      (g 'method-table sig-frame)))
+          (g 'method-name sig-frame)
+          (g 'method-table sig-frame))))))
+         
+  <span class="comment">;; (extract-sig-vector (g 'stackmaps sig-frame)))
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">bcv-execute-IFEQ</span> (inst sig-frame)
+  (<span class="keyword">declare</span> (ignore inst))
+  (advance-pc (sig-frame-pop-value sig-frame)))
+
+
+<span class="comment">;; note <a href="IFEQ.lisp.html">IFEQ</a> has two possible return state! 
+</span>
+(<span class="keyword">defun</span> <span class="function-name">bcv-check-INVOKE</span> (inst sig-frame)
+  (<span class="keyword">let*</span> ((method-name (bcv-arg inst))
+         (method-table (g 'method-table sig-frame))
+         (method      (binding method-name method-table))
+         (nargs       (g 'nargs method)))
+    (and (bound? method-name method-table) 
+         (&lt;= 0 (g 'max-stack (binding method-name method-table)))
+         (integerp nargs)
+         (&lt;= 0 nargs)
+         (&lt;= nargs (g 'op-stack sig-frame))
+         (&lt;= (+ 1 (- (g 'op-stack sig-frame)
+                     nargs))
+             (max-stack sig-frame)))))
+
+<span class="comment">;;; Note: 
+;;;   make sure it has enough space for arguments
+;;;   make sure the return value will not overflow the stack!! 
+;;;        
+;;; values are always of size 1!! (in JVM it could be size two)
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">sig-frame-pop-n</span> (n sig-frame)
+  (<span class="keyword">if</span> (zp n) 
+      sig-frame
+    (sig-frame-pop-n (- n 1) 
+                     (sig-frame-pop-value sig-frame))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">bcv-execute-INVOKE</span> (inst sig-frame)
+  (<span class="keyword">let*</span> ((method-name (bcv-arg inst))
+         (method-table (g 'method-table sig-frame))
+         (method      (binding method-name method-table))
+         (nargs       (g 'nargs method))
+         (ret         (g 'ret method)))
+    (advance-pc 
+     (sig-frame-push-value ret 
+                           (sig-frame-pop-n nargs sig-frame)))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">bcv-check-HALT</span> (inst sig-frame)
+    (<span class="keyword">declare</span> (ignore inst sig-frame))
+    t)
+
+(<span class="keyword">defun</span> <span class="function-name">bcv-execute-HALT</span> (inst sig-frame)
+    (<span class="keyword">declare</span> (ignore inst sig-frame))
+    'aftergoto)
+
+<span class="comment">;;;
+;;; the specially handling of this make the proof 
+;;; a lot complicated!! 
+;;;
+;;; Mon Nov  7 13:32:14 2005
+</span>
+(<span class="keyword">defun</span> <span class="function-name">bcv-check-RETURN</span> (inst sig-frame)
+    (<span class="keyword">declare</span> (ignore inst))
+    (&lt;= 1 (g 'op-stack sig-frame)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">bcv-execute-RETURN</span> (inst sig-frame)
+    (<span class="keyword">declare</span> (ignore inst sig-frame))
+    'aftergoto)
+    
+
+(<span class="keyword">defun</span> <span class="function-name">bcv-check-step-pre</span> (inst sig-frame)
+  (<span class="keyword">let*</span> ((opcode (bcv-op-code inst)))
+    (<span class="keyword">cond</span> ((equal opcode '<a href="INVOKE.lisp.html">INVOKE</a>)
+           (bcv-check-INVOKE inst sig-frame))
+          ((equal opcode '<a href="PUSH.lisp.html">PUSH</a>)
+           (bcv-check-PUSH inst sig-frame))
+          ((equal opcode '<a href="IFEQ.lisp.html">IFEQ</a>)
+           (bcv-check-IFEQ inst sig-frame))
+          ((equal opcode '<a href="HALT.lisp.html">HALT</a>)
+           (bcv-check-HALT inst sig-frame))
+          ((equal opcode '<a href="POP.lisp.html">POP</a>)
+           (bcv-check-POP inst sig-frame))
+          ((equal opcode '<a href="RETURN.lisp.html">RETURN</a>)
+           (bcv-check-RETURN inst sig-frame))
+          (t nil))))
+  
+
+
+(<span class="keyword">defun</span> <span class="function-name">bcv-execute-step</span> (inst sig-frame)
+  (<span class="keyword">let*</span> ((opcode (bcv-op-code inst)))
+    (<span class="keyword">cond</span> ((equal opcode '<a href="INVOKE.lisp.html">INVOKE</a>) 
+           (bcv-execute-INVOKE inst sig-frame))
+          ((equal opcode '<a href="PUSH.lisp.html">PUSH</a>)
+           (bcv-execute-PUSH inst sig-frame))
+          ((equal opcode '<a href="IFEQ.lisp.html">IFEQ</a>)
+           (bcv-execute-IFEQ inst sig-frame))
+          ((equal opcode '<a href="HALT.lisp.html">HALT</a>)
+           (bcv-execute-HALT inst sig-frame))
+          ((equal opcode '<a href="POP.lisp.html">POP</a>)
+           (bcv-execute-POP inst sig-frame))
+          ((equal opcode '<a href="RETURN.lisp.html">RETURN</a>)
+           (bcv-execute-RETURN inst sig-frame))
+          (t nil))))
+
+<span class="comment">;;
+;; invariant of the following function.
+;; if sig-vector contains a frame at (g 'pc (sig-frame))
+;; then the next instruction must be at position (pc ..)
+;; 
+;; if all instruction is covered, then verification succeed!
+;;
+;; ;;
+;; ;; (defun bcv-method1 (code sig-vector sig-frame) 
+;; ;;   (mylet ((pc (g 'pc sig-frame)))
+;; ;;
+</span>
+
+<span class="comment">;;
+;; The actual BCV is first to merge code with signature state
+;;
+;; then run through the code once.
+;;
+;; We will need to formalize that code is in fact consecutive.
+;; 
+</span>
+<span class="comment">;;(i-am-here) ;; Mon Oct 31 20:07:11 2005
+</span>
+(<span class="keyword">defun</span> <span class="function-name">mapOffset</span> (map)
+  (g 'pc map))
+
+(<span class="keyword">defun</span> <span class="function-name">instrOffset</span> (inst)
+  (g 'pc inst))
+
+(<span class="keyword">defun</span> <span class="function-name">makeStackMap</span> (map method-name method-table)
+  (s 'is-stack-map t 
+     (s 'is-inst nil 
+        (s 'method-name method-name 
+           (s 'method-table method-table
+              (s 'max-stack 
+                 (g 'max-stack 
+                    (binding method-name method-table))
+                 map))))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">make-inst</span> (inst)
+  (s 'is-inst t
+     (s 'is-stack-map nil inst)))
+
+(<span class="keyword">defun</span> <span class="function-name">mergeStackMapAndCode</span> (maps ParsedCode method-name method-table)
+  (<span class="keyword">if</span> (endp maps)
+      (append ParsedCode  (list 'END_OF_CODE))
+    (<span class="keyword">if</span> (endp ParsedCode)
+        nil
+      (<span class="keyword">let</span> ((mpc (mapOffset (car maps)))
+            (pc  (instrOffset (car ParsedCode))))
+        (<span class="keyword">if</span> (equal mpc pc)
+            (cons (makeStackMap (car maps) method-name method-table)
+                  (cons (make-inst (car ParsedCode))
+                        (mergeStackMapAndCode  (cdr maps)
+                                               (cdr ParsedCode)
+                                               method-name
+                                               method-table)))
+          (<span class="keyword">if</span> (&lt; pc mpc)
+              (cons (make-inst (car ParsedCode))
+                    (mergeStackMapAndCode maps (cdr ParsedCode)
+                                          method-name 
+                                          method-table))
+            nil))))))
+
+(<span class="keyword">defun</span> <span class="function-name">merged-code-safe</span> (mergedcode sig-frame)
+  (<span class="keyword">if</span> (endp mergedcode) nil
+    (<span class="keyword">if</span> (endp (cdr mergedcode))
+        (and (equal (car mergedcode) 'END_OF_CODE)
+             (equal sig-frame 'aftergoto))
+      (<span class="keyword">if</span> (equal sig-frame 'aftergoto)
+          (and (stack-map? (car mergedcode))
+               (equal (g 'pc (car mergedcode))
+                      (g 'pc (cadr mergedcode))) 
+               (merged-code-safe (cdr mergedcode)
+                                 (car mergedcode)))
+        (<span class="keyword">cond</span> ((stack-map? (car mergedcode))
+               (and (sig-frame-compatible sig-frame (car mergedcode))
+                    (merged-code-safe (cdr mergedcode)
+                                      (car mergedcode))))
+              ((inst? (car mergedcode))
+               (and (equal (g 'pc sig-frame)
+                           (g 'pc (car mergedcode)))
+                    (bcv-check-step-pre (car mergedcode) sig-frame)
+                    (merged-code-safe
+                     (cdr mergedcode)
+                     (bcv-execute-step (car mergedcode) sig-frame))))
+              (t nil))))))
+                
+
+(<span class="keyword">defun</span> <span class="function-name">sig-init-locals</span> (method) 
+  <span class="comment">;; tmp, we only deal with number of values on the operand stack!
+</span>  (<span class="keyword">declare</span> (ignore method))
+  nil)
+
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">sig-method-init-frame</span> (method method-table)
+  (s 'is-stack-map t
+     (s 'is-inst nil 
+        (s 'method-table method-table 
+           <span class="comment">;; note these method in method-table does
+</span>           <span class="comment">;; not have sig-vector
+</span>           (s 'method-name <span class="comment">;; these could be merged into one 
+</span>              (g 'method-name method) <span class="comment">;; structure called "env"!!
+</span>              (s 'max-stack <span class="comment">;; we will then to prove that "env"
+</span>                 (g 'max-stack method) <span class="comment">;; does not change.
+</span>                 (s 'pc 0 <span class="comment">;; instead of proving a lot of similiar things!!  
+</span>                    (s 'op-stack 0     
+                       (s 'locals 
+                          (sig-init-locals method) nil)))))))))
+  
+
+
+
+<span class="comment">;; (defun extract-sig-vector (mergedcode)
+;;   (if (endp mergedcode) nil
+;;     (if (stack-map? (car mergedcode))
+;;         (cons (cons (g 'pc (car mergedcode))
+;;                     (car mergedcode))
+;;               (extract-sig-vector (cdr mergedcode)))
+;;       (extract-sig-vector (cdr mergedcode)))))
+</span>
+<span class="comment">;; (i-am-here) ;; Tue Nov  8 13:39:26 2005
+</span>
+(<span class="keyword">defun</span> <span class="function-name">parsecode1</span> (pc code)
+  (<span class="keyword">if</span> (endp code) code
+    (cons (make-inst (s 'pc pc
+                        (s 'inst (car code) nil)))
+          (parsecode1 (+ 1 pc) (cdr code)))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">parsecode</span> (code)
+  (parsecode1 0 code))
+
+(<span class="keyword">defun</span> <span class="function-name">bcv-method</span> (method method-table)
+  (<span class="keyword">let*</span> ((code (g 'code method))
+         (maps (g 'stackmaps method)))
+    (and (wff-code (parsecode code))
+         (wff-maps maps)
+         (merged-code-safe
+           (mergeStackMapAndCode
+            maps (parsecode code) (g 'method-name method) method-table)
+           (sig-method-init-frame method
+                                  method-table)))))
+           
+          
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">extract-sig-locals</span> (frame)
+  (<span class="keyword">declare</span> (ignore frame)) 
+  nil)
+
+
+(<span class="keyword">defun</span> <span class="function-name">extract-sig-frame</span> (frame method-table)
+  (s 'method-table method-table
+     (s 'max-stack 
+        (g 'max-stack frame)
+        (s 'method-name 
+           (g 'method-name frame)
+           (s 'pc (g 'pc frame)
+              (s 'op-stack (len (g 'op-stack frame))
+                 (s 'locals
+                    (extract-sig-locals frame) nil)))))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">bcv-verified-method-table1</span> (method-table1 method-table)
+  (<span class="keyword">if</span> (endp method-table1) t
+    (and (bcv-method (cdr (car method-table1)) method-table)
+         (bcv-verified-method-table1 (cdr method-table1) method-table))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">bcv-verified-method-table</span> (method-table)
+  (bcv-verified-method-table1 method-table method-table))
+
+
+<span class="comment">;----------------------------------------------------------------------
+;; (defun merged-code-safe (mergedcode sig-frame)
+;;   (if (endp mergedcode) nil
+;;     (if (endp (cdr mergedcode))
+;;         (and (equal (car mergedcode) 'END_OF_CODE)
+;;              (equal sig-frame 'aftergoto))
+;;       (if (equal sig-frame 'aftergoto)
+;;           (and (stack-map? (car mergedcode))
+;;                (equal (g 'pc (car mergedcode))
+;;                       (+ 1 (g 'pc  (cadr mergedcode)))) ;; bug!! 
+;;                (merged-code-safe (cdr mergedcode)
+;;                                  (car mergedcode)))
+;;         ;; error detected when we attend to reason about 
+;;         ;; <a href="HALT.lisp.html">HALT</a> ..
+;;         (cond ((stack-map? (car mergedcode))
+;;                (and (sig-frame-compatible sig-frame (car mergedcode))
+;;                     (equal (g 'pc sig-frame)
+;;                            (g 'pc (cdr mergedcode)))  ;; bug!! 
+;;                     (merged-code-safe (cdr mergedcode)
+;;                                       (car mergedcode))))
+;;               ((inst? (car mergedcode))
+;;                (and (equal (g 'pc sig-frame)
+;;                            (g 'pc (car mergedcode)))
+;;                     (bcv-check-step-pre (car mergedcode) sig-frame)
+;;                     (merged-code-safe
+;;                      (cdr mergedcode)
+;;                      (bcv-execute-step (car mergedcode) sig-frame))))
+;;               (t nil))))))
+;; wrong one!! 
+;;                 
+</span>
+
+<span class="comment">;; (defun collect-witness-merged-code-safe (mergedcode sig-frame)
+;;   (if (endp mergedcode) nil
+;;     (if (endp (cdr mergedcode)) nil
+;;       (if (equal sig-frame 'aftergoto)
+;;           (and (stack-map? (car mergedcode))
+;;                (equal (g 'pc (car mergedcode))   
+;;                       (+ 1 (g 'pc sig-frame)))   ;; bug  !!!
+;;                (collect-witness-merged-code-safe 
+;;                 (cdr mergedcode) (car mergedcode)))
+;;         (cond ((stack-map? (car mergedcode))
+;;                (and (sig-frame-compatible sig-frame (car mergedcode))
+;;                     (not (endp (cdr mergedcode)))
+;;                     (equal (g 'pc (cdr mergedcode)) ;; bug!!! 
+;;                            (g 'pc sig-frame))
+;;                     (collect-witness-merged-code-safe 
+;;                      (cdr mergedcode) (car mergedcode))))
+;;               ((inst? (car mergedcode))
+;;                (and (equal (g 'pc sig-frame)
+;;                            (g 'pc (car mergedcode)))
+;;                     (bcv-check-step-pre (car mergedcode) sig-frame)
+;;                     (cons (cons (g 'pc sig-frame)
+;;                                 sig-frame)
+;;                           (collect-witness-merged-code-safe 
+;;                            (cdr mergedcode)
+;;                            (bcv-execute-step (car mergedcode)
+;;                                              sig-frame)))))
+;;               (t nil))))))
+;;
+;;
+</span>
+<span class="comment">;; (defun merged-code-safe (mergedcode sig-frame)
+;;   (if (endp mergedcode) nil
+;;     (if (endp (cdr mergedcode))
+;;         (and (equal (car mergedcode) 'END_OF_CODE)
+;;              (equal sig-frame 'aftergoto))
+;;       (if (equal sig-frame 'aftergoto)
+;;           (and (stack-map? (car mergedcode))
+;;                (equal (g 'pc (car mergedcode))
+;;                       (g 'pc (cadr mergedcode))) 
+;;                (merged-code-safe (cdr mergedcode)
+;;                                  (car mergedcode)))
+;;         (cond ((stack-map? (car mergedcode))
+;;                (and (sig-frame-compatible sig-frame (car mergedcode))
+;;                     (merged-code-safe (cdr mergedcode)
+;;                                       (car mergedcode))))
+;;               ((inst? (car mergedcode))
+;;                (and (equal (g 'pc sig-frame)
+;;                            (g 'pc (car mergedcode)))
+;;                     (bcv-check-step-pre (car mergedcode) sig-frame)
+;;                     (merged-code-safe
+;;                      (cdr mergedcode)
+;;                      (bcv-execute-step (car mergedcode) sig-frame))))
+;;               (t nil))))))
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">collect-witness-merged-code-safe</span> (mergedcode sig-frame)
+  (<span class="keyword">if</span> (endp mergedcode) nil
+    (<span class="keyword">if</span> (endp (cdr mergedcode)) nil
+      (<span class="keyword">if</span> (equal sig-frame 'aftergoto)
+          (and  (stack-map? (car mergedcode))
+                (equal (g 'pc (car mergedcode))   
+                       (g 'pc (cadr mergedcode)))
+                (collect-witness-merged-code-safe 
+                 (cdr mergedcode) (car mergedcode)))
+        (<span class="keyword">cond</span> ((stack-map? (car mergedcode))
+               (and (sig-frame-compatible sig-frame (car mergedcode))
+                    (merged-code-safe (cdr mergedcode)
+                                      (car mergedcode))
+                    (collect-witness-merged-code-safe 
+                     (cdr mergedcode) (car mergedcode))))
+              ((inst? (car mergedcode))
+               (and (equal (g 'pc sig-frame)
+                           (g 'pc (car mergedcode)))
+                    (bcv-check-step-pre (car mergedcode) sig-frame)
+                    (merged-code-safe
+                     (cdr mergedcode)
+                     (bcv-execute-step (car mergedcode) sig-frame))
+                    (cons (cons (g 'pc sig-frame)
+                                sig-frame)
+                          (collect-witness-merged-code-safe 
+                           (cdr mergedcode)
+                           (bcv-execute-step (car mergedcode)
+                                             sig-frame)))))
+              (t nil))))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">collect-witness-bcv-method</span> (method method-table)
+  (collect-witness-merged-code-safe
+   (mergeStackMapAndCode 
+    (g 'stackmaps method)
+    (parsecode (g 'code method))
+    (g 'method-name method)
+    method-table)
+   (SIG-METHOD-INIT-FRAME METHOD METHOD-TABLE)))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">extract-maps</span> (merged-code) 
+  (<span class="keyword">if</span> (endp merged-code) nil
+    (<span class="keyword">if</span> (endp (cdr merged-code)) nil
+      (<span class="keyword">if</span> (stack-map? (car merged-code))
+          (cons (car merged-code)
+                (extract-maps (cdr merged-code)))
+        (extract-maps (cdr merged-code))))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">extract-code</span> (merged-code)
+  (<span class="keyword">if</span> (endp merged-code) nil
+    (<span class="keyword">if</span> (endp (cdr merged-code)) nil
+      (<span class="keyword">if</span> (inst? (car merged-code))
+          (cons (car merged-code)
+                (extract-code (cdr merged-code)))
+        (extract-code (cdr merged-code))))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">partial-sig-vector-compatible1</span> (partial1 partial full)
+   (<span class="keyword">if</span> (endp partial1) t
+     (and (sig-frame-compatible (binding (caar partial1)
+                                         partial)
+                                (binding (caar partial1) full))
+          (partial-sig-vector-compatible1 (cdr partial1) partial full))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">partial-sig-vector-compatible</span> (partial full)
+  (partial-sig-vector-compatible1 partial partial full))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">wff-maps-consistent</span> (maps init-frame)
+  (<span class="keyword">if</span> (endp maps) t
+    (and (equal (g 'method-name (car maps))
+                (g 'method-name init-frame))
+         (equal (g 'method-table (car maps))
+                (g 'method-table init-frame))
+         (wff-maps-consistent (cdr maps) init-frame))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">collect-pc-merged-code</span> (merged-code)
+   (<span class="keyword">if</span> (endp merged-code) nil
+     (<span class="keyword">if</span> (endp (cdr merged-code))
+         nil
+       (cons (g 'pc (car merged-code))
+             (collect-pc-merged-code (cdr merged-code))))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">ordered</span> (pc-list)
+  (<span class="keyword">if</span> (endp pc-list) 
+      t
+    (<span class="keyword">if</span> (endp (cdr pc-list)) 
+        t
+      (and (&lt;= (car pc-list) 
+               (cadr pc-list))
+           (ordered (cdr pc-list))))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">collect-keys-from-witness</span> (sig-vector)
+  (<span class="keyword">if</span> (endp sig-vector) nil
+    (cons (car (car sig-vector))
+          (collect-keys-from-witness (cdr sig-vector)))))
+
+</pre>
+  </body>
+</html>

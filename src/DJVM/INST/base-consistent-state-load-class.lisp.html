@@ -1,0 +1,103 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-consistent-state-load-class.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="../consistent-state.lisp.html">"../../DJVM/consistent-state"</a></span>)
+(include-book <span class="string"><a href="../consistent-state-properties.lisp.html">"../../DJVM/consistent-state-properties"</a></span>)
+(include-book <span class="string"><a href="../../M6-DJVM-shared/jvm-bytecode.lisp.html">"../../M6-DJVM-shared/jvm-bytecode"</a></span>)
+
+
+(in-theory (disable getArrayClass resolveClassReference state-set-heap update-trace))
+
+(in-theory 
+ (disable jvm::load_class-guard
+          jvm::load_class
+          wff-state
+          topStack-guard
+          wff-heap
+          jvm::arg
+          tag-ref-tag
+          jvm::load_class2_guard
+          <a href="../consistent-state.lisp.html">consistent-state</a>
+          aux pending-exception
+          jvm::load_array_class
+          popstack-of-thread
+          jvm::build-an-array-instance
+          jvm::build-a-java-visible-instance-guard
+          jvm::load_array_class_guard))
+
+
+(in-theory (enable current-method-ptr))
+
+<span class="comment">;; (defthm can-load-array-class-in-consistent-state
+;;   (implies (CONSISTENT-STATE S)
+;;            (JVM::LOAD_ARRAY_CLASS_GUARD S))
+;;   :hints (("Goal" :in-theory (enable <a href="../consistent-state.lisp.html">consistent-state</a>
+;;                                      jvm::load_array_class_guard))))
+</span>
+
+<span class="comment">;; (defthm can-load-class-in-consistent-state
+;;   (implies (CONSISTENT-STATE S)
+;;            (JVM::LOAD_CLASS-GUARD S))
+;;   :hints (("Goal" :in-theory (enable <a href="../consistent-state.lisp.html">consistent-state</a>
+;;                                      jvm::load_class-guard))))
+</span>
+<span class="comment">;; ;; ;; above. 
+;; ;; ;; for guard verification. not essential properties of ...
+;; ;; ;; ;; moved to base-consistent-state.lisp 
+;;  Wed Jun  8 14:43:22 2005
+</span>
+
+(encapsulate () 
+ (local (include-book <span class="string"><a href="base-loader-preserve-consistent-state.lisp.html">"base-loader-preserve-consistent-state"</a></span>))
+ (acl2::set-enforce-redundancy t)
+ 
+ (defthm resolveClassReference-preserve-consistency
+   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+            (<a href="../consistent-state.lisp.html">consistent-state</a> (resolveClassReference any s))))
+
+
+ (defthm getArrayClass-preserve-consistency
+   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+            (<a href="../consistent-state.lisp.html">consistent-state</a> (getArrayClass any s)))))
+
+
+<span class="comment">;;;
+;;; the following should be in base-load-class-normalize.lisp!! 
+;;;</span></pre>
+  </body>
+</html>

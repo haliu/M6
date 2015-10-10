@@ -1,0 +1,72 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>jvm-thread-primitives-guard-verification.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"JVM"</span>)
+(include-book <span class="string"><a href="jvm-thread-primitives.lisp.html">"../M6-DJVM-shared/jvm-thread-primitives"</a></span>)
+<span class="comment">;; CHEAT!!
+</span>
+(skip-proofs (verify-guards signalTimeToReschedule))
+
+(skip-proofs (verify-guards dismantleThread))
+
+(skip-proofs (verify-guards resumeThread-inv))
+
+(skip-proofs (verify-guards resumeThread))
+
+(skip-proofs (verify-guards storeExecutionEnvironment))
+
+(skip-proofs (verify-guards loadExecutionEnvironment))
+
+(skip-proofs (verify-guards suspendThread1))
+
+(skip-proofs (verify-guards suspendThread))
+
+(skip-proofs (verify-guards startThread))
+         
+(skip-proofs (verify-guards stopThread))
+               
+                                                       
+<span class="comment">;;; Tue Mar 15 20:08:29 2005. 
+</span>
+
+<span class="comment">;;;  note this guard verification as the guard put it
+;;; down now is not correct!
+</span>
+
+</pre>
+  </body>
+</html>

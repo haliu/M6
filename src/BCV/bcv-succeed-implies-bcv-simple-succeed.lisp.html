@@ -1,0 +1,735 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>bcv-succeed-implies-bcv-simple-succeed.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"BCV"</span>)
+(include-book <span class="string"><a href="typechecker.lisp.html">"typechecker"</a></span>)
+(include-book <span class="string"><a href="typechecker-ext.lisp.html">"typechecker-ext"</a></span>)
+(include-book <span class="string"><a href="typechecker-simple.lisp.html">"typechecker-simple"</a></span>)
+(include-book <span class="string"><a href="bcv-base.lisp.html">"bcv-base"</a></span>)
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(encapsulate ()
+  (local (include-book <span class="string"><a href="bcv-instructionIsTypeSafe-if-verified.lisp.html">"bcv-instructionIsTypeSafe-if-verified"</a></span>))
+  (defthm mergedcodeIsTypesafe-implies-instructionIsTypeSafe
+    (implies (and (mergedcodeIsTypesafe env mergedcode stackframe)
+                  (pc-wff-mergedcode1 0 (allinstructions env))
+                  (is-suffix mergedcode (allinstructions env))
+                  (member <a href="../DJVM/INST/inst.lisp.html">inst</a> (extract-code mergedcode)))
+             (instructionIsTypeSafe 
+              <a href="../DJVM/INST/inst.lisp.html">inst</a> 
+              env
+              (searchStackFrame (<a href="../DJVM/INST/inst.lisp.html">inst</a>rOffset <a href="../DJVM/INST/inst.lisp.html">inst</a>)
+                                (stack-map-wrap 
+                                 (collect-sig-frame-vector env
+                                                           mergedcode
+                                                           stackframe)))))))
+  
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+
+(<span class="keyword">defun</span> <span class="function-name">mergedcodeIsTypeSafe-induct</span> (env init-frame mergedcode stackmap)
+  (<span class="keyword">if</span> (endp mergedcode)
+      (list env init-frame mergedcode stackmap)
+    (<span class="keyword">if</span> (endp (cdr mergedcode))
+        (list (list env init-frame mergedcode stackmap))
+      (<span class="keyword">cond</span> ((isinstruction (car mergedcode))
+             (<span class="keyword">cond</span> ((isStackMap (cadr mergedcode))
+                    (mergedcodeIsTypeSafe-induct env init-frame
+                                                 (forward-to-next-inst (cdr mergedcode))
+                                                 (next-stackframe (cdr mergedcode))))
+                   ((isInstruction (cadr mergedcode))
+                    (mv-let (next-stack-frame exception-frame)
+                            (sig-do-inst (car mergedcode) env stackmap)
+                            (<span class="keyword">declare</span> (ignore exception-frame))
+                            (mergedcodeIsTypeSafe-induct env init-frame 
+                                                         (cdr mergedcode)
+                                                         next-stack-frame)))))
+            ((isStackMap (car mergedcode))
+             (mergedcodeIsTypeSafe-induct env init-frame
+                                          (forward-to-next-inst mergedcode)
+                                          (next-stackframe mergedcode)))))))
+             
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(defthm is-suffix-forward-to-next-is-suffix
+  (implies (is-suffix mergedcode1 mergedcode)
+           (IS-SUFFIX (FORWARD-TO-NEXT-INST mergedcode1) mergedcode))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+           <span class="builtin">:in-theory</span> (disable isInstruction)
+           <span class="builtin">:induct</span> (forward-to-next-inst mergedcode1))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm pc-wff-mergedcode1-never-end-on-a-stackmap
+  (implies (and (pc-wff-mergedcode1 pc mergedcode)
+                (isStackMap stackmap)
+                (isEnd end))
+           (not (is-suffix (list* stackmap end any)
+                           mergedcode)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isStackMap isEnd 
+                                      jvm::inst-size
+                                      isInstruction))))
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;;;
+;;; it is critical for sun's bcv, we could not have aftergoto as part of the
+;;; marking.  Wed Dec 28 14:26:13 2005
+;;;
+</span>
+(defthm pc-wff-mergedcode1-never-aftergoto
+  (implies (and (pc-wff-mergedcode1 pc mergedcode)
+                (isStackMap stackmap)
+                (member stackmap mergedcode))
+           (not (equal (mapFrame (getMap stackmap))
+                       'aftergoto)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isStackMap isEnd 
+                                      jvm::inst-size
+                                      isInstruction))))               
+
+
+
+
+(encapsulate ()
+ (local (include-book <span class="string"><a href="bcv-wff-code.lisp.html">"bcv-wff-code"</a></span>))
+ (defthm is-suffix-member-f
+   (implies (IS-SUFFIX (cons instr mergedcode1)
+                       MERGEDCODE)
+            (member instr mergedcode))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm pc-wff-mergedcode1-f
+  (implies (and (pc-wff-mergedcode1 pc mergedcode)
+                (not (isEnd (car mergedcode))))
+           (pc-wff-mergedcode1 (next-pc mergedcode) mergedcode))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable jvm::inst-size 
+                                      isInstruction
+                                      isStackMap
+                                      isEnd)
+           <span class="builtin">:do-not</span> '(generalize)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+(defthm mergedcodeIsTypesafe-forward-to-next-inst
+  (implies (and (mergedcodeIsTypesafe env mergedcode stackframe)
+                (not (isInstruction (car mergedcode)))
+                (pc-wff-mergedcode1 (next-pc mergedcode) mergedcode))
+           (mergedcodeIsTypesafe env 
+                                 (forward-to-next-inst mergedcode)
+                                 (next-stackframe mergedcode)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable instructionIsTypeSafe
+                                      instructionSatisfiesHandlers
+                                      instrOffset
+                                      sig-do-inst
+                                      allinstructions
+                                      isEnd
+                                      mapFrame
+                                      getMap mapOffset
+                                      frameIsAssignable
+                                      isInstruction
+                                      isStackMap)
+           <span class="builtin">:do-not</span> '(generalize)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+(defthm mergedcodeIsTypesafe-forward-to-next-inst-b
+  (implies (and (mergedcodeIsTypesafe env mergedcode (mapFrame (getMap mergedcode1)))
+                (isStackMap mergedcode1)
+                (pc-wff-mergedcode1 (next-pc mergedcode) mergedcode))
+           (mergedcodeIsTypesafe env 
+                                 (forward-to-next-inst (cons mergedcode1 mergedcode))
+                                 (next-stackframe (cons mergedcode1 mergedcode))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable instructionIsTypeSafe
+                                      instructionSatisfiesHandlers
+                                      instrOffset
+                                      sig-do-inst
+                                      allinstructions
+                                      isEnd
+                                      mapFrame
+                                      getMap mapOffset
+                                      frameIsAssignable
+                                      isInstruction
+                                      isStackMap)
+           <span class="builtin">:do-not</span> '(generalize))))
+
+
+
+(defthm forward-to-next-inst-get-inst-if-pc-wff-merged-code
+  (implies (and (pc-wff-mergedcode1 pc mergedcode)
+                (consp mergedcode)
+                (isStackMap (car mergedcode)))
+           (isinstruction (car (forward-to-next-inst mergedcode))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable instructionIsTypeSafe
+                                      instructionSatisfiesHandlers
+                                      instrOffset
+                                      sig-do-inst
+                                      allinstructions
+                                      isEnd
+                                      mapFrame
+                                      jvm::inst-size
+                                      getMap mapOffset
+                                      frameIsAssignable
+                                      isInstruction
+                                      isStackMap)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+
+(local (in-theory (disable next-stackframe forward-to-next-inst)))
+
+
+(encapsulate () 
+ (local (include-book <span class="string"><a href="bcv-pc-wff-mergedcode1.lisp.html">"bcv-pc-wff-mergedcode1"</a></span>))
+
+
+ (defthm is-suffix-pc-wff-mergecode1
+   (implies (and (is-suffix mergedcode1 mergedcode)
+                (consp mergedcode1)
+                (not (isEnd (car mergedcode1)))
+                (pc-wff-mergedcode1 pc mergedcode))
+           (pc-wff-mergedcode1 (next-pc mergedcode1)
+                               mergedcode1))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+
+ (defthm pc-wff-mergedcode1-isStackMap-consp-remaining
+   (implies (and (pc-wff-mergedcode1 pc mergedcode)
+                 (isStackMap (car mergedcode)))
+            (consp (cdr mergedcode)))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;;; 
+</span>
+<span class="comment">;;(i-am-here) ;; Sat Dec 31 02:22:06 2005
+</span>
+
+(encapsulate () 
+ (local (include-book <span class="string"><a href="bcv-is-suffix-facts.lisp.html">"bcv-is-suffix-facts"</a></span>))
+
+ (defthm is-suffix-facts
+   (implies (IS-SUFFIX (LIST* MERGEDCODE1 any) mergedcode)
+            (is-suffix any mergedcode))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+ (defthm is-suffix-facts-member
+   (implies (IS-SUFFIX (LIST* MERGEDCODE1 any) mergedcode)
+            (member mergedcode1 mergedcode))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+
+(defthm forward-to-next-inst-get-inst-if-pc-wff-merged-code-specific
+  (implies (and (is-suffix (list* mergedcode1 mergedcode) (allinstructions env))
+                (pc-wff-mergedcode1 0 (allinstructions env))
+                (isStackMap mergedcode1))
+           (isinstruction (car (forward-to-next-inst (cons mergedcode1 mergedcode)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable instructionIsTypeSafe
+                                      instructionSatisfiesHandlers
+                                      instrOffset
+                                      sig-do-inst
+                                      allinstructions
+                                      isEnd
+                                      <span class="comment">;;next-pc
+</span>                                      mapFrame
+                                      jvm::inst-size
+                                      getMap mapOffset
+                                      frameIsAssignable
+                                      isInstruction
+                                      isStackMap)
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span> forward-to-next-inst-get-inst-if-pc-wff-merged-code
+                            (mergedcode (list* mergedcode1 mergedcode))
+                            (pc (next-pc mergedcode)))
+                 (<span class="builtin">:instance</span> is-suffix-pc-wff-mergecode1
+                            (mergedcode1 (list* mergedcode1 mergedcode))
+                            (mergedcode (allinstructions env))
+                            (pc 0)))))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(encapsulate () 
+ (local (include-book <span class="string"><a href="bcv-collect-sig-frame-vector-never-aftergoto.lisp.html">"bcv-collect-sig-frame-vector-never-aftergoto"</a></span>))
+ (defthm collect-sig-frame-vector-never-aftergoto
+   (not (equal (searchstackframe 
+                any 
+                (stack-map-wrap (collect-sig-frame-vector any-env any-code
+                                                          any-init-frame)))
+               'aftergoto))))
+
+<span class="comment">;----------------------------------------------------------------------
+;----------------------------------------------------------------------
+</span>
+
+(encapsulate () 
+  (local (include-book <span class="string"><a href="bcv-searchStackFrame-reduce.lisp.html">"bcv-searchStackFrame-reduce"</a></span>))
+  (defthm searchStackFrame-is-if-stack-map
+  (implies (and (isStackMap (car mergedcode))
+                (equal (forward-to-next-inst mergedcode) 
+                       (forward-to-next-inst x))
+                (is-suffix mergedcode all-merged-code)
+                (PC-WFF-MERGEDCODE1 PC ALL-MERGED-CODE)
+                (mergedcodeistypesafe env all-merged-code init-frame))
+           (EQUAL
+            (SEARCHSTACKFRAME
+             (INSTROFFSET (CAR (FORWARD-TO-NEXT-INST x)))
+             (STACK-MAP-WRAP (COLLECT-SIG-FRAME-VECTOR ENV all-merged-code
+                                                       INIT-FRAME)))
+            (NEXT-STACKFRAME mergedcode)))))
+
+
+
+<span class="comment">;;; Sat Dec 31 02:19:30 2005
+</span>
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;; Subgoal *1/5'
+;; (IMPLIES
+;;  (AND
+;;   (CONSP MERGEDCODE)
+;;   (CONSP (CDR MERGEDCODE))
+;;   (ISINSTRUCTION (CAR MERGEDCODE))
+;;   (NOT (ISSTACKMAP (CADR MERGEDCODE)))
+;;   (NOT (ISINSTRUCTION (CADR MERGEDCODE)))
+;;   (MERGEDCODEISTYPESAFE ENV (ALLINSTRUCTIONS ENV)
+;;                         INIT-FRAME)
+;;   (EQUAL
+;;      STACKFRAME
+;;      (SEARCHSTACKFRAME
+;;           (NEXT-PC MERGEDCODE)
+;;           (STACK-MAP-WRAP (COLLECT-SIG-FRAME-VECTOR ENV (ALLINSTRUCTIONS ENV)
+;;                                                     INIT-FRAME))))
+;;   (MERGEDCODEISTYPESAFE ENV MERGEDCODE STACKFRAME)
+;;   (PC-WFF-MERGEDCODE1 0 (ALLINSTRUCTIONS ENV))
+;;   (IS-SUFFIX MERGEDCODE (ALLINSTRUCTIONS ENV)))
+;;  (BCV-SIMPLE-METHOD1 (EXTRACT-CODE MERGEDCODE)
+;;                      (COLLECT-SIG-FRAME-VECTOR ENV (ALLINSTRUCTIONS ENV)
+;;                                                INIT-FRAME)
+;;                      ENV)).
+</span>
+(defthm extract-code-forward-next-inst-reduce
+  (implies (wff-merged-code-weak mergedcode)
+           (equal (EXTRACT-CODE (FORWARD-TO-NEXT-INST MERGEDCODE))
+                  (extract-code mergedcode)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable forward-to-next-inst))))
+
+<span class="comment">;; (i-am-here) ;; Sun Jan  1 15:50:54 2006
+;----------------------------------------------------------------------
+</span>
+
+(encapsulate () 
+  (local (include-book <span class="string"><a href="bcv-searchStackFrame-reduce.lisp.html">"bcv-searchStackFrame-reduce"</a></span>))
+   (defthm mergecodeIsTypeSafe-implies-collect-sig-vector-compatible-1
+    (implies (and (mergedcodeIsTypeSafe env mergecode stackframe)
+                  (member <a href="../DJVM/INST/inst.lisp.html">inst</a> mergecode)
+                  (isInstruction <a href="../DJVM/INST/inst.lisp.html">inst</a>)
+                  (isInstruction (next-<a href="../DJVM/INST/inst.lisp.html">inst</a> <a href="../DJVM/INST/inst.lisp.html">inst</a> mergecode))
+                  (pc-wff-mergedcode1 (next-pc mergecode) mergecode))
+             (equal (car (sig-do-<a href="../DJVM/INST/inst.lisp.html">inst</a> <a href="../DJVM/INST/inst.lisp.html">inst</a>
+                                      env
+                                      (searchStackFrame (<a href="../DJVM/INST/inst.lisp.html">inst</a>roffset <a href="../DJVM/INST/inst.lisp.html">inst</a>)
+                                                        (stack-map-wrap
+                                                         (collect-sig-frame-vector
+                                                          env mergecode
+                                                          stackframe)))))
+                    (searchStackFrame (<a href="../DJVM/INST/inst.lisp.html">inst</a>roffset (next-<a href="../DJVM/INST/inst.lisp.html">inst</a> <a href="../DJVM/INST/inst.lisp.html">inst</a> mergecode))
+                                      (stack-map-wrap (collect-sig-frame-vector
+                                                       env mergecode
+                                                       stackframe)))))))
+
+<span class="comment">;----------------------------------------------------------------------
+;;(i-am-here) ;; Sun Jan  1 23:22:11 2006
+</span>
+<span class="comment">;;(i-am-here)
+</span>
+(defthm typelist-assignable-reflexive
+  (TYPELISTASSIGNABLE x x  ENV))
+
+
+(defthm frameisassignable-reflexive
+   (FRAMEISASSIGNABLE frame frame env)))
+
+<span class="comment">;;(i-am-here) ;; Sun Jan  1 18:22:32 2006
+</span>
+(encapsulate () 
+   (local (include-book <span class="string"><a href="bcv-sig-do-produce-compatible-next-state.lisp.html">"bcv-sig-do-produce-compatible-next-state"</a></span>))
+   (defthm frameIsAssignable-transitive-specific
+     (implies  (and (FRAMEISASSIGNABLE
+                  (CAR
+                   (SIG-DO-INST
+                      MERGEDCODE1 ENV
+                      (SEARCHSTACKFRAME
+                       (INSTROFFSET MERGEDCODE1)
+                       (STACK-MAP-WRAP (COLLECT-SIG-FRAME-VECTOR ENV (ALLINSTRUCTIONS ENV)
+                                                                 INIT-FRAME)))))
+                  (MAPFRAME (GETMAP MERGEDCODE3))
+                  ENV)
+                 (isStackMap mergedcode3)
+                 (equal (mapOffset (getMap mergedcode3)) npc)
+                 (member mergedcode3 (allinstructions env))
+                 (pc-wff-mergedcode1 0 (allinstructions env))
+                 (mergedcodeIsTypesafe env (allinstructions env) init-frame)
+                 (GOOD-FRAME
+                  (SEARCHSTACKFRAME
+                   (MAPOFFSET (GETMAP MERGEDCODE3))
+                   (STACK-MAP-WRAP (COLLECT-SIG-FRAME-VECTOR ENV (ALLINSTRUCTIONS ENV)
+                                                             INIT-FRAME)))
+                  ENV)
+                  (good-frame  (SEARCHSTACKFRAME
+                                (INSTROFFSET MERGEDCODE1)
+                                (STACK-MAP-WRAP (COLLECT-SIG-FRAME-VECTOR ENV (ALLINSTRUCTIONS ENV)
+                                                                          INIT-FRAME)))
+                               env)
+                 (all-good-frames (extract-frames (allinstructions env)) env)
+                 (good-env env))
+             (FRAMEISASSIGNABLE
+              (CAR
+               (SIG-DO-INST
+                MERGEDCODE1 ENV
+                (SEARCHSTACKFRAME
+                 (INSTROFFSET MERGEDCODE1)
+                 (STACK-MAP-WRAP (COLLECT-SIG-FRAME-VECTOR ENV (ALLINSTRUCTIONS ENV)
+                                                           INIT-FRAME)))))
+              (SEARCHSTACKFRAME
+                npc
+               (STACK-MAP-WRAP (COLLECT-SIG-FRAME-VECTOR ENV (ALLINSTRUCTIONS ENV)
+                                                         INIT-FRAME)))
+              env))))
+
+<span class="comment">;----------------------------------------------------------------------
+;----------------------------------------------------------------------
+</span>
+
+
+(encapsulate () 
+  (local (include-book <span class="string"><a href="bcv-is-suffix-facts.lisp.html">"bcv-is-suffix-facts"</a></span>))
+
+  (defthm is-suffix-pc-equal
+   (implies (and (IS-SUFFIX (LIST* MERGEDCODE1 mergedcode4) mergedcode)
+                 (isStackMap mergedcode1)
+                 (pc-wff-mergedcode1 pc mergedcode))
+            (equal (instrOffset (car (extract-code mergedcode4)))
+                   (mapOffset (getMap mergedcode1)))))
+
+
+                          
+ (defthm is-suffix-extract-code-is-code
+   (implies (and (IS-SUFFIX (LIST* MERGEDCODE1 mergedcode4) mergedcode)
+                 (isStackMap mergedcode1)
+                 (pc-wff-mergedcode1 pc mergedcode))
+            (isInstruction (car (extract-code mergedcode4))))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;; (i-am-here) ;; Mon Jan  2 19:49:18 2006
+</span>
+(encapsulate ()  
+  (local (include-book <span class="string"><a href="bcv-collected-frames-are-good-frames.lisp.html">"bcv-collected-frames-are-good-frames"</a></span>))
+  (defthm good-frame-searchStackMap
+   (implies (and (mergedcodeIsTypesafe env mergedcode init-frame)
+                 (member <a href="../DJVM/INST/inst.lisp.html">inst</a> mergedcode)
+                 (isInstruction <a href="../DJVM/INST/inst.lisp.html">inst</a>)
+                 (all-good-frames (extract-frames mergedcode) env)
+                 (good-frame init-frame env)
+                 (good-env env))
+            (good-frame (searchstackframe (<a href="../DJVM/INST/inst.lisp.html">inst</a>rOffset <a href="../DJVM/INST/inst.lisp.html">inst</a>)
+                                          (STACK-MAP-WRAP (COLLECT-SIG-FRAME-VECTOR ENV mergedcode
+                                                                                    INIT-FRAME)))
+                        env)))
+
+  (defthm good-frame-searchStackMap-2
+    (implies (and (mergedcodeIsTypesafe env mergedcode init-frame)
+                  (all-good-frames (extract-frames mergedcode) env)
+                  (member frame mergedcode)
+                  (isStackMap frame)
+                  (wff-mergedcode-instr mergedcode)
+                  (wff-stack-map-offset mergedcode)
+                  (good-frame init-frame env)
+                  (good-env env))
+             (good-frame (searchstackframe (mapOffset (getMap frame))
+                                           (STACK-MAP-WRAP (COLLECT-SIG-FRAME-VECTOR ENV mergedcode
+                                                                                     INIT-FRAME)))
+                         env))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm is-suffix-implies-member-code
+  (implies (and (is-suffix mergedcode1 mergedcode)
+                (member x mergedcode1))
+           (member x mergedcode))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isInstruction
+                                      isStackMap
+                                      isEnd))))
+                                    
+(defthm member-extract-code-member
+  (implies (member x (extract-code mergedcode))
+           (member x mergedcode))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+  
+
+(defthm forward-to-next-inst-reduce 
+   (implies (isStackMap mergedcode1)
+            (equal (FORWARD-TO-NEXT-INST (CONS MERGEDCODE1 MERGEDCODE2))
+                   (forward-to-next-inst mergedcode2)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isInstruction 
+                                       isStackMap)
+            <span class="builtin">:expand</span> (FORWARD-TO-NEXT-INST (CONS MERGEDCODE1 MERGEDCODE2)))))
+
+
+
+(defthm extract-code-forward-to-next
+  (implies (wff-merged-code-weak mergedcode)
+           (equal (EXTRACT-CODE (FORWARD-TO-NEXT-INST MERGEDCODE))
+                  (extract-code mergedcode)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (forward-to-next-inst)
+                                  (isInstruction 
+                                   isStackMap
+                                   isEnd)))))
+
+
+
+(encapsulate ()
+  (local (include-book <span class="string"><a href="bcv-next-inst-is.lisp.html">"bcv-next-inst-is"</a></span>))
+  (defthm is-suffix-implies-next-inst-specific
+    (implies  (and (IS-SUFFIX mergedcode (allinstructions env))
+                   (pc-wff-mergedcode1 0 (allinstructions env))
+                   (consp mergedcode)
+                   (consp (cdr mergedcode))
+                   (isInstruction (car mergedcode)))
+              (equal (next-inst (car mergedcode) (allinstructions env))
+                     (cadr mergedcode)))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(defthm pc-wff-mergedcode1-pc-wff-mergedcode-pc-specific
+  (implies (and (pc-wff-mergedcode1 0 (allinstructions env))
+                (consp (allinstructions env))
+                (not (isEnd (car (allinstructions env)))))
+           (pc-wff-mergedcode1 (next-pc (allinstructions env))
+                               (allinstructions env)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isInstruction
+                                      isStackMap
+                                      isEnd))))
+                                      
+
+
+
+(defthm is-suffix-consp-consp
+  (implies (and (is-suffix mergedcode1 mergedcode)
+                (consp mergedcode1))
+           (consp mergedcode))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+
+(defthm is-suffix-not-end-not-end
+  (implies (and (is-suffix mergedcode1 mergedcode)
+                (wff-merged-code-weak mergedcode)
+                (consp mergedcode1)
+                (not (isEnd (car mergedcode1))))
+           (not (isEnd (car mergedcode))))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+<span class="comment">;;(in-theory (disable forward-to-next-inst-reduce ))
+</span>
+
+(defthm is-suffix-wff-mergecode-weak
+  (implies (and (is-suffix mergedcode1 mergedcode)
+                (consp mergedcode1)
+                (wff-merged-code-weak mergedcode))
+           (wff-merged-code-weak mergedcode1))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+<span class="comment">;; (defthm pc-wff-mergedcode1-implies-wff-merged-code-instr
+;;   (implies (pc-wff-mergedcode1 pc mergedcode)
+;;            (wff-mergedcode-instr mergedcode))
+;;   :hints (("Goal" :in-theory (disable isInstruction isStackMap
+;;                                       isEnd
+;;                                       jvm::inst-size)))
+;;   :rule-classes :forward-chaining)
+</span>
+
+
+(defthm is-suffix-wff-merged-code-instr
+  (implies (and (is-suffix (list* map mergedcode) all-mergedcode)
+                (isStackMap map)
+                (wff-mergedcode-instr all-mergedcode)
+                (wff-merged-code-weak all-mergedcode))
+           (consp (extract-code mergedcode)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+
+(in-theory (enable forward-to-next-inst))
+
+
+(defthm is-suffix-wff-merged-code-instr-wff-merged-code-instr
+  (implies (and (is-suffix mergedcode1 mergedcode2)
+                (wff-mergedcode-instr mergedcode2))
+           (wff-mergedcode-instr mergedcode1))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+(defthm is-suffix-wff-merged-code-instr-2
+  (implies (and (wff-mergedcode-instr mergedcode)
+                (isStackMap (car mergedcode)))
+           (isInstruction (car (forward-to-next-inst mergedcode)))))
+  
+
+(include-book <span class="string"><a href="bcv-mergedcodeIsTypesafe.lisp.html">"bcv-mergedcodeIsTypesafe"</a></span>)
+
+<span class="comment">;;(i-am-here) ;; Mon Jan  2 20:41:32 2006
+</span>
+
+(defthm mergedcodeIsTypeSafe-implies-bcv-simple-method1-lemma
+  (implies (and (mergedcodeIsTypesafe env (allinstructions env) init-frame)
+                (good-frame init-frame env)
+                (equal (searchStackFrame (next-pc mergedcode)
+                                         (stack-map-wrap (collect-sig-frame-vector env 
+                                                                                   (allinstructions env)
+                                                                                   init-frame)))
+                       stackframe)
+                (mergedcodeIsTypesafe env mergedcode stackframe)
+                (pc-wff-mergedcode1 0 (allinstructions env))
+                (is-suffix mergedcode (allinstructions env))
+                (all-good-frames (extract-frames (allinstructions env)) env)
+                (good-env env))
+           (bcv-simple-method1 (extract-code mergedcode)
+                               (collect-sig-frame-vector env 
+                                                         (allinstructions env)
+                                                         init-frame)
+                               env))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable instructionIsTypeSafe
+                                      instructionSatisfiesHandlers
+                                      instrOffset
+                                      sig-do-inst
+                                      allinstructions
+                                      isEnd
+                                      good-frame
+                                      mapFrame
+                                      getMap mapOffset
+                                      frameIsAssignable
+                                      isInstruction
+                                      isStackMap)
+           <span class="builtin">:induct</span> (mergedcodeistypesafe-induct env init-frame
+                                                mergedcode stackframe)
+           <span class="builtin">:do-not</span> '(generalize))))
+
+<span class="comment">;----------------------------------------------------------------------
+;----------------------------------------------------------------------
+;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;; (local 
+;;  (defthm extract-code-no-change
+;;    (implies (wff-merged-code-weak mergedcode)
+;;             (equal (EXTRACT-CODE (FORWARD-TO-NEXT-INST mergedcode))
+;;                    (extract-code mergedcode)))))
+</span>
+<span class="comment">;; (local 
+;;  (defthm is-suffix-forward-to-next-inst
+;;    (IS-SUFFIX (FORWARD-TO-NEXT-INST mergedcode)
+;;               mergedcode)))
+</span>
+(defthm mergedcodeIsTypeSafe-implies-bcv-simple-method1
+  (implies (and (mergedcodeIsTypesafe env (allinstructions env) init-frame)
+                (good-frame init-frame env)
+                (pc-wff-mergedcode1 0 (allinstructions env))
+                (all-good-frames (extract-frames (allinstructions env)) env)
+                (good-env env))
+           (bcv-simple-method1 (extract-code (allinstructions env))
+                               (collect-sig-frame-vector env 
+                                                         (allinstructions env)
+                                                         init-frame)
+                               env))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable instructionIsTypeSafe
+                                      instructionSatisfiesHandlers
+                                      instrOffset
+                                      sig-do-inst
+                                      allinstructions
+                                      isEnd
+                                      next-pc
+                                      good-frame
+                                      mapFrame
+                                      mergedcodeIsTypesafe
+                                      getMap mapOffset
+                                      frameIsAssignable
+                                      isInstruction
+                                      isStackMap)
+           <span class="builtin">:do-not-induct</span> t
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span>
+                  mergedcodeIsTypeSafe-implies-bcv-simple-method1-lemma
+                  (mergedcode (forward-to-next-inst (allinstructions env)))
+                  (stackframe (searchstackframe 
+                               (next-pc (forward-to-next-inst (allinstructions env)))
+                               (stack-map-wrap 
+                                (collect-sig-frame-vector 
+                                 env
+                                 (allinstructions env)
+                                 init-frame))))))
+           <span class="builtin">:do-not</span> '(generalize))))
+</pre>
+  </body>
+</html>

@@ -1,0 +1,435 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-consistent-state-more.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+
+(include-book <span class="string"><a href="../consistent-state.lisp.html">"../../DJVM/consistent-state"</a></span>)
+(include-book <span class="string"><a href="../consistent-state-properties.lisp.html">"../../DJVM/consistent-state-properties"</a></span>)
+
+(local 
+ (defthm thread-by-id-cons-x
+   (EQUAL (THREAD-BY-ID (THREAD-ID NEW-THREAD)
+                        (CONS NEW-THREAD TT2))
+          NEW-THREAD)
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable thread-by-id)))))
+
+(local 
+ (defthm replace-thread-table-entry-not-mem-equal
+   (implies (not (mem oldthread tt))
+            (equal (thread-by-id any (replace-thread-table-entry oldthread
+                                                                 newthread tt))
+                   (thread-by-id any tt)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+            <span class="builtin">:in-theory</span> (enable thread-by-id)))))
+
+
+(local 
+ (defthm thread-by-id-replace-thread-table-entry-any-any
+   (implies (equal (thread-id new-thread) id)
+            (equal (thread-by-id id 
+                                 (replace-thread-table-entry 
+                                  (thread-by-id id tt)
+                                  new-thread
+                                  tt))
+                   (<span class="keyword">if</span> (mem  (thread-by-id id tt) tt)
+                       new-thread
+                     (thread-by-id id tt))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+            <span class="builtin">:in-theory</span> (enable thread-by-id)))))
+
+
+(local 
+ (defthm thread-id-make-thread
+   (equal (thread-id (make-thread ID PC CALL-STACK S
+                         M-REF MDEPTH THREAD-REF))
+          id)
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable thread-id)))))
+
+(local 
+ (defthm mem-thread-thread-id
+   (implies (and (mem (thread-by-id id tt) tt)
+                 (thread-by-id id tt))
+            (equal (thread-id (thread-by-id id tt)) id))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable thread-by-id thread-id)
+            <span class="builtin">:do-not</span> '(generalize)))))
+
+(local 
+ (defthm not-thread-by-id-replace-thread-entry
+   (implies (and (not (thread-by-id id tt))
+                 (mem nil tt)
+                 new-thread
+                 (equal  (thread-id new-thread) id))
+            (equal (thread-by-id id
+                                 (replace-thread-table-entry 
+                                  nil
+                                  new-thread tt))
+                   new-thread))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable thread-by-id)))))
+
+
+(local
+ (defthm not-id-nil-then-thread-by-id-nil
+   (implies (and (not (equal id nil))
+                 (not (thread-by-id id tt)))
+            (not (THREAD-BY-ID id 
+                               (REPLACE-THREAD-TABLE-ENTRY
+                                NIL
+                                (MAKE-THREAD NIL NIL
+                                             (LIST (FRAME-SET-OPERAND-STACK (LIST V) NIL))
+                                             NIL NIL NIL NIL)
+                                tt))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (thread-by-id) (make-thread))))))
+
+
+
+
+
+(local 
+ (defthm locals-frame-set-operand-stack
+   (equal (LOCALS (FRAME-SET-OPERAND-STACK any frame))
+          (locals frame))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable frame-set-operand-stack locals)))))
+
+
+
+
+
+
+
+
+
+
+(defthm locals-no-change-pushStack
+  (equal (locals (current-frame (pushstack v s)))
+         (locals (current-frame s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (current-frame
+                                   thread-set-call-stack
+                                   push-stack-of-thread)
+                                  (topframe-normalization
+                                   make-thread
+                                   locals))
+           <span class="builtin">:cases</span> ((mem (thread-by-id (current-thread s)
+                                      (thread-table s))
+                        (thread-table s))))
+          (<span class="string">"Subgoal 1"</span> <span class="builtin">:cases</span> ((thread-by-id (current-thread s)
+                                             (thread-table s))))
+          (<span class="string">"Subgoal 1.2"</span> <span class="builtin">:cases</span> ((equal (current-thread s) nil)))))
+
+
+
+(local
+ (defthm not-id-nil-then-thread-by-id-nil-general
+   (implies (and (not (equal id nil))
+                 (equal (thread-id new-thread) nil)
+                 (not (thread-by-id id tt)))
+            (not (THREAD-BY-ID id 
+                               (REPLACE-THREAD-TABLE-ENTRY
+                                NIL
+                                new-thread
+                                tt))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (thread-by-id) (make-thread))))))
+
+
+(defthm locals-no-change-popStack
+  (equal (locals (current-frame (popStack s)))
+         (locals (current-frame s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (current-frame
+                                   thread-set-call-stack
+                                   popstack-of-thread)
+                                  (topframe-normalization
+                                   make-thread
+                                   locals))
+           <span class="builtin">:cases</span> ((mem (thread-by-id (current-thread s)
+                                      (thread-table s))
+                        (thread-table s))))
+          (<span class="string">"Subgoal 1"</span> <span class="builtin">:cases</span> ((thread-by-id (current-thread s)
+                                             (thread-table s))))
+          (<span class="string">"Subgoal 1.2"</span> <span class="builtin">:cases</span> ((equal (current-thread s) nil)))))
+
+
+
+
+(defthm method-ptr-no-change-pushStack 
+  (equal (method-ptr (current-frame (pushStack v s)))
+         (method-ptr (current-frame s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (current-frame
+                                   thread-set-call-stack
+                                   push-stack-of-thread)
+                                  (topframe-normalization
+                                   make-thread
+                                   method-ptr))
+           <span class="builtin">:cases</span> ((mem (thread-by-id (current-thread s)
+                                      (thread-table s))
+                        (thread-table s))))
+          (<span class="string">"Subgoal 1"</span> <span class="builtin">:cases</span> ((thread-by-id (current-thread s)
+                                             (thread-table s))))
+          (<span class="string">"Subgoal 1.2"</span> <span class="builtin">:cases</span> ((equal (current-thread s) nil)))))
+
+
+(defthm method-ptr-no-change-popStack
+  (equal (method-ptr (current-frame (popStack s)))
+         (method-ptr (current-frame s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (current-frame
+                                   thread-set-call-stack
+                                   popstack-of-thread)
+                                  (topframe-normalization
+                                   make-thread
+                                   method-ptr))
+           <span class="builtin">:cases</span> ((mem (thread-by-id (current-thread s)
+                                      (thread-table s))
+                        (thread-table s))))
+          (<span class="string">"Subgoal 1"</span> <span class="builtin">:cases</span> ((thread-by-id (current-thread s)
+                                             (thread-table s))))
+          (<span class="string">"Subgoal 1.2"</span> <span class="builtin">:cases</span> ((equal (current-thread s) nil)))))
+
+
+<span class="comment">;;; no hypothesis!! 
+;;; this should be fine. 
+</span>
+<span class="comment">;;;
+;;; Expect more of these maybe we will move these into
+;;; base-consistent-state.lisp itself! 
+;;;
+</span>
+
+<span class="comment">;;; These should be provable. It is obvious when s is a <a href="../consistent-state.lisp.html">consistent-state</a> 
+;;; It is less so when s is some arbitrary state. 
+;;; 
+</span>
+
+(defthm consistent-object-implies-object-type-not-primitive-type
+  (implies (consistent-object obj (heap s) (instance-class-table s))
+           (not (primitive-type? (obj-type obj)))))
+
+(local 
+ (defthm operand-stack-frame-set-opstack
+   (equal (operand-stack (frame-set-operand-stack stk frame))
+          stk)
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable frame-set-operand-stack operand-stack)))))
+
+
+(local 
+ (defthm consistent-thread-entries-implies-thread-by-id
+   (implies (and (thread-by-id id tt)
+                 (consistent-thread-entries tt cl hp))
+            (mem  (thread-by-id id tt) tt))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable thread-by-id)))))
+                  
+
+(local 
+ (defthm consistent-state-implies-thread-exists
+   (IMPLIES (CONSISTENT-STATE S)
+            (MEM (THREAD-BY-ID (CURRENT-THREAD S)
+                               (THREAD-TABLE S))
+                 (THREAD-TABLE S)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a>)))))
+
+
+
+(defthm operand-stack-current-frame-pushStack
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (equal (operand-stack (current-frame (pushStack v s)))
+                  (push v (operand-stack (current-frame s)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (pushStack current-frame
+                                             push-stack-of-thread)
+                                  (topframe-normalization)))))
+
+
+<span class="comment">;; (skip-proofs 
+;;  (defthm operand-stack-current-frame-popStack
+;;    (equal (operand-stack (current-frame (popStack s)))
+;;           (pop (operand-stack (current-frame s))))
+;;    :rule-classes nil))
+</span>
+<span class="comment">;;; ;;; this we don't want! We want to keep opstack-sig not to keep (popStack
+;;; s) form untouched!! 
+;;;
+;;; Sun Jul 31 17:08:16 2005. At least this is the current strategy!! 
+</span>
+<span class="comment">;;(i-am-here) ;; Sun Jul 31 17:09:06 2005
+</span>
+(defthm operand-stack-current-frame-popStack
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (equal (operand-stack (current-frame (popStack s)))
+                  (pop (operand-stack (current-frame s)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (current-frame
+                                   thread-set-call-stack
+                                   popstack-of-thread)
+                                  (topframe-normalization
+                                   make-thread
+                                   method-ptr))
+           <span class="builtin">:cases</span> ((mem (thread-by-id (current-thread s)
+                                      (thread-table s))
+                        (thread-table s))))
+          (<span class="string">"Subgoal 1"</span> <span class="builtin">:cases</span> ((thread-by-id (current-thread s)
+                                             (thread-table s))))
+          (<span class="string">"Subgoal 1.2"</span> <span class="builtin">:cases</span> ((equal (current-thread s) nil))))
+    <span class="builtin">:rule-classes</span> nil)
+
+
+
+(include-book <span class="string"><a href="../consistent-state-to-sig-state.lisp.html">"../../DJVM/consistent-state-to-sig-state"</a></span>)
+
+
+(local 
+ (defthm consistent-object-implies-obj-type
+   (implies (consistent-object obj hp cl)
+            (equal (bcv::sizeof (fix-sig (obj-type obj))) 1))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv::sizeof)))))
+
+(local 
+ (defthm consistent-state-implies-consistent-object
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (deref2 v (heap s)))
+            (consistent-object (deref2 v (heap s)) (heap s)
+                               (instance-class-table s)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a>)
+                                   (consistent-object
+                                    deref2))))))
+
+
+
+(local 
+ (defthm consistent-object-implies-obj-type-specific
+   (implies (consistent-object (deref2 v (heap s)) (heap s)
+                               (instance-class-table s))
+            (equal (bcv::sizeof (fix-sig (obj-type (deref2 v (heap s))))) 1))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (bcv::sizeof deref2 obj-type consistent-object))))))
+
+
+
+(defthm fix-sig-size-1
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (equal (bcv::sizeof (fix-sig (obj-type (deref2 v (heap s))))) 1))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (deref2 obj-type consistent-object))
+           <span class="builtin">:cases</span> ((deref2 v (heap s))))))
+
+<span class="comment">;; (i-am-here) ;; Tue May 17 15:04:10 2005
+</span>
+(local 
+ (defthm consistent-heap1-not-bound?
+   (implies (and (consistent-heap1 hp1 hp cl id)
+                 (&lt; idx id))
+            (not (binding idx hp1)))))
+
+
+(defthm consistent-state-null-not-bounded?
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (nullp v))
+           (not (deref2 v (heap s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a> consistent-heap deref2)
+                                  (binding)))))
+
+<span class="comment">;;; openning up <a href="../consistent-state.lisp.html">consistent-state</a> always takes time to get a proof through. 
+;;;
+</span>
+<span class="comment">;----------------------------------------------------------------------
+;; (i-am-here) ;; Sun Jul 31 13:52:41 2005
+</span>
+(defthm frame-aux-frame-set-operand-stack
+  (equal (frame-aux (frame-set-operand-stack any frame))
+         (frame-aux frame))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable frame-aux
+                                     frame-set-operand-stack))))
+
+
+(defthm frame-aux-flags-pushStack-no-change
+  (equal (frame-aux (current-frame (pushStack v s)))
+         (frame-aux (current-frame s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (current-frame
+                                   thread-set-call-stack
+                                   push-stack-of-thread)
+                                  (topframe-normalization
+                                   make-thread
+                                   frame-aux
+                                   method-ptr))
+           <span class="builtin">:cases</span> ((mem (thread-by-id (current-thread s)
+                                      (thread-table s))
+                        (thread-table s))))
+          (<span class="string">"Subgoal 1"</span> <span class="builtin">:cases</span> ((thread-by-id (current-thread s)
+                                             (thread-table s))))
+          (<span class="string">"Subgoal 1.2"</span> <span class="builtin">:cases</span> ((equal (current-thread s) nil)))))
+
+
+
+
+(defthm  frame-aux-flags-popStack-no-change
+  (equal (frame-aux (current-frame (popStack s)))
+         (frame-aux (current-frame s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (current-frame
+                                   thread-set-call-stack
+                                   popstack-of-thread)
+                                  (topframe-normalization
+                                   make-thread
+                                   frame-aux
+                                   method-ptr))
+           <span class="builtin">:cases</span> ((mem (thread-by-id (current-thread s)
+                                      (thread-table s))
+                        (thread-table s))))
+          (<span class="string">"Subgoal 1"</span> <span class="builtin">:cases</span> ((thread-by-id (current-thread s)
+                                             (thread-table s))))
+          (<span class="string">"Subgoal 1.2"</span> <span class="builtin">:cases</span> ((equal (current-thread s) nil)))))
+
+
+
+(in-theory (disable frame-aux))
+
+
+
+
+(defthm gen-frame-flags-pushStack-no-change
+  (equal (gen-frame-flags  (current-frame (pushStack v s)) hp-init)
+         (gen-frame-flags (current-frame s) hp-init))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (gen-frame-flags)
+                                  (pushStack current-frame)))))
+
+
+
+(defthm gen-frame-flags-popStack-no-change
+  (equal (gen-frame-flags  (current-frame (popStack s)) hp-init)
+         (gen-frame-flags (current-frame s) hp-init))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (gen-frame-flags)
+                                  (popStack current-frame)))))
+
+
+(in-theory (disable gen-frame-flags))</pre>
+  </body>
+</html>

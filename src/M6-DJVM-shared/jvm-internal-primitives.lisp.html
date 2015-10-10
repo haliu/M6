@@ -1,0 +1,224 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>jvm-internal-primitives.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"JVM"</span>)
+(acl2::set-verify-guards-eagerness 2)
+
+<span class="comment">;----------------------------------------------------------------------
+;; internal primitive stack operation
+</span>(<span class="keyword">defun</span> <span class="function-name">push</span> (item stack)
+  (cons item stack))
+
+(<span class="keyword">defun</span> <span class="function-name">top</span> (stack)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (consp stack)))
+  (car stack))
+
+(<span class="keyword">defun</span> <span class="function-name">pop</span> (stack)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (consp stack)))
+  (cdr stack))
+
+
+(<span class="keyword">defun</span> <span class="function-name">deref</span> (ref heap)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (alistp heap)
+                              (bound? ref heap))))
+  (binding ref heap))
+
+
+(<span class="keyword">defun</span> <span class="function-name">alloc</span> (heap) 
+  (len heap))  <span class="comment">;; simple implementation of memory allocation heap
+</span>
+<span class="comment">;-- <a href="../common/primitives.lisp.html">primitives</a> for dealing with array internal reprsentation ---
+</span>
+<span class="comment">;; (acl2::set-verify-guards-eagerness 0) 
+</span>
+<span class="comment">;; Tue Jan 13 14:57:51 2004. This is part of class loader!! We need to deal
+;; with class loading sometime. 
+;;
+;; Currently I am working on defining a consistent-state. No hurry on this.
+</span>
+
+<span class="comment">;;; This is also used in raise-exception. Need to Assert it!! Thu Apr  8 20:48:21 2004
+</span>
+<span class="comment">;; purely for M6's implementation. forget about guard verificaiton for now.
+;; not really these following are for the implementation of loader... which
+;; we haven't touched. ... Wed Dec 24 23:19:13 2003
+</span>
+(<span class="keyword">defun</span> <span class="function-name">sub-list</span> (l1 s1 len)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (integerp len)
+                              (true-listp l1)
+                              (integerp len)
+                              (integerp s1)
+                              (&lt;= 0 len)
+                              (&lt;= 0 s1))))
+  
+  (<span class="keyword">if</span> (endp l1)
+      nil
+    (<span class="keyword">if</span> (zp s1)
+        (<span class="keyword">if</span> (zp len)
+            nil
+          (cons (car l1) (sub-list (cdr l1) 0 (- len 1))))
+      (sub-list (cdr l1) (- s1 1) len))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">setChars</span> (l1 s1 l2 s2 len)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (integerp len)
+                              (true-listp l1)
+                              (true-listp l2)
+                              (integerp s1)
+                              (integerp s2)
+                              (equal (len l1) len)
+                              (&lt;= 0 s1)
+                              (&lt;= (+ s2 len) (len l2))
+                              (&lt;= s1 s2)
+                              (&lt;= 0 len)
+                              (&lt;= 0 s2))))
+                              
+  (app (sub-list l2 0 s2)
+       (app (sub-list l1 s1 len)
+            (sub-list l2 (+ s2 len) (- (len l2) (+ s2 len))))))
+
+(<span class="keyword">defun</span> <span class="function-name">charsp</span> (chars)
+  (<span class="keyword">if</span> (not (consp chars)) t
+    (and (characterp (car chars))
+         (charsp (cdr chars)))))
+      
+
+(<span class="keyword">defun</span> <span class="function-name">make-acl2-string</span> (chars)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (true-listp chars)
+                              (charsp chars))))
+  (coerce chars 'string))
+
+(<span class="keyword">defun</span> <span class="function-name">chars-numsp</span> (nums)
+  (<span class="keyword">if</span> (not (consp nums)) t
+    (and (and (integerp (car nums))
+              (&gt;= (car nums) 0)
+              (&lt; (car nums) 256))
+         (chars-numsp (cdr nums)))))
+
+(<span class="keyword">defun</span> <span class="function-name">code-to-chars</span> (nums)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (true-listp nums)
+                              (chars-numsp nums))))
+  (<span class="keyword">if</span> (endp nums)
+      nil
+    (cons (code-char (car nums))
+          (code-to-chars (cdr nums)))))
+
+
+<span class="comment">;----- add <a href="../common/primitives.lisp.html">primitives</a> for recording the Heap Object creation order in the AUX
+;     component of the State.
+</span>
+<span class="comment">;(acl2::set-verify-guards-eagerness 2)
+</span>
+(<span class="keyword">defun</span> <span class="function-name">make-trace</span> (th-obj-counters rtrace)
+  (list (cons 'th-obj-counters th-obj-counters)
+        (cons 'rtrace          rtrace)))
+  
+(<span class="keyword">defun</span> <span class="function-name">th-counters</span> (trace)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> t))
+  (<span class="keyword">if</span> (not (true-listp trace)) nil
+    (<span class="keyword">if</span> (not (consp (nth 0 trace))) nil
+      (cdr (nth 0 trace)))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">rtrace</span> (trace)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> t))
+  (<span class="keyword">if</span> (not (true-listp trace)) nil
+    (<span class="keyword">if</span> (not (consp (nth 1 trace))) nil
+      (cdr (nth 1 trace)))))
+
+(<span class="keyword">defun</span> <span class="function-name">init-trace</span> ()
+  (make-trace nil nil))
+
+(<span class="keyword">defun</span> <span class="function-name">add-obj-th-count</span> (obj-ref th trace)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> t))
+  (<span class="keyword">if</span> (not (alistp trace)) trace
+    (<span class="keyword">let</span> ((counters (th-counters trace))
+          (rtrace   (rtrace      trace)))
+      (<span class="keyword">if</span> (not (alistp counters)) trace
+        (<span class="keyword">if</span> (bound? th counters)
+            (<span class="keyword">if</span> (not (integerp (binding th counters))) trace
+              (<span class="keyword">let*</span> ((new-count  (+ 1 (binding th counters)))
+                     (new-counters (bind th new-count counters))
+                     (new-trace    (cons (cons obj-ref (cons th new-count)) rtrace)))
+                (make-trace new-counters new-trace)))
+          (<span class="keyword">let*</span> ((new-count  0)
+                 (new-counters (bind th new-count counters))
+                 (new-trace    (cons (cons obj-ref (cons th new-count)) rtrace)))
+            (make-trace new-counters new-trace)))))))
+
+  
+
+<span class="comment">;; (defconst *jvm-internal-primitives*
+;;   '(push 
+;;     pop 
+;;     pop 
+;;     deref 
+;;     alloc  
+;;     sub-list 
+;;     setChars 
+;;     make-acl2-string 
+;;     code-to-chars 
+;;     make-trace 
+;;     th-counters 
+;;     rtrace 
+;;     init-trace 
+;;     add-obj-th-count))
+</span>  
+
+
+
+
+
+
+
+
+
+
+
+
+
+</pre>
+  </body>
+</html>

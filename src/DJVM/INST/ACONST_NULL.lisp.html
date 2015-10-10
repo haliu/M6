@@ -1,0 +1,306 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>ACONST_NULL.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+
+(include-book <span class="string"><a href="base.lisp.html">"base"</a></span>)
+(include-book <span class="string"><a href="base-consistent-state.lisp.html">"base-consistent-state"</a></span>)
+(include-book <span class="string"><a href="base-extra.lisp.html">"base-extra"</a></span>)
+
+
+<span class="comment">;-----------------------------------------------------------------
+;
+;  <a href="ACONST_NULL.lisp.html">ACONST_NULL</a>
+;
+; 
+</span>
+<span class="comment">;-- Define guard first -------------------------------------------
+</span>
+
+
+(acl2::set-verify-guards-eagerness 2)
+
+(<span class="keyword">defun</span> <span class="function-name">wff-ACONST_NULL</span> (<a href="inst.lisp.html">inst</a>)
+  (wff-<a href="inst.lisp.html">inst</a> <a href="inst.lisp.html">inst</a>))
+
+(<span class="keyword">defun</span> <span class="function-name">ACONST_NULL-guard</span> (<a href="inst.lisp.html">inst</a> s)
+  (and (<a href="../consistent-state-strong.lisp.html">consistent-state-strong</a> s)
+       (wff-<a href="inst.lisp.html">inst</a> <a href="inst.lisp.html">inst</a>)
+       (not (mem '*abstract* (method-accessflags (current-method s))))
+       (not (mem '*native* (method-accessflags (current-method s))))
+       (&lt;= (+ (len (operand-stack (current-frame s))) 1)
+           (max-stack s))))
+
+<span class="comment">;-- Definition of <a href="ACONST_NULL.lisp.html">ACONST_NULL</a> -------------------------------------
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">execute-ACONST_NULL</span> (<a href="inst.lisp.html">inst</a> s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (ACONST_NULL-guard <a href="inst.lisp.html">inst</a> s)))
+  (ADVANCE-PC (safe-pushStack '(REF . -1) s)))
+
+
+<span class="comment">;-- Runtime checking of the <a href="ACONST_NULL.lisp.html">ACONST_NULL</a> ----------------------
+</span>
+<span class="comment">; Note the difference between *-guard and check-* 
+; 
+; Tue Apr 19 10:10:29 2005
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">check-ACONST_NULL</span> (<a href="inst.lisp.html">inst</a> s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (<a href="../consistent-state.lisp.html">consistent-state</a> s)))
+  (and (wff-<a href="inst.lisp.html">inst</a> <a href="inst.lisp.html">inst</a>)
+       (not (mem '*abstract* (method-accessflags (current-method s))))
+       (not (mem '*native* (method-accessflags (current-method s))))
+       <span class="comment">;; we could add the check for max stack!!
+</span>       (&lt;= (+ (len (operand-stack (current-frame s))) 1)
+           (max-stack s))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;;; Strive to make sure that the proof of these theorems depend only on lemma
+;;; in base-* !!
+;;; 
+</span>
+<span class="comment">;-- ACONST_NULL-guard implies state consistency perserved -----------------
+</span>
+<span class="comment">;; (i-am-here) ;; Sun Aug  7 22:21:15 2005
+</span>
+
+(defthm ACONST_NULL-guard-implies-execute-ACONST_NULL-perserve-consistency
+  (implies (ACONST_NULL-guard <a href="inst.lisp.html">inst</a> s)
+           (<a href="../consistent-state-strong.lisp.html">consistent-state-strong</a> (execute-ACONST_NULL <a href="inst.lisp.html">inst</a> s))))
+
+
+<span class="comment">;-- check-ACONST_NULL implies ACONST_NULL-guard in a consistent state ----------
+</span>
+(defthm check-ACONST_NULL-implies-guard-succeeds
+  (implies (and (<a href="../consistent-state-strong.lisp.html">consistent-state-strong</a> s)
+                (check-ACONST_NULL <a href="inst.lisp.html">inst</a> s))
+          (ACONST_NULL-guard <a href="inst.lisp.html">inst</a> s)))
+
+
+<span class="comment">;-- BCV::check-ACONST_NULL implies DJVM::check-ACONST_NULL on a corresponding state -----
+</span>
+(encapsulate ()
+ (local (include-book <span class="string"><a href="base-bcv.lisp.html">"base-bcv"</a></span>))
+ (defthm bcv-check-ACONST_NULL-ensures-djvm-check-ACONST_NULL
+   (implies (and (bcv::check-ACONST_NULL <a href="inst.lisp.html">inst</a> (env-sig s) 
+                                         (frame-sig  (current-frame s)
+                                                     (instance-class-table s)
+                                                     (heap s)
+                                                     (heap-init-map (aux s))))
+                 (wff-<a href="inst.lisp.html">inst</a> <a href="inst.lisp.html">inst</a>)
+                 (not (mem '*native* (method-accessflags (current-method s))))
+                 (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+            (djvm::check-ACONST_NULL <a href="inst.lisp.html">inst</a> s))))
+
+
+<span class="comment">;-- BCV::check-ACONST_NULL monotonic   -------------------------------------
+</span>
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-bcv-check-monotonic.lisp.html">"base-bcv-check-monotonic"</a></span>))
+  (defthm sig-check-ACONST_NULL-on-more-general-implies-more-specific
+    (implies (and (bcv::sig-frame-more-general gframe sframe env)
+                  (bcv::check-ACONST_NULL <a href="inst.lisp.html">inst</a> env gframe))
+             (bcv::check-ACONST_NULL <a href="inst.lisp.html">inst</a> env sframe))))
+
+
+<span class="comment">; avoided loading base-bcv-check-monotonic.lisp
+;-- BCV::execute-ACONST_NULL monotonic  ------------------------------------
+</span>
+
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-bcv-step-monotonic.lisp.html">"base-bcv-step-monotonic"</a></span>))
+  (defthm ACONST_NULL-monotonicity
+  (implies (and (bcv::sig-frame-more-general gframe sframe env)
+                (bcv::check-ACONST_NULL <a href="inst.lisp.html">inst</a> env gframe))
+           (bcv::sig-frame-more-general 
+            (bcv::normal-frame (bcv::execute-ACONST_NULL <a href="inst.lisp.html">inst</a> env gframe))
+            (bcv::normal-frame (bcv::execute-ACONST_NULL <a href="inst.lisp.html">inst</a> env sframe)) env))))
+
+
+<span class="comment">;-- DJVM::step frame expansion  ---------------------------
+</span>
+
+
+
+(encapsulate ()
+    (local (include-book <span class="string"><a href="base-frame-sig-expansion.lisp.html">"base-frame-sig-expansion"</a></span>))
+    (defthm execute-ACONST_NULL-frame-sig-is
+      (mylet* ((ns (execute-ACONST_NULL <a href="inst.lisp.html">inst</a> s))
+               (index (topStack s))
+               (array-ref (topStack (popStack s))))
+              (implies 
+               (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                    (check-ACONST_NULL <a href="inst.lisp.html">inst</a> s))
+               (equal (frame-sig (current-frame ns)
+                                 (instance-class-table ns)
+                                 (heap ns)
+                                 (heap-init-map (aux ns)))
+                      (frame-push-value-sig  'NULL
+                       (frame-sig (current-frame s)
+                                  (instance-class-table s)
+                                  (heap s)
+                                  (heap-init-map (aux s)))))))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;-- BCV::step frame expansion  ---------------------------
+</span>
+(encapsulate ()
+       (local (include-book <span class="string"><a href="base-bcv-frame-sig-expansion.lisp.html">"base-bcv-frame-sig-expansion"</a></span>))
+       (defthm bcv-execute-ACONST_NULL-is
+         (implies (and 
+            (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+            (check-ACONST_NULL <a href="inst.lisp.html">inst</a> s)
+            (bcv::check-ACONST_NULL <a href="inst.lisp.html">inst</a> (env-sig s) 
+                                    (frame-sig (current-frame s)
+                                               (instance-class-table s)
+                                               (heap s)
+                                               (heap-init-map (aux s)))))
+           (equal (car (bcv::execute-ACONST_NULL <a href="inst.lisp.html">inst</a> (env-sig s) 
+                                                 (frame-sig (current-frame s)
+                                                            (instance-class-table s)
+                                                            (heap s)
+                                                            (heap-init-map (aux s)))))
+                  (frame-push-value-sig 'NULL
+                                        (frame-sig (current-frame s)
+                                                   (instance-class-table s)
+                                                   (heap s)
+                                                   (heap-init-map (aux s))))))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;;(i-am-here) ;; Mon Jul 25 16:50:01 2005. some proof break this!! 
+</span>
+(encapsulate ()
+ (local (include-book <span class="string"><a href="base-next-state-more-specific.lisp.html">"base-next-state-more-specific"</a></span>))
+ (defthm next-state-no-more-general-ACONST_NULL
+  (mylet* ((oframe (frame-sig (current-frame s)
+                              (instance-class-table s)
+                              (heap s)
+                              (heap-init-map (aux s))))
+           (ns   (djvm::execute-ACONST_NULL <a href="inst.lisp.html">inst</a> s))
+           (nframe (frame-sig (current-frame ns)
+                              (instance-class-table ns)
+                              (heap ns)
+                              (heap-init-map (aux ns)))))
+          (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                        (bcv::check-ACONST_NULL <a href="inst.lisp.html">inst</a> (env-sig s) oframe)
+                        (djvm::check-ACONST_NULL <a href="inst.lisp.html">inst</a> s)
+                        (not (check-null (topStack (popStack s)))))
+                   (bcv::sig-frame-more-general 
+                    (mv-nth 0 (bcv::execute-ACONST_NULL <a href="inst.lisp.html">inst</a> 
+                                                        (env-sig s)
+                                                        oframe))
+                    nframe
+                    (env-sig s))))))
+
+
+
+             
+<span class="comment">;-- M6-DJVM-equal-when-check-succeeds.lisp ------------------------------
+</span>
+<span class="comment">;; Tue Aug  2 16:10:50 2005
+</span>
+<span class="comment">;; (i-am-here) ;; Tue Aug  2 16:10:56 2005
+</span>
+(include-book <span class="string"><a href="../../M6/m6-bytecode.lisp.html">"../../M6/m6-bytecode"</a></span>)
+(include-book <span class="string"><a href="../consistent-state-to-untag-state.lisp.html">"../../DJVM/consistent-state-to-untag-state"</a></span>)
+
+
+
+<span class="comment">;; (encapsulate ()
+;;    (local (include-book "base-untag-state"))
+;;    (defthm equal-ACONST_NULL-when-guard-succeeds
+;;      (implies (ACONST_NULL-guard <a href="inst.lisp.html">inst</a> s)
+;;               (equal (untag-state (djvm::execute-ACONST_NULL <a href="inst.lisp.html">inst</a> s))
+;;                      (m6::execute-ACONST_NULL <a href="inst.lisp.html">inst</a> (untag-state s))))))
+</span>
+
+
+(encapsulate ()
+   (local (include-book <span class="string"><a href="base-state-equiv.lisp.html">"base-state-equiv"</a></span>))
+   (defthm equal-ACONST_NULL-when-guard-succeeds
+      (implies (and (state-equiv M6::m6-s DJVM::djvm-s)
+                    (ACONST_NULL-guard <a href="inst.lisp.html">inst</a> DJVM::djvm-s))
+               (state-equiv (m6::execute-ACONST_NULL <a href="inst.lisp.html">inst</a> M6::m6-s)
+                            (djvm::execute-ACONST_NULL <a href="inst.lisp.html">inst</a> DJVM::djvm-s)))
+      <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize fertilize)))))
+
+
+<span class="comment">;;; Tue Aug  2 16:12:55 2005
+</span>
+<span class="comment">;;; take only two minutes. compare with the time it takes to replay ALOAD.lisp
+;;; proof! 
+</span>
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-method-ptr-no-change.lisp.html">"base-method-ptr-no-change"</a></span>))
+  (defthm execute-ACONST_NULL-change-no-method-ptr
+    (equal (method-ptr (current-frame (djvm::execute-ACONST_NULL <a href="inst.lisp.html">inst</a> s)))
+           (method-ptr (current-frame s)))))
+
+<span class="comment">;;; next need to prove loaded class method-does-not-change! 
+</span>
+
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-method-no-change.lisp.html">"base-method-no-change"</a></span>))
+  (defthm deref-method-no-change-if-already-loaded-ACONST_NULL
+    (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+             (equal (deref-method (method-ptr (current-frame s))
+                                  (instance-class-table 
+                                   (djvm::execute-ACONST_NULL <a href="inst.lisp.html">inst</a> s)))
+                    (deref-method (method-ptr (current-frame s))
+                                  (instance-class-table s))))))
+
+(in-theory (disable check-ACONST_NULL ACONST_NULL-guard execute-ACONST_NULL wff-ACONST_NULL))</pre>
+  </body>
+</html>

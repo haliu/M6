@@ -1,0 +1,1300 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>jvm-linker.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"JVM"</span>)
+(include-book <span class="string"><a href="jvm-type-value.lisp.html">"../M6-DJVM-shared/jvm-type-value"</a></span>)
+(include-book <span class="string"><a href="jvm-loader.lisp.html">"../M6-DJVM-shared/jvm-loader"</a></span>)
+(include-book <span class="string"><a href="jvm-class-hierachy-aux.lisp.html">"../M6-DJVM-shared/jvm-class-hierachy-aux"</a></span>)
+(include-book <span class="string"><a href="jvm-loader-guard-verification.lisp.html">"../M6-DJVM-shared/jvm-loader-guard-verification"</a></span>)
+<span class="comment">;;(include-book <a href="jvm-class-table.lisp.html">"../M6-DJVM-shared/jvm-class-table"</a>)
+</span>
+(acl2::set-verify-guards-eagerness 2)
+
+<span class="comment">;------ Class Resolution ------
+</span>
+<span class="comment">;; let's have no caching. 
+;; our constant pool doesn't contain the symbolic links. 
+</span>
+<span class="comment">;;; Wed Jan 14 01:10:34 2004. We are not concerned with defining a
+;;; <a href="../DJVM/consistent-state.lisp.html">consistent-state</a>
+;;; We don do any guard verification for any operations that modify state!!
+;;;
+</span>
+<span class="comment">;; (acl2::set-verify-guards-eagerness 0) ;; temp
+</span>
+(<span class="keyword">defun</span> <span class="function-name">resolveClassReference1</span> (classname s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (load_array_class_guard s)
+                              (load_class-guard s))))
+
+  (<span class="keyword">if</span> (array-type? classname)
+      (load_array_class (array-base-type classname) s)
+    (<span class="keyword">if</span> (class-loaded? classname s)
+        s
+      (load_class classname s))))
+
+<span class="comment">;; no access checking.
+;; should we include access checking??
+;; why not? not now.
+;; our loader isn't quite right now. 
+</span>
+<span class="comment">;;
+;; put a wrapper to do the access control runtime checking 
+;;
+;; shall we put the checking outside? 
+;;
+;; Sun Dec 28 18:49:44 2003
+</span>
+(<span class="keyword">defun</span> <span class="function-name">hasAccessToClass</span> (from to s)
+  (<span class="keyword">declare</span> (ignore from to s))
+  <span class="comment">;; tmp implementation 
+</span>  t)
+
+(<span class="keyword">defun</span> <span class="function-name">resolveClassReference-guard</span> (s)
+  (and (load_array_class_guard s)
+       (load_class-guard s)
+       (current-frame-guard s)
+       (wff-call-frame (current-frame s))
+       (wff-method-ptr (current-method-ptr s))
+       (wff-state s)
+       (wff-class-table (class-table s))
+       (wff-instance-class-table (instance-class-table s))))
+
+(<span class="keyword">defun</span> <span class="function-name">resolveClassReference</span> (classname s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (resolveClassReference-guard s)))
+  (<span class="keyword">let</span> ((new-s (resolveClassReference1 classname s)))
+    (<span class="keyword">if</span> (not (hasAccessToClass (current-class s) classname s))
+        (state-set-pending-exception-safe <span class="string">"java.lang.IllegalAccessException"</span> s)
+      new-s)))
+
+
+<span class="comment">;------ method Resolution ------
+</span>
+<span class="comment">;;
+</span>
+<span class="comment">;; Fri Apr  2 00:51:12 2004 stop here. 
+</span>
+<span class="comment">;; <a href="../common/primitives.lisp.html">primitives</a> for how to get a method-ptr
+;; used in invokevirtual &lt;methodCP&gt;
+;;
+;; Sun Jun 20 21:19:28 2004. Deal with it later?? 
+;;
+</span>
+(<span class="keyword">defun</span> <span class="function-name">wff-methodCP</span> (methodCP)
+  (and (true-listp methodCP)
+       (equal (len methodCP) 5)
+       (equal (car methodCP) 'methodCP)
+       (or (equal (nth 4 methodCP) 'VOID)
+           (wff-type-rep  (nth 4 methodCP)))
+       (wff-type-reps (nth 3 methodCP))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">methodCP-classname</span>  (methodCP)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-methodCP methodCP)))
+  (nth 2 methodCP))
+
+(<span class="keyword">defun</span> <span class="function-name">methodCP-methodname</span> (methodCP)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-methodCP methodCP)))
+  (nth 1 methodCP))
+
+(<span class="keyword">defun</span> <span class="function-name">methodCP-args-type</span>  (methodCP)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-methodCP methodCP)))
+  (nth 3 methodCP))
+
+(<span class="keyword">defun</span> <span class="function-name">methodCP-returntype</span>  (methodCP)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-methodCP methodCP)))
+  (nth 4 methodCP))
+
+(<span class="keyword">defun</span> <span class="function-name">methodCP-to-method-ptr</span> (methodCP)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-methodCP methodCP)))
+  (make-method-ptr (methodCP-classname methodCP)
+                   (methodCP-methodname methodCP)
+                   (normalize-type-reps (methodCP-args-type methodCP))
+                   (<span class="keyword">if</span> (equal (methodCP-returntype methodCP) 'VOID)
+                       'VOID
+                     (normalize-type-rep  (methodCP-returntype methodCP)))))
+
+
+<span class="comment">;;; Wed Jan 14 01:11:33 2004
+;;;
+; Once we have method-ptr we use the following to find the method-rep
+</span>
+(<span class="keyword">defun</span> <span class="function-name">wff-method-decls</span> (methods)
+  (<span class="keyword">if</span> (not (consp methods)) t
+    (and (wff-method-decl (car methods))
+         (wff-method-decls (cdr methods)))))
+
+<span class="comment">;;(i-am-here) ;; Mon May  1 01:54:47 2006
+</span>
+(<span class="keyword">defun</span> <span class="function-name">match-method</span> (method-ptr method)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-method-decl method)
+                              (wff-method-ptr method-ptr))))
+  (<span class="keyword">let*</span> ((methodname (method-ptr-methodname method-ptr))
+         (args       (method-ptr-args-type  method-ptr))
+         (returntype (method-ptr-returntype method-ptr))
+         (thisMethod method))
+    (and (equal (method-methodname thisMethod) methodname)
+         (equal (method-args       thisMethod) args)
+         (equal (method-returntype thisMethod) returntype))))
+<span class="comment">;; Mon May  1 17:26:03 2006 
+;; class loader normalize the returntype and parameters!! 
+</span>
+
+
+(<span class="keyword">defun</span> <span class="function-name">searchMethod</span> (method-ptr methods)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-method-decls methods)
+                              (wff-method-ptr method-ptr))))
+  (<span class="keyword">if</span> (not (consp methods))
+      nil
+    (<span class="keyword">if</span> (match-method method-ptr (car methods))
+        (car methods)
+      (searchMethod method-ptr (cdr methods)))))
+
+<span class="comment">;;  Mon May  1 00:53:05 2006
+;; 
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">deref-method</span> (method-ptr class-table)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-method-ptr method-ptr)
+                              (wff-instance-class-table class-table))))
+  (and (class-exists? (method-ptr-classname method-ptr) class-table)
+       (<span class="keyword">let*</span> ((classname (method-ptr-classname method-ptr))
+              (class-rep (class-by-name classname class-table))
+              (methods   (methods class-rep)))
+         (and  (wff-method-decls methods)
+               (searchMethod method-ptr methods)))))
+
+<span class="comment">;; ;; methods is a list of method
+;; (defun searchMethod (method-ptr methods)
+;;   (if (endp methods)
+;;       nil
+;;     (let* ((methodname (method-ptr-methodname method-ptr))
+;;            (args       (method-ptr-args-type  method-ptr))
+;;            (returntype (method-ptr-returntype method-ptr))
+;;            (thisMethod (car methods)))
+;;       (if (and (equal (method-methodname thisMethod) methodname)
+;;                (equal (method-args       thisMethod) args)
+;;                (equal (method-returntype thisMethod) returntype))
+;;           thisMethod
+;;         (searchMethod method-ptr (cdr methods))))))
+</span>
+
+<span class="comment">;; (defun deref-method (method-ptr class-table)
+;;   (let* ((classname (method-ptr-classname method-ptr))
+;;          (class-rep (class-by-name classname class-table))
+;;          (methods   (methods class-rep)))
+;;     (searchMethod method-ptr methods)))
+</span>
+
+<span class="comment">;; to prove termination hard. 
+</span>
+
+(defthm method-ptr-accessor 
+  (<span class="keyword">let</span> ((mpr (make-method-ptr c m a r)))
+    (and (equal (method-ptr-classname mpr) c)
+         (equal (method-ptr-methodname mpr) m)
+         (equal (method-ptr-args-type mpr) a )
+         (equal (method-ptr-returntype mpr) r))))
+
+
+(in-theory (disable method-ptr-classname method-ptr-methodname
+                    method-ptr-args-type method-ptr-returntype make-method-ptr))
+
+
+(acl2::set-verify-guards-eagerness 0)
+
+(<span class="keyword">defun</span> <span class="function-name">lookupMethod-measure</span> (method-ptr s)
+  (<span class="keyword">let</span> ((n1  (method-ptr-classname method-ptr))
+        (cl  (instance-class-table s)))
+  (len (collect-superclass-list n1 cl))))
+
+(acl2::set-verify-guards-eagerness 2)
+
+(<span class="keyword">defun</span> <span class="function-name">lookupMethod-inv</span> (method-ptr s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-method-ptr method-ptr)
+                              (wff-state s)
+                              (wff-class-table (class-table s))
+                              (wff-instance-class-table (instance-class-table s)))))
+  (superclass-no-loop (method-ptr-classname method-ptr) (instance-class-table s)))
+
+
+
+<span class="comment">; --- proofs for collect-superclass-list increase --- 
+</span>
+<span class="comment">;; copied from typechecker.lisp
+</span>
+      
+(defcong set-equal equal (collect-superclass-list1 n cl ss) 3)
+
+(defthm set-equal-cons-cons
+      (set-equal (cons x (cons y a))
+                 (cons y (cons x a)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable set-equal))))
+
+
+<span class="comment">; ---- important observation I  -----
+;
+; If X doesn't belongs to superclasses of N, add it to SS doesn't matter
+;
+; SS represents the set that can't be superclasses of N under well formed
+; Direct SuperClass Relation.
+</span>
+(defthm collect-superclass-list1-non-mem-cons
+  (implies (and (not (mem x (collect-superclass-list1 n cl ss)))
+                (superclass-no-loop1 n cl ss))
+           (equal (collect-superclass-list1 n cl (cons x ss))
+                  (collect-superclass-list1 n cl ss))))
+
+(defcong set-equal equal (superclass-no-loop1 n cl ss) 3)
+
+(defthm superclass-no-loop1-cons
+  (implies (superclass-no-loop1 n cl (cons x ss))
+           (superclass-no-loop1 n cl ss)))
+           
+
+
+<span class="comment">; ---- important obseration II -----
+;
+; If superclass-no-loop is true, none of the superclasses of N can
+; appear in SS.
+</span>(defthm mem-collect-superclass-no-loop
+  (implies (mem n (collect-superclass-list1 n1 cl ss))
+           (not (superclass-no-loop1 n1 cl (cons n ss)))))
+
+
+
+
+<span class="comment">; --- this also basically
+;   (cdr (collect-superclass-list A cl))
+;                   = (collect-superclass-list (super A cl))
+</span>(defthm collect-superclass-list1-equal-2
+  (implies (and (superclass-no-loop1 n1 cl ss)
+                (isClassTerm (class-by-name n1 cl)))
+           (equal (collect-superclass-list1 (classSuperClassName (class-by-name n1 cl))
+                                                     cl 
+                                                     (cons n1 ss))
+                  (collect-superclass-list1 (classSuperClassName (class-by-name n1 cl))
+                                                 cl
+                                                 ss)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable classSuperClassName isClassTerm
+                                      collect-superclass-list1-non-mem-cons)
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span> collect-superclass-list1-non-mem-cons
+                            (x n1)
+                            (n (classSuperClassName (class-by-name n1 cl))))))))
+
+
+(defthm collect-superclass-list1-equal-1 
+  (implies (and (superclass-no-loop1 n1 cl ss)
+                (isClassTerm (class-by-name n1 cl)))
+           (equal (collect-superclass-list1 n1 cl ss)
+                  (cons n1 (collect-superclass-list1 (classSuperClassName (class-by-name n1 cl))
+                                                     cl 
+                                                     ss))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable classSuperClassName)
+           <span class="builtin">:use</span> collect-superclass-list1-equal-2)))
+
+
+
+(defthm wff-method-ptr-make-method-ptr
+  (implies (wff-method-ptr method-ptr)
+           (wff-method-ptr (make-method-ptr any 
+                                           (method-ptr-methodname method-ptr)
+                                           (method-ptr-args-type  method-ptr)
+                                           (method-ptr-returntype
+                                            method-ptr))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable make-method-ptr
+                                     method-ptr-args-type
+                                     wff-method-ptr))))
+
+<span class="comment">;;
+;; Fri Aug  6 18:53:03 2004: lookupMethod is treated as an internal primitive. 
+;; We did not assert strong guard such as all super are loaded. 
+;; we probably can. Fri Aug  6 18:54:02 2004
+</span>
+(<span class="keyword">defun</span> <span class="function-name">lookupMethod</span> (method-ptr s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:measure</span> (lookupMethod-measure  method-ptr s)
+                  <span class="builtin">:guard</span> (and (wff-method-ptr method-ptr)
+                              (wff-state s)
+                              (wff-class-table (class-table s))
+                              (wff-instance-class-table (instance-class-table s)))))
+  (<span class="keyword">if</span> (not (lookupMethod-inv method-ptr s))
+      (prog2$ (acl2::cw <span class="string">"lookupMethod-inv violated~%"</span>)
+              nil) <span class="comment">;; return nil to indicate not found.
+</span>    <span class="comment">;; NEED FIX here to deal with method-ptr's classname field is an array
+</span>    <span class="comment">;; class!! We could skip to convert it into "java.lang.Object"
+</span>    <span class="comment">;; TO BE FIXED. 
+</span>    <span class="comment">;;
+</span>    <span class="comment">;; ??? Fri Aug  6 15:08:13 2004. not clear now. 
+</span>    <span class="comment">;; array has not has method!! 
+</span>    <span class="comment">;;
+</span>    <span class="comment">;; We have a choice to fix it in jvm-bytecode.lisp so that when one want to
+</span>    <span class="comment">;; invoke-xxx on a object of array type, we convert type to
+</span>    <span class="comment">;; "java.lang.Object" before invoke this lookupMethod procedure. Thus fix
+</span>    <span class="comment">;; in this file is not needed. 
+</span>    <span class="comment">;; ??? some annotated in unknown time. Fri Aug  6 15:08:57 2004
+</span>    <span class="comment">;;
+</span>    <span class="comment">;; This above is for termination purpose only, we could not remove it. 
+</span>    <span class="comment">;;
+</span>  (<span class="keyword">let</span> ((method-rep (deref-method method-ptr (instance-class-table s))))
+    (<span class="keyword">if</span> (not (equal method-rep nil))
+        method-rep
+      (mylet* ((classname (method-ptr-classname method-ptr))
+               (class-rep (class-by-name classname (instance-class-table s)))
+               (super    (super class-rep)))
+        (<span class="keyword">if</span> (not (isClassTerm class-rep))
+            nil <span class="comment">;; return nil
+</span>          <span class="comment">;; Need to correctly deal with "java.lang.Object". MORE WORK!!
+</span>          <span class="comment">;; HOWEVER this is HARD, converting an array type to java.lang.Object
+</span>          <span class="comment">;; we may have problem of proving termination. We need stronger
+</span>          <span class="comment">;; invariant that java.lang.Object's super is nil. 
+</span>          <span class="comment">;; or using a seperate function in looking up method in
+</span>          <span class="comment">;; java.lang.Object!!
+</span>          <span class="comment">;; TO BE FIXED!!  ?? This is related to the previous comment? 
+</span>          <span class="comment">;; consider solved? 
+</span>          (<span class="keyword">if</span> (equal super <span class="string">""</span>)
+              nil
+            (lookupMethod (make-method-ptr super
+                                           (method-ptr-methodname method-ptr)
+                                           (method-ptr-args-type  method-ptr)
+                                           (method-ptr-returntype method-ptr))
+                          s))))))))
+
+
+
+<span class="comment">;; this make involves changing state. 
+;; doesn't check for access permissions. 
+;;
+;; need a mechanism to propagate the exception back to the interpreter loop to
+;; properly handle it. 
+;;
+;; The problem is that not access control checking is done.
+;;
+</span>
+(<span class="keyword">defun</span> <span class="function-name">hasAccessToMethod</span> (from method s)
+  (<span class="keyword">declare</span> (ignore from method s))
+  t)
+
+
+<span class="comment">;; Fri Aug  6 15:33:54 2004. We need to prove 
+;;
+;; when lookupMethod returns non-nil, it is a well formed method decl! 
+;; 
+;; We could insert a more complicated check of well-method-decl here.  however
+;; to be more close to real jvm implementation, we use an equivalent concept
+;; in this concept!! 
+;;
+;; Comment: this show our difference with other people's work. I assume. 
+;;
+</span>
+(defthm searchMethod-in-wff-class-method-decls
+  (implies (and (searchMethod method-ptr methods)
+                (wff-class-method-decls methods))
+           (wff-method-decl (searchMethod method-ptr methods))))
+
+<span class="comment">;; (defthm wff-instance-class-table-strong-bound-implies-wff-class-rep-strong
+;;   (implies (and (wff-instance-class-table-strong cl)
+;;                 (consp (class-by-name name cl)))
+;;            (wff-class-rep-strong (class-by-name name cl))))
+</span>
+
+(defthm wff-instance-class-table-strong-bound-implies-wff-class-rep-strong
+  (implies (and (wff-instance-class-table-strong cl)
+                (class-by-name name cl))
+           (wff-class-rep-strong (class-by-name name cl))))
+
+(defthm wff-methods-methods-if-class-rep-strong
+  (implies (wff-class-rep-strong crep)
+           (wff-class-method-decls (methods crep))))
+
+  
+
+
+(defthm
+  wff-instance-class-table-s-implies-lookup-return-well-formed-method-decl
+  (implies (and (lookupMethod method-ptr s)
+                (wff-instance-class-table-strong (instance-class-table s)))
+           (wff-method-decl (lookupMethod method-ptr s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+           <span class="builtin">:in-theory</span> (disable wff-method-decl methods-s methods))))
+
+
+(defthm loader-inv-preserved-by-load_array_class
+  (implies (loader-inv s)
+           (loader-inv (load_array_class base-type s))))
+
+
+<span class="comment">;; (defthm
+;;   wff-instance-class-table-s-implies-lookup-return-well-formed-method-decl
+;;   (implies (and (lookupMethod method-ptr s)
+;;                 (loader
+;;                 (no-fatal-error? 
+;;            (wff-method-decl (lookupMethod method-ptr s)))))
+</span>
+
+(defthm loader-inv-implies-wff-intance-class-table-strong
+  (implies (loader-inv s)
+           (wff-instance-class-table-strong (instance-class-table s))))
+
+
+
+(local (in-theory (disable wff-method-decl)))
+
+
+<span class="comment">;; we need some theorems to say how ResolveClassName does not affect the
+;; callstack to speed up the proof of the following. 
+;; Fri Aug  6 15:42:07 2004. 
+;;
+;; These proofs will be based on the properties of load_class_x
+;;
+</span>
+
+(defthm load_class2-does-not-change-thread-table
+  (equal (thread-table (load_class2 any s))
+         (thread-table s)))
+
+(defthm load_class-does-not-change-thread-table
+  (equal (thread-table (load_class_x any s seen mode))
+         (thread-table s)))
+
+(defthm load_array_class2-does-not-change-thread-table
+  (equal (thread-table (load_array_class2 any s))
+         (thread-table s)))
+
+(defthm load_array_class-does-not-change-thread-table
+  (equal (thread-table (load_array_class any s))
+         (thread-table s)))
+
+(defthm resolveClassReference-does-not-change-thread-table
+  (equal (thread-table (resolveClassReference any s))
+         (thread-table s)))
+
+
+(defthm load_class2-does-not-change-current-thread
+  (equal (current-thread (load_class2 any s))
+         (current-thread s)))
+
+(defthm load_class-does-not-change-current-thread
+  (equal (current-thread (load_class_x any s seen mode))
+         (current-thread s)))
+
+(defthm load_array_class2-does-not-change-current-thread
+  (equal (current-thread (load_array_class2 any s))
+         (current-thread s)))
+
+(defthm load_array_class-does-not-change-current-thread
+  (equal (current-thread (load_array_class any s))
+         (current-thread s)))
+
+
+(defthm resolveClassReference-does-not-change-current-thread
+  (equal (current-thread (resolveClassReference any s))
+         (current-thread s)))
+
+(defthm current-frame-equal
+  (equal (current-frame (resolveClassReference any s))
+         (current-frame s)))
+
+(local (in-theory (disable method-ptr)))
+
+<span class="comment">;(i-am-here)
+</span>
+(<span class="keyword">defun</span> <span class="function-name">resolveMethodReference</span> (method-ptr needStatic? s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-state s)
+                              (wff-method-ptr method-ptr)
+                              (resolveClassReference-guard s))))
+  (mylet* ((classname (method-ptr-classname method-ptr))
+           (new-s (resolveClassReference classname s))
+        <span class="comment">;; cause necessary classes to load. (all super, all interfaces, 
+</span>        <span class="comment">;; *** need to add exception handling here ***!! 
+</span>           (thisMethod (lookupMethod method-ptr new-s)))
+    <span class="comment">;; we chose not to check whether the constant pool contain the
+</span>    <span class="comment">;; referenc is an interfaceMethod. 
+</span>    <span class="comment">#|
+    ;; if (  (((thisTag &amp; CP_CACHEMASK) == CONSTANT_InterfaceMethodref) &amp;&amp;
+    ;;           !(thisClass-&gt;accessFlags &amp; ACC_INTERFACE))
+    ;;        ||
+    ;;          (((thisTag &amp; CP_CACHEMASK) == CONSTANT_Methodref) &amp;&amp;
+    ;;            (thisClass-&gt;accessFlags &amp; ACC_INTERFACE))) {
+    ;;        /* "Bad methodref" */
+    ;;        fatalError(KVM_MSG_BAD_FIELD_OR_METHOD_REFERENCE);
+    ;; }
+    |#</span>
+    (<span class="keyword">if</span> (pending-exception new-s)
+        (mv nil new-s)
+      (<span class="keyword">if</span> thisMethod
+          (<span class="keyword">if</span> (not needStatic?)
+              (<span class="keyword">if</span> (mem '*static* (method-accessflags thisMethod))
+                  (mv nil (fatalError <span class="string">"use invokevirtual to call static methods"</span> new-s))
+                (<span class="keyword">if</span> (hasAccessToMethod (current-class new-s) thisMethod s)
+                    (mv thisMethod new-s)
+                  (mv nil (state-set-pending-exception-safe
+                           <span class="string">"java.lang.IllegalAccessException"</span> new-s))))
+            (<span class="keyword">if</span> (not (mem '*static* (method-accessflags thisMethod)))
+                (mv nil (fatalError <span class="string">"use invokestatic to call a non static methods"</span> new-s))
+              (<span class="keyword">if</span> (hasAccessToMethod (current-class new-s) thisMethod s)
+                  (mv thisMethod new-s)
+                (mv nil (state-set-pending-exception-safe
+                         <span class="string">"java.lang.IllegalAccessException"</span> new-s)))))
+        (mv nil (state-set-pending-exception-safe 
+                 <span class="string">"java.lang.NoSuchMethodError"</span> new-s))))))
+
+<span class="comment">;; SpecialMethod such as &lt;init&gt; &lt;clinit&gt; is not using the dynamic binding
+;; methods as it is in the resolveMethodReference 
+;; it is defined here.
+</span>
+<span class="comment">;;;
+</span>
+(<span class="keyword">defun</span> <span class="function-name">getSpecialMethod1</span> (mptr methods)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-method-ptr mptr)
+                              (wff-class-method-decls methods))))
+  (<span class="keyword">if</span> (not (consp methods))
+      nil
+  (<span class="keyword">let</span> ((methodname  (method-ptr-methodname mptr))
+        (args        (method-ptr-args-type mptr))
+        (return-type (method-ptr-returntype mptr))
+        (this-method (car methods)))
+    (<span class="keyword">if</span> (and (equal (method-methodname this-method) methodname)
+             (equal (method-args  this-method)  args)
+             (equal (method-returntype this-method) return-type))
+        this-method
+      (getSpecialMethod1 mptr (cdr methods))))))
+
+
+(local (in-theory (disable methods wff-class-method-decls)))
+
+(local (in-theory (enable class-loaded?)))
+
+
+<span class="comment">;; this version shouldn't throw exceptions.
+;; doesn't do dynamic method binding.
+</span>(<span class="keyword">defun</span> <span class="function-name">getSpecialMethod</span> (mptr s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-method-ptr mptr)
+                              (wff-state s)
+                              (wff-class-table (class-table s))
+                              (wff-instance-class-table-strong
+                               (instance-class-table s))
+                              (class-loaded? (method-ptr-classname mptr) s))))
+  (<span class="keyword">let*</span> ((classname  (method-ptr-classname mptr))
+         (class-rep  (class-by-name classname (instance-class-table s)))
+         (methods    (methods class-rep)))
+    (getSpecialMethod1 mptr methods)))
+
+(local (in-theory (disable class-loaded?)))
+
+<span class="comment">;; Fri Aug  6 18:18:38 2004 what happen if the class-name is not found? 
+;;
+</span>
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;(i-am-here)
+;(acl2::set-verify-guards-eagerness 2)
+</span>
+<span class="comment">;----- Field Resolution -------
+;;(include-book <a href="jvm-class-table.lisp.html">"../M6-DJVM-shared/jvm-class-table"</a>)
+</span>
+(<span class="keyword">defun</span> <span class="function-name">static-field-size</span> (static-field-rep)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-static-field static-field-rep)))
+  (type-size (static-field-fieldtype static-field-rep)))
+  
+
+<span class="comment">;; (defun execute-getstatic1 (field-rep s)
+;;   (if (equal (static-field-size field-rep) 2)
+;;       (pushLong (static-field-fieldvalue field-rep) s)
+;;     (pushStack (static-field-fieldvalue field-rep) s)))
+;;
+;; Example: Sun Dec 28 19:08:30 2003               
+</span>
+
+<span class="comment">;; (fieldCP "detailMessage" "java.lang.Throwable" (class "java.lang.String"))))
+</span>
+(<span class="keyword">defun</span> <span class="function-name">wff-fieldCP</span> (fieldCP)
+  (and (true-listp fieldCP)
+       (equal (len fieldCP) 4)
+       (equal (car fieldCP) 'fieldCP)
+       (wff-type-rep (nth 3 fieldCP))))
+
+(<span class="keyword">defun</span> <span class="function-name">fieldCP-classname</span> (fieldCP)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-fieldCP fieldCP)))
+  (nth 2 fieldCP))
+
+(<span class="keyword">defun</span> <span class="function-name">fieldCP-fieldname</span> (fieldCP)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-fieldCP fieldCP)))
+  (nth 1 fieldCP))
+
+(<span class="keyword">defun</span> <span class="function-name">fieldCP-fieldtype</span> (fieldCP)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-fieldCP fieldCP)))
+  <span class="comment">;; Mon May 17 23:18:48 2004 normalized type-rep strip the class
+</span>  (normalize-type-rep (nth 3 fieldCP)))
+
+(<span class="keyword">defun</span> <span class="function-name">make-field-ptr</span> (classname fieldname type)
+  (list 'field-ptr classname fieldname type))
+
+(<span class="keyword">defun</span> <span class="function-name">wff-field-ptr</span> (field-ptr)
+  (and (true-listp field-ptr)
+       (equal (len field-ptr) 4)
+       (equal (car field-ptr) 'field-ptr)))
+
+(<span class="keyword">defun</span> <span class="function-name">field-ptr-classname</span> (field-ptr)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-field-ptr field-ptr)))
+  (nth 1 field-ptr))
+
+(<span class="keyword">defun</span> <span class="function-name">field-ptr-fieldname</span> (field-ptr)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-field-ptr field-ptr)))
+  (nth 2 field-ptr))
+
+(<span class="keyword">defun</span> <span class="function-name">field-ptr-type</span> (field-ptr)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-field-ptr field-ptr)))
+  (nth 3 field-ptr))
+
+(<span class="keyword">defun</span> <span class="function-name">fieldCP-to-field-ptr</span> (fieldCP)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-fieldCP fieldCP)))
+  (make-field-ptr (fieldCP-classname fieldCP)
+                  (fieldCP-fieldname fieldCP)
+                  (fieldCP-fieldtype fieldCP)))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;; Mon May 17 23:28:02 2004 guard verify those function.
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">searchStaticFields</span> (field-ptr fields)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-field-ptr field-ptr)
+                              (wff-static-fields-x fields))))
+  (<span class="keyword">if</span> (not (consp fields))
+      nil
+    (<span class="keyword">if</span> (and (equal (field-ptr-classname field-ptr) (static-field-classname (car fields)))
+             (equal (field-ptr-fieldname field-ptr) (static-field-fieldname (car fields)))
+             (equal (field-ptr-type field-ptr)      (static-field-fieldtype
+                                                     (car fields))))
+        (car fields)
+      (searchStaticFields field-ptr (cdr fields)))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">deref-static-field-guard</span> (field-ptr s)
+  (mylet* ((classname (field-ptr-classname field-ptr))
+           (cl (class-table s))
+           (icl (instance-class-table s))
+           (class-rep (class-by-name classname icl))
+           (fields (static-fields class-rep)))
+          (and (wff-field-ptr field-ptr)
+               (wff-state s)
+               (wff-class-table cl)
+               (wff-instance-class-table icl)
+               (wff-class-rep class-rep)
+               (wff-static-fields-x fields))))
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">deref-static-field</span> (field-ptr s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (deref-static-field-guard field-ptr s)))
+  (mylet* ((classname (field-ptr-classname field-ptr))
+           (cl (class-table s))
+           (icl (instance-class-table s))
+           (class-rep (class-by-name classname icl))
+           (fields (static-fields class-rep)))
+          (searchStaticFields field-ptr fields)))
+
+
+(defthm field-ptr-accessor 
+  (<span class="keyword">let</span> ((fpr (make-field-ptr c f tp)))
+    (and (equal (field-ptr-classname fpr) c)
+         (equal (field-ptr-fieldname fpr) f)
+         (equal (field-ptr-type fpr) tp))))
+
+
+(in-theory (disable make-field-ptr field-ptr-classname field-ptr-fieldname field-ptr-type))
+
+
+<span class="comment">;; termination proofs.
+</span>
+(acl2::set-verify-guards-eagerness 0)
+(<span class="keyword">defun</span> <span class="function-name">lookupStaticField-measure</span> (field-ptr s)
+  (<span class="keyword">let</span> ((n1  (field-ptr-classname field-ptr))
+        (cl  (instance-class-table s)))
+  (len (collect-superclass-list n1 cl))))
+
+<span class="comment">;;(acl2::set-verify-guards-eagerness 2) ;; Fri Jun 18 16:58:14 2004
+;; Fri Jun 18 17:09:50 2004
+</span>
+(acl2::set-verify-guards-eagerness 2)
+
+(<span class="keyword">defun</span> <span class="function-name">lookupStaticField-inv</span> (field-ptr s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-field-ptr field-ptr)
+                              (wff-state s)
+                              (wff-class-table (class-table s))
+                              (wff-instance-class-table (instance-class-table s)))))
+  (superclass-no-loop (field-ptr-classname field-ptr) (instance-class-table s)))
+
+
+<span class="comment">;(skip-proofs (verify-guards lookupStaticField-inv))
+</span>
+<span class="comment">;; need the following invariant for it to be correct! 
+;; the superclass of any loaded class is loaded. 
+</span>
+<span class="comment">;; we need some strong property!! all super class are loaded!  Tue May 18
+;; 00:13:45 2004
+;;
+</span>
+
+<span class="comment">;; ;; (defun lookupStaticField-guard1 (cl)
+;; ;;    (if (not (consp cl)) t
+;; ;;      (and (wff-class-rep (car cl))
+;; ;;           (wff-static-fields-x (static-fields (car cl)))
+;; ;;           (lookupStaticField-guard1 (cdr cl)))))
+</span>
+
+<span class="comment">;; ;; ;; Fri Aug  6 21:35:51 2004. we could just assert 
+;; ;; ;; wff-instance-class-table-strong!! 
+</span>
+
+<span class="comment">;; ;; (defun all-loaded-weak (l cl)
+;; ;;   (declare (xargs :guard (wff-instance-class-table cl)))
+;; ;;   (if (not (consp l)) t
+;; ;;     (and (wff-class-rep (class-by-name (car l) cl))
+;; ;;          (all-loaded-weak (cdr l) cl))))
+</span>      
+
+<span class="comment">;; ;; (defun lookupStaticField-guard (field-ptr s)
+;; ;;   (and (wff-field-ptr field-ptr)
+;; ;;        (wff-state s)
+;; ;;        (wff-class-table (class-table s))
+;; ;;        (wff-instance-class-table (instance-class-table s))
+;; ;;        (lookupStaticField-guard1 (instance-class-table s))
+;; ;;        (all-loaded-weak (collect-superclass-list 
+;; ;;                          (field-ptr-classname field-ptr)
+;; ;;                          (instance-class-table s))
+;; ;;                         (instance-class-table s))))
+</span>                          
+
+<span class="comment">;; ;; (local (in-theory (disable wff-class-rep)))       
+</span>
+
+<span class="comment">;; ;; (defthm all-loaded-weak-implies-wff-class-rep
+;; ;;   (implies (and (all-loaded-weak l cl)
+;; ;;                 (mem x l))
+;; ;;            (wff-class-rep (class-by-name x cl))))
+</span>
+
+<span class="comment">;; ;; (defthm mem-n-collect-superclass-list1
+;; ;;   (implies (isClassTerm (class-by-name n cl))
+;; ;;            (mem n (collect-superclass-list1 n cl nil)))
+;; ;;   :hints (("Goal" :expand (collect-superclass-list1 n cl nil))))
+</span>           
+
+
+<span class="comment">;; ;; (defthm all-loaded-weak-implies-wff-class-rep-specific
+;; ;;   (implies (and (all-loaded-weak (collect-superclass-list1 n cl nil) cl)
+;; ;;                 (isClassTerm (class-by-name n cl)))
+;; ;;            (wff-class-rep (class-by-name n cl))))
+</span>
+
+<span class="comment">;; ;; (defthm mem-c-cl-is-class-term
+;; ;;   (implies (isClassTerm (class-by-name n cl))
+;; ;;            (mem (class-by-name n cl) cl)))
+</span>
+
+<span class="comment">;; ;; (defthm wff-static-fields-x-if-mem-of-lookupStaticField-guard1
+;; ;;   (implies (and (lookupStaticField-guard1 cl)
+;; ;;                 (mem class-rep cl))
+;; ;;            (wff-static-fields-x (static-fields class-rep))))
+</span>
+
+
+<span class="comment">;; ;; (defthm wff-static-fields-x-if-mem-of-lookupStaticField-guard1-specific
+;; ;;   (implies (and (lookupStaticField-guard1 cl)
+;; ;;                 (isClassTerm (class-by-name n cl)))
+;; ;;            (wff-static-fields-x (static-fields (class-by-name n cl)))))
+</span>  
+
+
+<span class="comment">;; (defthm all-loaded-weak-implies-wff-class-rep-specific
+;;   (implies (and (all-loaded-weak (collect-superclass-list1 n cl nil) cl)
+;;                 (isClassTerm (class-by-name n cl)))
+;;            (wff-class-rep (class-by-name n cl))))
+</span>
+<span class="comment">;; (defun lookupStaticField (field-ptr s)
+;;   (declare (xargs :measure (lookupStaticField-measure field-ptr s)
+;;                   :guard (lookupStaticField-guard field-ptr s)
+;;                   :guard-hints (("Goal" :in-theory (disable isClassTerm make-field-ptr)))))
+;;   (if (not (lookupStaticField-inv field-ptr s))
+;;       (prog2$ (acl2::cw "lookupStaticField-inv violated~%")
+;;               nil) ;; return nil to indicate not found.
+;;     (let ((field-rep (deref-static-field field-ptr s)))
+;;       (if (not (equal field-rep nil))
+;;           field-rep
+;;         (let* ((classname (field-ptr-classname field-ptr))
+;;                (class-rep (class-by-name classname (instance-class-table s)))
+;;                (super     (super class-rep)))
+;;           (if (not (isClassTerm class-rep))
+;;               nil
+;;             (if (equal super "") 
+;;                 nil
+;;               (lookupStaticField (make-field-ptr super
+;;                                                  (field-ptr-fieldname field-ptr)
+;;                                                  (field-ptr-type      field-ptr))
+;;                                  s))))))))
+</span>
+<span class="comment">;;;; Tue May 18 00:52:47 2004. this above version does not check whether class
+;;;; exists before search for the field!! fixed. 
+</span>
+(defthm wff-field-ptr-make-field-ptr
+  (wff-field-ptr (make-field-ptr classname fieldname type))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable make-field-ptr))))
+
+
+<span class="comment">;;;
+;;; In lookupMethod, we did not assert that all super are loaded!! 
+;;; Maybe we should!! Fri Aug  6 18:36:27 2004
+;;; 
+</span>
+(defthm wff-instance-class-table-wff-class-rep-strong
+  (implies (and (class-by-name name cl)
+                (wff-instance-class-table-strong cl))
+           (wff-class-rep-strong (class-by-name name cl))))
+
+
+(defthm wff-class-rep-strong-implies-wff-static-field-x
+  (implies (wff-class-rep-strong crep)
+           (wff-static-fields-x (static-fields crep))))
+
+<span class="comment">;(i-am-here)
+</span>
+(local (in-theory (disable static-fields)))
+
+(<span class="keyword">defun</span> <span class="function-name">lookupStaticField</span> (field-ptr s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:measure</span> (lookupStaticField-measure field-ptr s)
+                  <span class="builtin">:guard</span> (and (wff-field-ptr field-ptr)
+                              (wff-state s)
+                              (wff-class-table (class-table s))
+                              (wff-instance-class-table-strong
+                               (instance-class-table s)))))
+  (<span class="keyword">if</span> (not (lookupStaticField-inv field-ptr s))
+      (prog2$ (acl2::cw <span class="string">"lookupStaticField-inv violated~%"</span>)
+              nil) <span class="comment">;; return nil to indicate not found.
+</span>    (mylet* ((classname (field-ptr-classname field-ptr))
+             (class-rep (class-by-name classname (instance-class-table s)))
+             (super     (super class-rep)))
+      (<span class="keyword">if</span> (not (isClassTerm class-rep))  nil
+        (<span class="keyword">let</span> ((field-rep (deref-static-field field-ptr s)))
+          (<span class="keyword">if</span> (not (equal field-rep nil))
+              field-rep
+            (<span class="keyword">if</span> (equal super <span class="string">""</span>) 
+                nil
+              (lookupStaticField (make-field-ptr super
+                                                 (field-ptr-fieldname field-ptr)
+                                                 (field-ptr-type      field-ptr))
+                                 s))))))))
+
+
+<span class="comment">;; Fri Aug  6 21:45:09 2004. Chose to not to assert that all super are loaded!! 
+;; But when this is called, we know loader-inv, which will entail that all
+;; super are loaded!! 
+</span>
+
+<span class="comment">;; ;; (defun lookupStaticField (field-ptr s)
+;; ;;   (declare (xargs :measure (lookupStaticField-measure field-ptr s)
+;; ;;                   :guard (lookupStaticField-guard field-ptr s)
+;; ;;                   :guard-hints (("Goal" :in-theory (disable isClassTerm
+;; ;;                                                              static-fields)))))
+;; ;;   (if (not (lookupStaticField-inv field-ptr s))
+;; ;;       (prog2$ (acl2::cw "lookupStaticField-inv violated~%")
+;; ;;               nil) ;; return nil to indicate not found.
+;; ;;     (mylet* ((classname (field-ptr-classname field-ptr))
+;; ;;              (class-rep (class-by-name classname (instance-class-table s)))
+;; ;;              (super     (super class-rep)))
+;; ;;       (if (not (isClassTerm class-rep))  nil
+;; ;;         (let ((field-rep (deref-static-field field-ptr s)))
+;; ;;           (if (not (equal field-rep nil))
+;; ;;               field-rep
+;; ;;             (if (equal super "") 
+;; ;;                 nil
+;; ;;               (lookupStaticField (make-field-ptr super
+;; ;;                                                  (field-ptr-fieldname field-ptr)
+;; ;;                                                  (field-ptr-type      field-ptr))
+;; ;;                                  s))))))))
+</span>
+
+
+<span class="comment">;; ;; (defun lookupStaticField (field-ptr s)
+;; ;;   (declare (xargs :measure (lookupStaticField-measure field-ptr s)
+;; ;;                   :guard (and (wff-field-ptr field-ptr)
+;; ;;                               (wff-state s)
+;; ;;                               (wff-class-table (class-table s))
+;; ;;                               (wff-instance-class-table (instance-class-table s)))))
+;; ;;   (if (not (lookupStaticField-inv field-ptr s))
+;; ;;       (prog2$ (acl2::cw "lookupStaticField-inv violated~%")
+;; ;;               nil) ;; return nil to indicate not found.
+;; ;;     (mylet* ((classname (field-ptr-classname field-ptr))
+;; ;;              (class-rep (class-by-name classname (instance-class-table s)))
+;; ;;              (super     (super class-rep)))
+;; ;;       (if (not (isClassTerm class-rep))  nil
+;; ;;         (let ((field-rep (deref-static-field field-ptr s)))
+;; ;;           (if (not (equal field-rep nil))
+;; ;;               field-rep
+;; ;;             (if (equal super "") 
+;; ;;                 nil
+;; ;;               (lookupStaticField (make-field-ptr super
+;; ;;                                                  (field-ptr-fieldname field-ptr)
+;; ;;                                                  (field-ptr-type      field-ptr))
+;; ;;                                  s))))))))
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">hasAccessToField</span> (from field s)
+  (<span class="keyword">declare</span> (ignore from field s))
+  t)
+
+(defthm fieldCP-to-field-ptr-wff-field-ptr
+  (implies (wff-fieldCP fieldcp)
+           (wff-field-ptr (fieldCP-to-field-ptr fieldcp))))
+
+
+<span class="comment">;; (defthm loader-inv-implies-all-loaded-weak
+</span>
+<span class="comment">;; (defthm lookupStaticField-guard1-implied-by-wff-ins
+</span>  
+
+
+(<span class="keyword">defun</span> <span class="function-name">resolveStaticFieldReference</span> (fieldCP s)
+   (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-fieldCP fieldCP)
+                                 (resolveClassReference-guard s))
+                   <span class="builtin">:guard-hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable 
+                                                     current-frame-guard
+                                                     current-method-ptr
+                                                     field-ptr-classname
+                                                     fieldCP-to-field-ptr
+                                                     wff-field-ptr)))))
+                                                     <span class="comment">;;resolveClassReference-guard
+</span>                                                     <span class="comment">;;lookupStaticField-guard)))))
+</span>                              <span class="comment">;; Some assertions about some property of
+</span>                              <span class="comment">;; external class table is still missing!!  We
+</span>                              <span class="comment">;; need to show when no pending exception then
+</span>                              <span class="comment">;; all super class has been loaded!!  non
+</span>                              <span class="comment">;; trivial!!
+</span>   <span class="comment">;; Fri Aug  6 21:19:45 2004. loader-inv will provide that when we know class
+</span>   <span class="comment">;; is loaded and there is no fatal error. 
+</span>  (<span class="keyword">let*</span> ((field-ptr (fieldCP-to-field-ptr fieldCP))
+         (new-s (resolveClassReference (field-ptr-classname field-ptr) s)))
+    (<span class="keyword">if</span> (not (no-fatal-error? s))
+        (mv nil s)
+      (<span class="keyword">if</span> (pending-exception new-s)
+          (mv nil new-s)
+        (<span class="keyword">let</span> ((sfield (lookupStaticField field-ptr new-s)))
+          (<span class="keyword">if</span> (not sfield)
+              (mv nil new-s)
+            (<span class="keyword">if</span> (not (hasAccessToField (current-class s) sfield new-s))
+                (mv nil (state-set-pending-exception-safe
+                         <span class="string">"java.lang.IllegalAccessException"</span> new-s))
+              (mv sfield new-s))))))))
+
+<span class="comment">;;; skipped the guard verification of this. 
+</span>
+<span class="comment">;; updated with access checking          
+</span>
+(<span class="keyword">defun</span> <span class="function-name">static-field-class-rep</span> (static-field-rep s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-static-field static-field-rep)
+                              (wff-state s)
+                              (wff-class-table (class-table s))
+                              (wff-instance-class-table (instance-class-table s)))))
+  (class-by-name (static-field-classname static-field-rep)
+                 (instance-class-table s)))
+
+
+<span class="comment">; --- above static field resolution ----
+; --- below field resolution        ----
+</span>
+<span class="comment">;;; the following is similar!! 
+</span>
+<span class="comment">;(acl2::set-verify-guards-eagerness 2)
+</span>
+(<span class="keyword">defun</span> <span class="function-name">searchFields-guard</span> (field-ptr fields)
+  (and (wff-field-ptr field-ptr)
+       (wff-fields-x fields)))
+
+(<span class="keyword">defun</span> <span class="function-name">searchFields</span> (field-ptr fields)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (searchFields-guard field-ptr fields)))
+  (<span class="keyword">if</span> (not (consp fields))
+      nil
+    (<span class="keyword">if</span> (and (equal (field-ptr-classname field-ptr) (field-classname (car fields)))
+             (equal (field-ptr-fieldname field-ptr) (field-fieldname (car fields)))
+             (equal (field-ptr-type field-ptr)      (field-fieldtype (car fields))))
+        (car fields)
+      (searchFields field-ptr (cdr fields)))))
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">deref-field-guard</span> (field-ptr s)
+  (mylet* ((classname (field-ptr-classname field-ptr))
+           (cl (class-table s))
+           (icl (instance-class-table s))
+           (class-rep (class-by-name classname icl))
+           (fields (fields class-rep)))
+          (and (wff-field-ptr field-ptr)
+               (wff-state s)
+               (wff-class-table cl)
+               (wff-instance-class-table icl)
+               (wff-class-rep class-rep)
+               (wff-fields-x fields))))
+
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">deref-field</span> (field-ptr s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (deref-field-guard field-ptr s)))
+  (<span class="keyword">let*</span> ((classname (field-ptr-classname field-ptr))
+         (class-rep (class-by-name classname (instance-class-table s)))
+         (fields    (fields class-rep)))
+    (searchFields field-ptr fields)))
+
+<span class="comment">;; need the following invariant for it to be correct! 
+;; the superclass of any loaded class is loaded. 
+</span>
+<span class="comment">;; termination proofs.
+</span>
+(acl2::set-verify-guards-eagerness 0)
+
+(<span class="keyword">defun</span> <span class="function-name">lookupField-measure</span> (field-ptr s)
+  (<span class="keyword">let</span> ((n1  (field-ptr-classname field-ptr))
+        (cl  (instance-class-table s)))
+  (len (collect-superclass-list n1 cl))))
+
+
+(acl2::set-verify-guards-eagerness 2)
+
+(<span class="keyword">defun</span> <span class="function-name">lookupField-inv</span> (field-ptr s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-field-ptr field-ptr)
+                              (wff-state s)
+                              (wff-class-table (class-table s))
+                              (wff-instance-class-table (instance-class-table s)))))
+  (superclass-no-loop (field-ptr-classname field-ptr) (instance-class-table s)))
+
+<span class="comment">;; (defun lookupField-guard1 (cl)
+;;   (if (not (consp cl)) t
+;;     (and (wff-class-rep (car cl))
+;;          (wff-static-fields (fields (car cl)))
+;;          (lookupField-guard1 (cdr cl)))))
+</span>
+
+<span class="comment">;; (defun lookupField-guard (field-ptr s)
+;;   (and (wff-field-ptr field-ptr)
+;;        (wff-state s)
+;;        (wff-class-table (class-table s))
+;;        (wff-instance-class-table (instance-class-table s))
+;;        (lookupField-guard1 (instance-class-table s))
+;;        (all-loaded-weak (collect-superclass-list 
+;;                          (field-ptr-classname field-ptr)
+;;                          (instance-class-table s))
+;;                         (instance-class-table s))))
+</span>
+<span class="comment">;; ;; (skip-proofs 
+;; ;;  ;; need something about all-loaded-weak Fri Jun 18 20:37:10 2004
+;; ;;  ;;                          
+;; ;;  (defun lookupField (field-ptr s)
+;; ;;    (declare (xargs :measure (lookupField-measure field-ptr s)
+;; ;;                    :guard (lookupField-guard field-ptr s)
+;; ;;                    :guard-hints (("Goal" :in-theory (disable isClassTerm
+;; ;;                                                              fields)))))
+;; ;;   (if (not (lookupField-inv field-ptr s))
+;; ;;       (prog2$ (acl2::cw "lookupField-inv violated~%")
+;; ;;               nil) ;; return nil to indicate not found.
+;; ;;     ;;
+;; ;;     ;; We also need some fix to deal with situations when field-ptr's 
+;; ;;     ;; class is an array class.
+;; ;;     ;; We probably can fix it in getfield, putfield and getstatic etc. 
+;; ;;     ;; Mmm. We probably don't need to change anything because, array class's
+;; ;;     ;; super is always java.lang.Object, and we know java.lang.Object does not
+;; ;;     ;; contain a field!!
+;; ;;     ;;
+;; ;;     ;; This is a different from invokeinterface, invokevirtual!
+;; ;;     ;; 
+;; ;;     (let ((field-rep (deref-field field-ptr s)))
+;; ;;       (if (not (equal field-rep nil))
+;; ;;           field-rep
+;; ;;         (let* ((classname (field-ptr-classname field-ptr))
+;; ;;                (class-rep (class-by-name classname (instance-class-table s)))
+;; ;;                (super     (super class-rep)))
+;; ;;           (if (not (isClassTerm class-rep))
+;; ;;               nil
+;; ;;             (if (equal super "") 
+;; ;;                 nil
+;; ;;               (lookupField (make-field-ptr super
+;; ;;                                            (field-ptr-fieldname field-ptr)
+;; ;;                                            (field-ptr-type      field-ptr))
+;; ;;                            s)))))))))
+</span>
+<span class="comment">;; Fri Aug  6 22:22:35 2004. Get rid of all-loaded-weak predicate
+</span>
+(defthm wff-fields-x-equal-wff-class-fields
+  (iff (wff-class-fields fields)
+       (wff-fields-x fields)))
+
+(defthm wff-class-rep-strong-implies-wff-fields-x
+  (implies (wff-class-rep-strong crep)
+           (wff-fields-x (fields crep)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable wff-class-fields wff-fields-x))))
+
+(local (in-theory (disable fields)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">lookupField</span> (field-ptr s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:measure</span> (lookupField-measure field-ptr s)
+                  <span class="builtin">:guard</span> (and (wff-field-ptr field-ptr)
+                              (wff-state s)
+                              (wff-class-table (class-table s))
+                              (wff-instance-class-table-strong
+                               (instance-class-table s)))))
+  (<span class="keyword">if</span> (not (lookupField-inv field-ptr s))
+      (prog2$ (acl2::cw <span class="string">"lookupField-inv violated~%"</span>)
+              nil) <span class="comment">;; return nil to indicate not found.
+</span>    <span class="comment">;;
+</span>    <span class="comment">;; We also need some fix to deal with situations when field-ptr's 
+</span>    <span class="comment">;; class is an array class.
+</span>    <span class="comment">;; We probably can fix it in getfield, putfield and getstatic etc. 
+</span>    <span class="comment">;; Mmm. We probably don't need to change anything because, array class's
+</span>    <span class="comment">;; super is always java.lang.Object, and we know java.lang.Object does not
+</span>    <span class="comment">;; contain a field!!
+</span>    <span class="comment">;;
+</span>    <span class="comment">;; This is a different from invokeinterface, invokevirtual!
+</span>    <span class="comment">;;
+</span>    <span class="comment">;;; Fri Aug  6 22:39:14 2004 
+</span>    <span class="comment">;; 
+</span>    (mylet* ((classname (field-ptr-classname field-ptr))
+             (class-rep (class-by-name classname (instance-class-table s)))
+             (super     (super class-rep)))
+            (<span class="keyword">if</span> (not (isClassTerm class-rep))
+                nil
+              (<span class="keyword">let</span> ((field-rep (deref-field field-ptr s)))
+                (<span class="keyword">if</span> (not (equal field-rep nil))
+                    field-rep
+                  (<span class="keyword">if</span> (equal super <span class="string">""</span>) 
+                      nil
+                    (lookupField (make-field-ptr super
+                                                 (field-ptr-fieldname field-ptr)
+                                                 (field-ptr-type      field-ptr))
+                                 s))))))))
+
+
+
+
+
+<span class="comment">;; Notice here the lookupField-inv is an invariant of valid class table. Which
+;; should be a part of consistent-state. It is preserved by class loader which
+;; we have already proved. 
+;; (i-am-here)
+</span>
+(<span class="keyword">defun</span> <span class="function-name">resolveFieldReference</span> (fieldCP s)
+   (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-fieldCP fieldCP)
+                               (resolveClassReference-guard s))
+                   <span class="builtin">:guard-hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable 
+                                                     current-frame-guard
+                                                     current-method-ptr
+                                                     field-ptr-classname
+                                                     fieldCP-to-field-ptr
+                                                     wff-field-ptr)))))
+   <span class="comment">;; we need to prove when resolveClassReference returns with no 
+</span>   <span class="comment">;; exception. lookupField is safe!! 
+</span>   <span class="comment">;;
+</span>  (<span class="keyword">let*</span> ((field-ptr (fieldCP-to-field-ptr fieldCP))
+         (new-s (resolveClassReference (field-ptr-classname field-ptr) s)))
+    (<span class="keyword">if</span> (pending-exception new-s)
+        (mv nil new-s)
+      (<span class="keyword">let</span> ((field (lookupField field-ptr new-s)))
+        (<span class="keyword">if</span> (not field)
+            (mv nil new-s)
+          (<span class="keyword">if</span> (not (hasAccessToField (current-class s) field new-s))
+              (mv nil (state-set-pending-exception-safe
+                       <span class="string">"java.lang.IllegalAccessException"</span> new-s))
+            (mv field new-s)))))))
+
+
+<span class="comment">;; (i-am-here)
+</span>
+
+<span class="comment">;---- functions for support call back.
+</span>
+<span class="comment">;;(acl2::set-verify-guards-eagerness 0)
+</span>
+(<span class="keyword">defun</span> <span class="function-name">make-callback-func-ptr</span> (funcname)
+  (list 'call-back funcname))
+
+(<span class="keyword">defun</span> <span class="function-name">wff-call-back</span> (call-back)
+  (and (true-listp call-back)
+       (equal (len call-back) 2)
+       (equal (car call-back) 'call-back)))
+
+(<span class="keyword">defun</span> <span class="function-name">callback-funcname</span> (call-back)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-call-back call-back)))
+  (nth 1 call-back))
+
+(<span class="keyword">defun</span> <span class="function-name">callback-func-ptr?</span> (value)
+  (and (consp value)
+       (true-listp value)
+       (equal (length value) 2)
+       (equal (car value) 'call-back)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">clinitMethod-ptr</span> (classname)
+  (make-method-ptr classname <span class="string">"&lt;clinit&gt;"</span> nil 'void))
+
+(<span class="keyword">defun</span> <span class="function-name">initMethod-ptr</span> (classname)
+  (make-method-ptr classname <span class="string">"&lt;init&gt;"</span> nil 'void))
+
+(<span class="keyword">defun</span> <span class="function-name">RunCustomCode-method-ptr</span> ()
+  (make-method-ptr <span class="string">"java.lang.Class"</span> <span class="string">"runCustomCode"</span> nil 'void))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</pre>
+  </body>
+</html>

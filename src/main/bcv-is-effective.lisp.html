@@ -1,0 +1,150 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>bcv-is-effective.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+<span class="comment">; Verified code execute correctly on M6 produce the "same result" of safe
+; execution.
+</span>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+
+(include-book <span class="string"><a href="m6-simple.lisp.html">"m6-simple"</a></span>)
+(include-book <span class="string"><a href="djvm-simple.lisp.html">"djvm-simple"</a></span>)
+
+
+<span class="comment">;; (include-book "bcv-simple")
+</span>
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(include-book <span class="string"><a href="djvm-is-safe.lisp.html">"djvm-is-safe"</a></span>)
+(include-book <span class="string"><a href="../DJVM/consistent-state-bcv-on-track.lisp.html">"../DJVM/consistent-state-bcv-on-track"</a></span>)
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(encapsulate () 
+  (local (include-book <span class="string"><a href="on-track-with-bcv-implies-next-inst-in-range.lisp.html">"on-track-with-bcv-implies-next-inst-in-range"</a></span>))
+  (defthm consistent-state-strong-implies-wff-inst-next-inst
+    (IMPLIES (and (CONSISTENT-STATE-STRONG djvm-S)
+                  (<a href="../DJVM/consistent-state-bcv-on-track.lisp.html">consistent-state-bcv-on-track</a> djvm-s))
+             (WFF-INST (NEXT-INST djvm-S)))))
+
+
+<span class="comment">;;; note. the above has big skip-proofs in 
+;;;
+;;; on-track-with-bcv-implies-next-inst-in-range.lisp !!! 
+;;;
+;;; The idea is clear. If a recorded signaturate state exists at certain PC
+;;; then we know that an instruction at that PC address exists. 
+;;;
+</span>
+(encapsulate () 
+ (local (include-book <span class="string"><a href="step-preserve-state-equiv-if-on-track-with-bcv.lisp.html">"step-preserve-state-equiv-if-on-track-with-bcv"</a></span>))
+ <span class="comment">;; the above book has lots of skip proofs in it. 
+</span> <span class="comment">;;
+</span> <span class="comment">;; It just illustrates how the leaf lemma theorems are to be used. 
+</span> <span class="comment">;;
+</span> (defthm step-preserve-state-equiv
+   (implies (and (<a href="../DJVM/consistent-state-strong.lisp.html">consistent-state-strong</a> djvm-s)
+                 (<a href="../DJVM/consistent-state-bcv-on-track.lisp.html">consistent-state-bcv-on-track</a> djvm-s)
+                 (state-equiv m6::m6-s djvm::djvm-s)
+                 (bcv::verifyAll (external-class-table djvm-s)
+                                 (external-class-table djvm-s))
+                 (equal (next-<a href="../DJVM/INST/inst.lisp.html">inst</a> djvm::djvm-s) <a href="../DJVM/INST/inst.lisp.html">inst</a>))
+   (state-equiv (m6::m6-step <a href="../DJVM/INST/inst.lisp.html">inst</a> m6::m6-s)
+                (djvm::djvm-step <a href="../DJVM/INST/inst.lisp.html">inst</a> djvm::djvm-s)))))
+<span class="comment">;;
+;; we proved other leaf level theorems for the following 
+;;
+</span>
+(encapsulate () 
+ (local (include-book <span class="string"><a href="on-track-with-bcv-remain-on-track.lisp.html">"on-track-with-bcv-remain-on-track"</a></span>))
+ (defthm step-preserve-path
+   (implies (and (<a href="../DJVM/consistent-state-strong.lisp.html">consistent-state-strong</a> djvm-s)
+                 (<a href="../DJVM/consistent-state-bcv-on-track.lisp.html">consistent-state-bcv-on-track</a> djvm-s)
+                 (equal (next-<a href="../DJVM/INST/inst.lisp.html">inst</a> djvm-s) <a href="../DJVM/INST/inst.lisp.html">inst</a>))
+            (<a href="../DJVM/consistent-state-bcv-on-track.lisp.html">consistent-state-bcv-on-track</a> 
+             (djvm::djvm-step <a href="../DJVM/INST/inst.lisp.html">inst</a> djvm-s)))))
+
+
+<span class="comment">;
+;----------------------------------------------------------------------
+;----------------------------------------------------------------------
+</span>
+
+(skip-proofs 
+ (defthm djvm-step-change-no-external-class-table
+   (equal (external-class-table (djvm-step any s))
+          (external-class-table s))))
+
+
+(skip-proofs 
+ (defthm state-equiv-implies-next-inst-equal
+   (implies (state-equiv m6::m6-s djvm::djvm-s)
+            (equal (next-inst m6::m6-s)
+                   (next-inst djvm::djvm-s)))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm verified-program-executes-safely
+  (implies (and (<a href="../DJVM/consistent-state-strong.lisp.html">consistent-state-strong</a> djvm-s)
+                (<a href="../DJVM/consistent-state-bcv-on-track.lisp.html">consistent-state-bcv-on-track</a> djvm-s)
+                (state-equiv m6::m6-s djvm::djvm-s)
+                (bcv::verifyAll (external-class-table djvm-s)
+                                (external-class-table djvm-s)))
+           (state-equiv (m6::m6-simple-run n m6::m6-s)
+                        (djvm::djvm-simple-run n djvm::djvm-s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+           <span class="builtin">:in-theory</span> (disable m6::m6-step
+                               djvm::djvm-step
+                               state-equiv
+                               wff-inst
+                               bcv::verifyAll
+                               next-inst
+                               <a href="../DJVM/consistent-state-strong.lisp.html">consistent-state-strong</a>
+                               <a href="../DJVM/consistent-state-bcv-on-track.lisp.html">consistent-state-bcv-on-track</a>
+                               external-class-table))))
+
+                                      
+
+                
+                
+</pre>
+  </body>
+</html>

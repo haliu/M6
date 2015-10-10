@@ -1,0 +1,87 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>jvm-exceptions-guard-verification.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"JVM"</span>)
+(include-book <span class="string"><a href="jvm-exceptions.lisp.html">"../M6-DJVM-shared/jvm-exceptions"</a></span>)
+(include-book <span class="string"><a href="jvm-thread-primitives-guard-verification.lisp.html">"../M6-DJVM-shared/jvm-thread-primitives-guard-verification"</a></span>)
+(include-book <span class="string"><a href="jvm-object-type-hierachy-guard-verification.lisp.html">"../M6-DJVM-shared/jvm-object-type-hierachy-guard-verification"</a></span>)
+(include-book <span class="string"><a href="jvm-monitor-primitives-guard-verification.lisp.html">"../M6-DJVM-shared/jvm-monitor-primitives-guard-verification"</a></span>)
+(include-book <span class="string"><a href="jvm-frame-manipulation-primitives-guard-verification.lisp.html">"../M6-DJVM-shared/jvm-frame-manipulation-primitives-guard-verification"</a></span>)
+(include-book <span class="string"><a href="jvm-linker-guard-verification.lisp.html">"../M6-DJVM-shared/jvm-linker-guard-verification"</a></span>)
+<span class="comment">;;; similarly in jvm-thread-primitives-guard-verification.lisp
+;; CHEAT!!
+</span>(skip-proofs (verify-guards JavaString-to-ACL2-str))
+(skip-proofs (verify-guards throw-exception2))
+(skip-proofs (verify-guards find-handler))
+(skip-proofs (verify-guards getExceptionMessage))
+(skip-proofs (verify-guards monitorExit))
+(skip-proofs (verify-guards call-stack-depth))
+(skip-proofs (verify-guards locked-stage))
+(skip-proofs (verify-guards exception-measure))
+(skip-proofs (verify-guards invariant-exception-handling-1))
+(skip-proofs (verify-guards invariant-exception-handling-2))
+(skip-proofs (verify-guards release-lock-invariant))
+(skip-proofs (verify-guards release-lock-on-sync-obj))
+(skip-proofs (verify-guards throw-exception1))
+(skip-proofs (verify-guards throw-exception))
+(skip-proofs (verify-guards raise-exception1))
+(skip-proofs (verify-guards raise-exception))
+
+
+<span class="comment">;;; Thu Apr  8 21:39:53 2004. Note these operations has a guard 
+</span>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</pre>
+  </body>
+</html>

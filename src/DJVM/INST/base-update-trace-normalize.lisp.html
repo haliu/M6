@@ -1,0 +1,64 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-update-trace-normalize.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="../../M6-DJVM-shared/jvm-state.lisp.html">"../../M6-DJVM-shared/jvm-state"</a></span>)
+(include-book <span class="string"><a href="../consistent-state.lisp.html">"../../DJVM/consistent-state"</a></span>)
+
+(local 
+ (defthm update-trace-reduce
+   (and (equal (pc (update-trace any s))
+               (pc s))
+        (equal (current-thread (update-trace any s))
+               (current-thread s))
+        (equal (thread-table (update-trace any s))
+               (thread-table s))
+        (equal (heap  (update-trace any s))
+               (heap  s))
+        (equal (class-table  (update-trace any s))
+               (class-table  s))
+        (equal (heap-init-map (aux (update-trace any s)))
+               (heap-init-map (aux s)))
+        (equal (error-flag (update-trace any s))
+               (error-flag s))
+        (equal (current-frame (update-trace any s))
+               (current-frame s)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable update-trace aux-set-trace)))))
+
+</pre>
+  </body>
+</html>

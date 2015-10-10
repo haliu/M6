@@ -1,0 +1,204 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>hanoi-solution.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"HANOI"</span>)
+
+(include-book <span class="string"><a href="hanoi-model.lisp.html">"hanoi-model"</a></span>)
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;; (defun do-move (m st)
+;;   (let* ((from (src m))
+;;          (to   (dest m))
+;;          (from-stk (get-peg from st))
+;;          (to-stk   (get-peg to st)))
+;;     (set-peg from 
+;;              (pop from-stk)
+;;              (set-peg to 
+;;                       (push (top from-stk)
+;;                             to-stk)
+;;                       st))))
+</span>
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">play-hanoi</span> (from to temp n st)
+  (<span class="keyword">if</span> (zp n) st
+    (<span class="keyword">let*</span> ((st1 (play-hanoi from temp to (- n 1) st))
+           (st2 (<span class="keyword">do-move</span> (new-move from to) st1))
+           (st3 (play-hanoi temp to from (- n 1) st2)))
+      st3)))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">h</span> (from to temp n)
+  (<span class="keyword">if</span> (zp n) nil
+    (app (h from temp to (- n 1))
+         (cons (new-move from to)
+               (h temp to from (- n 1))))))
+
+(<span class="keyword">defun</span> <span class="function-name">Hanoi</span> (n)
+  (h 'A 'B 'C n)) 
+  
+(<span class="keyword">defun</span> <span class="function-name">tower</span> (n)
+   (<span class="keyword">if</span> (zp n)
+       nil
+     (app (tower (- n 1)) (list n))))
+
+    
+(<span class="keyword">defun</span> <span class="function-name">init-state</span> (n)
+  (s 'A (tower n)
+     (s 'B nil 
+        (s 'C nil nil))))
+
+(<span class="keyword">defun</span> <span class="function-name">final-state</span> (n)
+  (s 'A nil
+     (s 'B (tower n)
+        (s 'C nil nil))))
+
+(defthm examples
+  (equal (play (Hanoi 7) (init-state 7))
+         (final-state 7)))
+
+
+
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">big-tops</span> (a b c s n)
+  (<span class="keyword">let</span> ((a-stk (g a s))
+        (b-stk (g b s))
+        (c-stk (g c s)))
+    (and (or (not (has-morep a-stk))
+             (&lt; n (top a-stk)))
+         (or (not (has-morep b-stk))
+             (&lt; n (top b-stk)))
+         (or (not (has-morep c-stk))
+             (&lt; n (top c-stk))))))
+       
+<span class="comment">;----------------------------------------------------------------------
+</span>(<span class="keyword">defun</span> <span class="function-name">induction-hint</span> (from to temp n s)
+  (<span class="keyword">if</span> (zp n)
+      (list from to temp n s)
+    (list (induction-hint from temp to (- n 1) 
+                          (s from (push n (g from s)) s))
+          (induction-hint temp to from (- n 1)
+                          (s to (push n (g to s)) s)))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm play-app
+  (equal (play (app a b) s)
+         (play b (play a s))))
+
+
+(defthm app2-list
+  (equal (APP (APP l (LIST n))
+              l1)
+         (app l (push n l1)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> 
+           <span class="builtin">:do-not</span> '(generalize)
+           <span class="builtin">:in-theory</span> (enable push))))
+
+(defthm pop-push
+  (equal (pop (push n l))
+         l)
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable push pop))))
+
+(defthm top-push
+  (equal (top (push n l))
+         n)
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable push top))))
+
+(defthm s-from-g-from-no-change
+  (implies (equal (g from s2) x)
+           (equal (S FROM x s2)
+                  s2)))
+         
+(defthmd h-lemma
+  (implies (and (natp n)
+                (pegp from)
+                (pegp to)
+                (pegp temp)
+                (not (equal from to))
+                (not (equal from temp))
+                (not (equal to temp))
+                (big-tops from to temp s n))
+           (equal (play (h from to temp n)
+                        (s from (app (tower n)
+                                     (g from s)) s))
+                  (s to (app (tower n)
+                             (g to s)) s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize fertilize)
+           <span class="builtin">:in-theory</span> (enable new-move)
+           <span class="builtin">:induct</span> (induction-hint from to temp n s))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm app-nil
+  (implies (true-listp l)
+           (equal (app l nil) l)))
+
+(defthm true-listp-tower-n
+  (true-listp (tower n)))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;; functional specification 
+</span>
+(defthm hanoi-correct
+  (equal (play (Hanoi n) (init-state n))
+         (final-state n))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> 
+           <span class="builtin">:use</span> (<span class="builtin">:instance</span> h-lemma
+                           (from  'A)
+                           (to    'B)
+                           (temp  'C)
+                           (s     nil)))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span></pre>
+  </body>
+</html>

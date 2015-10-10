@@ -1,0 +1,175 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>bcv-searchStackFrame-only-suffix-matters.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"BCV"</span>)
+(include-book <span class="string"><a href="typechecker.lisp.html">"typechecker"</a></span>)
+(include-book <span class="string"><a href="typechecker-ext.lisp.html">"typechecker-ext"</a></span>)
+(include-book <span class="string"><a href="typechecker-simple.lisp.html">"typechecker-simple"</a></span>)
+(include-book <span class="string"><a href="bcv-base.lisp.html">"bcv-base"</a></span>)
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(defthm if-found-pc-in-suffix-found-in-stackmaps
+  (implies (and (is-suffix stack-maps1 stack-maps)
+                (strictly-ordered (extract-frame-pc stack-maps))
+                (member pc (extract-frame-pc stack-maps1)))
+           (member pc (extract-frame-pc stack-maps))))
+
+(defthm is-suffix-is-suffix-extract-frame-pc
+  (implies (is-suffix stack-maps1 stack-maps)
+           (is-suffix (extract-frame-pc stack-maps1)
+                      (extract-frame-pc stack-maps))))
+
+
+
+(defthm prefix-member-equal
+  (implies (and (ordered (extract-frame-pc l1))
+                (isstackmapframe x)
+                (&lt;= (mapOffset (getMap (car l1))) y)
+                (&lt; (mapOffset (getMap x)) (mapOffset (getMap (car l1)))))
+           (equal (searchStackFrame y (cons x l1))
+                  (searchStackFrame y l1)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isstackmapframe 
+                                      getMap
+                                      mapFrame
+                                      mapOffset))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">prefix-less-stack-maps</span> (v l)
+  (<span class="keyword">if</span> (endp l) nil
+    (<span class="keyword">if</span> (&lt; (mapOffset (getMap (car l))) v)
+        (cons (car l) (prefix-less-stack-maps v (cdr l)))
+      nil)))
+
+(<span class="keyword">defun</span> <span class="function-name">all-stack-map</span> (l)
+  (<span class="keyword">if</span> (endp l)
+      t
+    (and (isstackmapframe (car l))
+         (all-stack-map (cdr l)))))
+         
+
+(defthm searchStackFrame-equal-if-append-prefix-less 
+  (implies (and (&lt;= v pc)
+                (all-stack-map l2))
+           (equal (searchStackFrame pc (append (prefix-less-stack-maps v l2)
+                                               l1))
+                  (searchStackFrame pc l1)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+           <span class="builtin">:in-theory</span> (disable isstackmapframe 
+                               getMap
+                               mapFrame
+                               mapOffset))))
+
+(<span class="keyword">defun</span> <span class="function-name">extract-frame-pc-2</span> (l2)
+  (<span class="keyword">if</span> (endp l2) nil
+    (cons (mapOffset (getMap (car l2)))
+          (extract-frame-pc-2 (cdr l2)))))
+  
+
+(defthm strictly-ordered-is-suffix-reduce
+  (implies (and (strictly-ordered (extract-frame-pc-2 l2))
+                (is-suffix l1 l2)
+                (consp l1))
+           (equal (append (prefix-less-stack-maps (mapOffset (getMap (car l1))) l2)
+                          l1)
+                  l2))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+           <span class="builtin">:induct</span> (is-suffix l1 l2)
+           <span class="builtin">:in-theory</span> (disable isstackmapframe 
+                               getMap
+                               mapFrame
+                               mapOffset))))
+
+(defthm is-suffix-member-x
+  (implies (and (IS-SUFFIX L1 L2)
+                (member x l1))
+           (member x l2)))
+
+
+(defthm all-stack-map-stack-map-wrap
+  (all-stack-map (stack-map-wrap anylist)))
+
+(defthm extract-frame-pc-2-equal-extract-frame-pc
+  (equal (extract-frame-pc-2 (stack-map-wrap stack-maps))
+         (extract-frame-pc stack-maps)))
+
+(defthm is-suffix-is-suffix-wrap
+  (implies    (IS-SUFFIX STACK-MAPS1 STACK-MAPS)
+              (IS-SUFFIX (STACK-MAP-WRAP STACK-MAPS1)
+                         (STACK-MAP-WRAP STACK-MAPS))))
+           
+
+(defthm searchStackFrame-reduce-lemma
+  (implies (equal (mapOffset stackframe) pc)
+           (equal (SEARCHSTACKFRAME pc (cons (makestackmap stackframe) l))
+                  (mapFrame stackframe))))
+
+(defthm isstackmapframe-make-stack-map
+  (ISSTACKMAPFRAME (MAKESTACKMAP STACK-MAPS2)))
+        
+(defthm searchStackFrame-reduce
+  (implies (and (is-suffix stack-maps1 stack-maps)
+                (consp stack-maps1)
+                (strictly-ordered (extract-frame-pc stack-maps))
+                (&lt;= (mapOffset (car stack-maps1)) pc))
+           (equal (searchStackFrame pc (stack-map-wrap stack-maps1))
+                  (searchStackFrame pc (stack-map-wrap stack-maps))))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+             <span class="builtin">:do-not-induct</span> t
+             <span class="builtin">:in-theory</span> (disable isstackmapframe 
+                                 getMap
+                                 <span class="comment">;;searchStackFrame-equal-if-append-prefix-less 
+</span>                                 strictly-ordered-is-suffix-reduce
+                                 makestackmap
+                                 mapFrame
+                                 mapOffset)
+             <span class="builtin">:use</span> ((<span class="builtin">:instance</span> strictly-ordered-is-suffix-reduce
+                              (l2 (stack-map-wrap stack-maps))
+                              (l1 (stack-map-wrap stack-maps1)))))))
+                              
+</pre>
+  </body>
+</html>

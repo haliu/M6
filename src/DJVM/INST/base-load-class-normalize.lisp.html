@@ -1,0 +1,347 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-load-class-normalize.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="../consistent-state.lisp.html">"../../DJVM/consistent-state"</a></span>)
+(include-book <span class="string"><a href="../consistent-state-properties.lisp.html">"../../DJVM/consistent-state-properties"</a></span>)
+
+(in-theory (disable getArrayClass resolveClassReference))
+
+
+(local (include-book <span class="string"><a href="base-load-class-normalize-support.lisp.html">"base-load-class-normalize-support"</a></span>))
+
+
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-load-class-normalize-support.lisp.html">"base-load-class-normalize-support"</a></span>))
+  (acl2::set-enforce-redundancy t)
+  (defthm topStack-guard-strong-not-affected-by-class-loading
+    (and (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s) 
+                <span class="comment">;; Wed Apr  7 11:29:37 2004 added 
+</span>                (equal (topStack-guard-strong (getArrayClass any s))
+                       (topStack-guard-strong s)))
+       (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (equal (topStack-guard-strong (resolveClassReference any s))
+                       (topStack-guard-strong s))))))
+
+
+
+
+
+(defthm getArrayClass-does-not-affect-current-thread
+  (and (equal (current-thread (getArrayClass any s)) 
+              (current-thread s))
+       (equal (thread-table (getArrayClass any s))
+              (thread-table s))))
+
+
+
+(defthm current-frame-getArrayClass
+  (equal (current-frame (getArrayClass any s))
+         (current-frame s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (current-frame)
+                                  (getArrayClass)))))
+
+(defthm current-frame-resolveClassReference
+  (equal (current-frame (resolveClassReference any s))
+         (current-frame s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (current-frame)
+                                  (resolveClassReference)))))
+
+
+
+
+(defthm build-an-array-instance-does-not-affect-s
+  (equal (mv-nth 1 (build-an-array-instance base-type  bound s))
+         s))
+
+
+(defthm thread-by-id-popStack-is-popStack-of-thread
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (equal (current-thread s) id))
+           (equal (thread-by-id id
+                                (thread-table (popstack s)))
+                  (popstack-of-thread (thread-by-id (current-thread s)
+                                                    (thread-table s))))))
+
+<span class="comment">;; this is likely to be wrong!! 
+</span>
+(defthm thread-call-stack-pop-stack-of-thread-is
+  (equal (thread-call-stack (popSTACK-OF-THREAD thread))
+         (push (frame-set-operand-stack (pop (operand-stack (top
+                                                             (thread-call-stack thread))))
+                                        (top (thread-call-stack thread)))
+               (pop (thread-call-stack thread))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (popstack-of-thread) ()))))
+
+
+
+(defthm deref-method-not-changing-if-exist-getArrayClass
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (equal (method-ptr (current-frame s)) method-ptr))
+           (equal (deref-method method-ptr (instance-class-table
+                                            (getArrayClass any s)))
+                  (deref-method method-ptr (instance-class-table s)))))
+                                 
+
+
+(defthm deref-method-not-changing-if-exist-resolveClassReference
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (equal (method-ptr (current-frame s)) method-ptr))
+           (equal (deref-method method-ptr (instance-class-table
+                                            (resolveClassReference any s)))
+                  (deref-method method-ptr (instance-class-table s)))))
+
+
+(defthm current-frame-make-state-normalize
+   (implies (equal (current-thread s) tid)
+            (equal (current-frame (make-state anypc 
+                                              tid
+                                              anyheap
+                                              (thread-table s)
+                                              anycl
+                                              anyenv
+                                              anyerror
+                                               anyaux))
+                   (current-frame s))))
+
+
+
+(defthm current-frame-getArrayClass
+  (equal (current-frame (getArrayClass any s))
+         (current-frame s)))
+
+
+(defthm current-frame-resolveClassReference
+  (equal (current-frame (resolveClassReference any s))
+         (current-frame s)))
+
+
+<span class="comment">;;; basic any operation that does not affect class-table!! 
+</span>
+(defthm build-an-array-instance-reduce
+  (equal (CAR (BUILD-AN-ARRAY-INSTANCE anytype anyvalue (popStack s)))
+         (CAR (BUILD-AN-ARRAY-INSTANCE anytype anyvalue s))))
+
+<span class="comment">;;; expect similiar rules!! 
+</span>
+
+(defthm class-table-no-change-popStack
+  (equal (class-table (POPSTACK s))
+         (class-table s)))
+
+
+
+(defthm heap-no-change-popStack
+  (equal (heap (POPSTACK s))
+         (heap s)))
+
+
+(defthm errorflag-no-change-popStack
+  (equal (error-flag (POPSTACK s))
+         (error-flag s)))
+
+
+<span class="comment">;; because we enabled update-trace. 
+;; however we disabled state-set-heap
+;; but enabled all accessors in state-set-heap
+;; 
+;; As a result, the normalized stuff is not recognizable!! 
+;;
+;; If we have expresed everything in terms of make-state...
+;;
+;;
+</span>
+
+<span class="comment">;; (defthm consistent-state-make-state-heap-change
+;;   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+;;                 (consistent-object obj hp (instance-class-table s))
+;;                 (
+;;                 (equal (pc s) pc)
+;;                 (equal (current-thread s) tid)
+;;                 (equal (class-table s) cl)
+;;                 (equal (env s) env)
+;;                 (equal (aux s) aux))
+;;            (<a href="../consistent-state.lisp.html">consistent-state</a> (make-state pc tid 
+;;                                          (bind (tag-ref (len (heap s)))
+;;                                                obj 
+;;                                                (heap s))
+;;                                          cl 
+;;                                          env aux)))))
+;;;
+</span>
+<span class="comment">;;; Wed May 25 13:42:00 2005                                                       
+</span>  
+(in-theory (disable update-trace))
+
+
+
+(defthm update-trace-reduce
+  (and (equal (pc (update-trace any s))
+              (pc s))
+       (equal (current-thread (update-trace any s))
+              (current-thread s))
+       (equal (thread-table (update-trace any s))
+              (thread-table s))
+       (equal (heap  (update-trace any s))
+              (heap  s))
+       (equal (class-table  (update-trace any s))
+              (class-table  s))
+       (equal (heap-init-map (aux (update-trace any s)))
+              (heap-init-map (aux s)))
+       (equal (error-flag (update-trace any s))
+              (error-flag s))
+       (equal (current-frame (update-trace any s))
+              (current-frame s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable update-trace aux-set-trace))))
+
+
+(local 
+ (defthm pc-load-array-class-reduce
+   (equal (pc (load_array_class any s))
+          (pc s))))
+
+<span class="comment">;; (i-am-here) ;; Sun Aug  7 09:54:57 2005
+</span>
+(local 
+ (defthm heap-init-map-load_cp_entry
+   (equal (heap-init-map (aux (mv-nth 1 (load_cp_entry any s))))
+          (heap-init-map (aux s)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (load_cp_entry) (heap-init-map))))))
+
+(local 
+ (defthm heap-init-map-load_cp_entries
+   (equal (heap-init-map (aux (mv-nth 1 (load_cp_entries cps s))))
+          (heap-init-map (aux s)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (load_cp_entry heap-init-map))))))
+
+
+
+(local 
+ (defthm heap-init-map-load_class2
+   (equal (heap-init-map (aux (load_class2 any s)))
+          (heap-init-map (aux s)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (load_class2) (heap-init-map))))))
+
+
+(local 
+ (defthm heap-init-map-load_class_x
+   (equal (heap-init-map (aux (load_class_x any s seen mode)))
+          (heap-init-map (aux s)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (load_class_x) (load_class2 
+                                                   heap-init-map))))))
+
+
+(local 
+ (defthm heap-init-map-load_array_class2
+   (equal (heap-init-map (aux (load_array_class2 any s)))
+          (heap-init-map (aux s)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (load_array_class2) 
+                                   (heap-init-map))))))
+
+
+(local 
+ (defthm heap-init-map-load_array_class
+   (equal (heap-init-map (aux (load_array_class any s)))
+          (heap-init-map (aux s)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (load_array_class) 
+                                   (heap-init-map))))))
+
+
+
+
+
+(defthm getArrayClass-reduce
+  (and (equal (PC (GETARRAYCLASS any s))
+              (pc s))
+       (equal (current-thread (getarrayclass any s))
+              (current-thread s))
+       (equal (thread-table (getarrayclass any s))
+              (thread-table s))
+       (equal (current-frame (getarrayclass any s))
+              (current-frame s))
+       (equal (heap-init-map (aux (getarrayclass any s)))
+              (heap-init-map (aux s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (getarrayclass)
+                                  (heap-init-map)))))
+
+
+<span class="comment">;;; getArrayClass will change heap, 
+</span>
+(defthm resolveClassReference-reduce
+  (and (equal (PC (resolveClassReference any s))
+              (pc s))
+       (equal (current-thread (resolveClassReference any s))
+              (current-thread s))
+       (equal (thread-table (resolveClassReference any s))
+              (thread-table s))
+       (equal (heap-init-map (aux (resolveClassReference any s)))
+              (heap-init-map (aux s)))
+       (equal (current-frame (resolveClassReference any s))
+              (current-frame s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (resolveClassReference)
+                                  (heap-init-map)))))
+
+ 
+
+(defthm resolveClassReference-reduce2
+  (equal (topStack (resolveClassReference any s))
+         (topStack s)))
+
+
+
+
+<span class="comment">;----------------------------------------------------------------------
+;; Tue Jun  7 20:30:48 2005
+;;
+</span>
+
+<span class="comment">;; (skip-proofs 
+;;  (defthm deref2-after-resolveClassReference
+;;    (implies (and (REFp v (heap s))
+;;                  (not (NULLp v)))
+;;             (equal (deref2 v (heap (resolveClassReference any s)))
+;;                    (deref2 v (heap s))))))
+</span>
+
+(include-book <span class="string"><a href="base-load-class-normalize-deref2.lisp.html">"base-load-class-normalize-deref2"</a></span>)
+(include-book <span class="string"><a href="base-load-class-normalize-class-by-name.lisp.html">"base-load-class-normalize-class-by-name"</a></span>)</pre>
+  </body>
+</html>

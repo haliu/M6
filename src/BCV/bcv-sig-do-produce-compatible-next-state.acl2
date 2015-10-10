@@ -1,0 +1,2 @@
+(ld "../BCV/bcv.pkg")
+(certify-book "bcv-sig-do-produce-compatible-next-state" 5 t :skip-proofs-okp t)

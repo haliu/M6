@@ -1,0 +1,147 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>bcv-if-pc-small-then-not-bound-in-witness.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"ACL2"</span>)
+(include-book <span class="string"><a href="bcv-model.lisp.html">"bcv-model"</a></span>)
+(include-book <span class="string"><a href="bcv-simple-model.lisp.html">"bcv-simple-model"</a></span>)
+(include-book <span class="string"><a href="generic.lisp.html">"generic"</a></span>)
+
+
+(defthm ordered-less-than-first-then-not-member
+  (implies (and (ordered l)
+                (&lt; pc (car l)))
+           (not (member pc l))))
+
+
+(encapsulate () 
+  (local (include-book <span class="string"><a href="bcv-if-verified-then-pc-ordered.lisp.html">"bcv-if-verified-then-pc-ordered"</a></span>))
+  (defthm merged-code-is-safe-implies-ordered
+   (implies (and (merged-code-safe merged-code init-frame)
+                 (wff-code1 (extract-code merged-code)
+                            (g 'pc (car merged-code))))
+            (ordered (collect-pc-merged-code merged-code))))
+
+  (defthm merged-code-safe-implies-pc-less-than
+    (implies (and (WFF-CODE1 (EXTRACT-CODE MERGED-CODE)
+                             (+ 1 pc))
+                  (consp (extract-code merged-code))
+                  (merged-code-safe merged-code sig-frame))
+             (&lt; pc 
+                (g 'pc (car merged-code))))
+    <span class="builtin">:rule-classes</span> <span class="builtin">:linear</span>)
+
+  (defthm merged-code-safe-stack-map-implies-consp-extract-code
+    (implies (and (merged-code-safe merged-code init-frame)
+                  (stack-map? init-frame))
+             (consp (extract-code merged-code)))
+    <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+
+(defthm car-collect-pc-merged-code-is
+  (implies (consp (cdr merged-code))
+           (equal (car (collect-pc-merged-code merged-code))
+                  (g 'pc (car merged-code)))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">collect-keys-from-witness</span> (sig-vector)
+  (<span class="keyword">if</span> (endp sig-vector) nil
+    (cons (car (car sig-vector))
+          (collect-keys-from-witness (cdr sig-vector)))))
+
+
+(defthm subsetp-collect-pc-collect-pc
+  (implies (member x (collect-keys-from-witness 
+                      (collect-witness-merged-code-safe merged-code init-frame)))
+           (member x (collect-pc-merged-code merged-code)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable sig-frame-compatible
+                                      bcv-check-step-pre
+                                      bcv-execute-step
+                                      inst? stack-map?)
+           <span class="builtin">:do-not</span> '(generalize fertilize))))
+
+
+(defthm subsetp-collect-pc-collect-pc-1
+  (implies  (not (member x (collect-pc-merged-code merged-code)))
+            (not (member x (collect-keys-from-witness 
+                            (collect-witness-merged-code-safe merged-code init-frame)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable sig-frame-compatible
+                                      bcv-check-step-pre
+                                      bcv-execute-step
+                                      inst? stack-map?)
+           <span class="builtin">:do-not</span> '(generalize fertilize))))
+
+
+(defthm not-member-of-keys-not-bound
+  (implies (not (member x (collect-keys-from-witness sig-vector)))
+           (not (assoc-equal x sig-vector))))
+
+
+<span class="comment">;; (i-am-here) ;; Mon Nov  7 14:18:54 2005
+</span>
+(defthm not-consp-cdr-not-collect-witness
+  (implies (not (consp (cdr merged-code)))
+           (not (collect-witness-merged-code-safe merged-code init-frame))))
+
+
+(defthm merged-code-is-safe-implies-not-bound-smaller
+  (implies (and (merged-code-safe merged-code init-frame)
+                (WFF-CODE1 (EXTRACT-CODE MERGED-CODE)
+                           (g 'pc (car merged-code)))
+                 (&lt; pc1 (g 'pc (car merged-code))))
+           (not (assoc-equal pc1 (collect-witness-merged-code-safe 
+                                  merged-code init-frame))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable merged-code-safe
+                                      wff-code1
+                                      stack-map?
+                                      collect-pc-merged-code
+                                      extract-code
+                                      collect-witness-merged-code-safe)
+           <span class="builtin">:cases</span> ((consp (cdr merged-code)))
+           <span class="builtin">:do-not-induct</span> t)))
+
+</pre>
+  </body>
+</html>

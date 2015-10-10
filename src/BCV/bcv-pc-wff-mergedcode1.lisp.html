@@ -1,0 +1,81 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>bcv-pc-wff-mergedcode1.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"BCV"</span>)
+(include-book <span class="string"><a href="typechecker.lisp.html">"typechecker"</a></span>)
+(include-book <span class="string"><a href="typechecker-ext.lisp.html">"typechecker-ext"</a></span>)
+(include-book <span class="string"><a href="typechecker-simple.lisp.html">"typechecker-simple"</a></span>)
+(include-book <span class="string"><a href="bcv-base.lisp.html">"bcv-base"</a></span>)
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm is-suffix-pc-wff-mergecode1
+  (implies (and (is-suffix mergedcode1 mergedcode)
+                (consp mergedcode1)
+                (not (isEnd (car mergedcode1)))
+                (pc-wff-mergedcode1 pc mergedcode))
+           (pc-wff-mergedcode1 (next-pc mergedcode1)
+                               mergedcode1))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isStackMap
+                                      isInstruction
+                                      isEnd
+                                      getMap
+                                      mapOffset
+                                      jvm::inst-size
+                                      instrOffset)
+           <span class="builtin">:do-not</span> '(generalize)))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+
+(defthm pc-wff-mergedcode1-isStackMap-consp-remaining
+  (implies (and (pc-wff-mergedcode1 pc mergedcode)
+                (isStackMap (car mergedcode)))
+           (consp (cdr mergedcode)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+</pre>
+  </body>
+</html>

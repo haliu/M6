@@ -1,0 +1,146 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-bcv-fact-isMatchingType-canPopCategory1.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="base.lisp.html">"base"</a></span>)
+(include-book <span class="string"><a href="base-consistent-state.lisp.html">"base-consistent-state"</a></span>)
+
+
+(local 
+ (encapsulate ()
+    (local (include-book <span class="string"><a href="base-bcv-support.lisp.html">"base-bcv-support"</a></span>))
+    (defthm isMatchingType-INT-implies-canPopCategory1 
+         (implies (bcv::isMatchingType 'INT (opstack-sig stack cl hp hp-init method-ptr) env)
+                  (canPopCategory1 stack))
+         <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (bcv::isMatchingType) ())))
+         <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+    (defthm isMatchingType-AARRAY-implies-canPopCategory1 
+      (implies (bcv::isMatchingType '(ARRAY (class <span class="string">"java.lang.Object"</span>)) 
+                                    (opstack-sig stack cl hp hp-init method-ptr) env)
+               (canPopCategory1 stack))
+      <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv::isMatchingType canPopCategory1)))
+      <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)))
+
+
+(defthm isMatchingType-INT-implies-canPopCategory1-fact
+  (implies (bcv::isMatchingType 'INT 
+                                (opstack-sig (operand-stack (current-frame s))
+                                             (instance-class-table s)
+                                             (heap s)
+                                             (heap-init-map (aux s))
+                                             (method-ptr (current-frame s)))
+                                (env-sig s))
+           (canPopCategory1 (operand-stack (current-frame s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (bcv::isMatchingType) ()))))
+
+
+
+(defthm isMatchingType-AARRAY-implies-canPopCategory1-fact
+  (implies (bcv::isMatchingType '(ARRAY (class <span class="string">"java.lang.Object"</span>)) 
+                                (opstack-sig (operand-stack (current-frame s))
+                                             (instance-class-table s)
+                                             (heap s)
+                                             (heap-init-map (aux s))
+                                             (method-ptr (current-frame s)))
+                                (env-sig s))
+           (canPopCategory1 (operand-stack (current-frame s)))))
+
+
+<span class="comment">;; (i-am-here) ;; Tue May 17 23:01:25 2005
+</span>
+(local 
+ (defthm isMatchingType-size-of-1-type-opstack-sig-implies-canPopCategory1
+   (implies (and (bcv::ismatchingtype type (opstack-sig stk cl hp hp-init
+                                                        method-ptr) env)
+                 type
+                 (equal (bcv::sizeof type) 1)
+                 (not (equal type 'topx)))
+            (canpopcategory1 stk))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (bcv::sizeof bcv::ismatchingtype) (canpopcategory1))))))
+
+(defthm isMatchingType-java-lang-Object-implies-canPopCategory1-fact
+  (implies (bcv::isMatchingType '(class <span class="string">"java.lang.Object"</span>)
+                                (opstack-sig (operand-stack (current-frame s))
+                                             (instance-class-table s)
+                                             (heap s)
+                                             (heap-init-map (aux s))
+                                             (method-ptr (current-frame s)))
+                                (env-sig s))
+           (canPopCategory1 (operand-stack (current-frame s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (bcv::sizeof) (canpopcategory1
+                                                 bcv::isMatchingType)))))
+
+
+
+<span class="comment">;----------------------------------------------------------------------
+;; (i-am-here) ;; Fri Jun 17 13:01:49 2005 a month later!! 
+</span>
+(defthm isMatchingType-prefix-class-implies-canPopCategory1-fact
+  (implies (bcv::isMatchingType (BCV::PREFIX-CLASS any)
+                                (opstack-sig (operand-stack (current-frame s))
+                                             (instance-class-table s)
+                                             (heap s)
+                                             (heap-init-map (aux s))
+                                             (method-ptr (current-frame s)))
+                                (env-sig s))
+           (canPopCategory1 (operand-stack (current-frame s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (bcv::sizeof) (canpopcategory1
+                                                 bcv::isMatchingType))))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(skip-proofs  <span class="comment">;; Fri Jul 29 15:56:51 2005!! 
+</span> (defthm isMatchingType-REFERENCE-implies-canPopCategory1-fact
+   (implies (bcv::isMatchingType 'REFERENCE
+                                 (opstack-sig (operand-stack (current-frame s))
+                                              (instance-class-table s)
+                                              (heap s)
+                                              (heap-init-map (aux s))
+                                              (method-ptr (current-frame s)))
+                                 (env-sig s))
+            (canPopCategory1 (operand-stack (current-frame s))))))
+
+</pre>
+  </body>
+</html>

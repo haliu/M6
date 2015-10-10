@@ -1,0 +1,160 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-valid-type-s.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="../../M6-DJVM-shared/jvm-type-value.lisp.html">"../../M6-DJVM-shared/jvm-type-value"</a></span>)
+(include-book <span class="string"><a href="../../M6-DJVM-shared/jvm-state.lisp.html">"../../M6-DJVM-shared/jvm-state"</a></span>)
+
+
+
+(include-book <span class="string">"ordinals/e0-ordinal"</span> <span class="builtin">:dir</span> <span class="builtin">:system</span>))
+(set-well-founded-relation e0-ord-&lt;)
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">fix-zp-mode</span> (mode)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (integerp mode)
+                              (&lt;= 0 mode))))
+  (<span class="keyword">if</span> (zp mode) 0
+    1))
+
+<span class="comment">; valid-type-s 
+;
+; reference-type-s is mutual recursive with array-type-s
+; 
+; This makes it is difficult to do current induction
+; and harder to prove properties of functions.
+;
+; valid-type-s is defined to merge array-type-s and
+; reference-type-s
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">valid-type-s</span> (type cl mode)
+    (DECLARE (XARGS <span class="builtin">:GUARD</span>
+                    (WFF-INSTANCE-CLASS-TABLE CL)
+                    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable array-component-type)))
+                    <span class="builtin">:MEASURE</span>
+                    (CONS (+ (ACL2-COUNT TYPE) 1) (fix-zp-mode mode))))
+    (<span class="keyword">cond</span> ((equal mode 1)
+           (OR (EQUAL TYPE 'NULL)
+               (valid-type-s TYPE  CL 0)
+               (CLASS-EXISTS? TYPE cl)))
+          ((equal mode 0) 
+           (AND (WFF-ARRAY-TYPE TYPE)
+                (OR (PRIMITIVE-TYPE? (ARRAY-COMPONENT-TYPE TYPE))
+                    (AND (valid-TYPE-S (ARRAY-COMPONENT-TYPE TYPE) cl 1)
+                         (NOT (EQUAL (ARRAY-COMPONENT-TYPE TYPE)
+                                     'NULL))))))))
+
+(defthm valid-type-s-add-class-decl
+  (implies (and (valid-type-s type cl mode)
+                (isclassterm class-rep))
+           (valid-type-s type (add-instance-class-entry class-rep cl) mode)))
+
+
+<span class="comment">;;; basically copy from the definition of the reference-type-s, array-type-s
+</span>
+(<span class="keyword">defun</span> <span class="function-name">induct-valid-type-is-m</span> (type1 type2 mode)
+  (<span class="keyword">cond</span> ((equal mode 1)
+         (cons (cons (+ 1 (acl2-count type1)) 0) 1))
+        ((equal mode 0)
+         (cons (cons (+ 1 (acl2-count type2)) 0) 0))
+        (t 0)))
+
+
+(acl2::set-verify-guards-eagerness 0)
+
+(<span class="keyword">defun</span> <span class="function-name">induct-valid-type-is</span> (type1 cl1 type2 cl2 mode)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:measure</span> (induct-valid-type-is-m type1 type2 mode)
+                  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+                           <span class="builtin">:in-theory</span> (enable array-component-type)))))
+  (<span class="keyword">cond</span> ((equal mode 1)
+         (induct-valid-type-is type1 cl1 type1 cl1 0))
+        ((equal mode 0)
+         (<span class="keyword">if</span> (wff-array-type type2)
+             (induct-valid-type-is (array-component-type type2) cl2 
+                                   type2 cl2 1)
+           (list type1 cl1 type2 cl2 mode)))))
+
+(acl2::set-verify-guards-eagerness 2)
+
+
+(local 
+ (defthm valid-type-s-is-lemma
+  (<span class="keyword">cond</span> ((equal mode 1)
+         (equal (valid-type-s type1 cl1 1)
+                (reference-type-s type1 cl1)))
+        ((equal mode 0)
+         (equal (valid-type-s type2 cl2 0)
+                (array-type-s type2 cl2)))
+        (t t))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isclassterm)
+           <span class="builtin">:induct</span> (induct-valid-type-is type1 cl1 type2 cl2 mode)))
+  <span class="builtin">:rule-classes</span> nil))
+
+
+(defthm valid-type-s-is
+  (and (equal (valid-type-s type cl 1)
+              (reference-type-s type cl))
+       (equal (valid-type-s type cl 0)
+              (array-type-s type cl)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> ((<span class="builtin">:instance</span> 
+                         valid-type-s-is-lemma
+                         (cl1 cl) (type1 type) (mode 1))
+                        (<span class="builtin">:instance</span> 
+                         valid-type-s-is-lemma
+                         (cl2 cl) (type2 type) (mode 0)))))
+  <span class="builtin">:rule-classes</span> nil)
+
+
+(<span class="keyword">defun</span> <span class="function-name">valid-type-strong</span> (type cl)
+  (DECLARE (XARGS <span class="builtin">:GUARD</span> (WFF-INSTANCE-CLASS-TABLE CL)))
+  (and (not (equal type 'null))
+       (or (valid-type-s type cl 0)
+           (valid-type-s type cl 1))))
+
+</pre>
+  </body>
+</html>

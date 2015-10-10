@@ -1,0 +1,62 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-consistent-state-state-set-heap.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="../consistent-state.lisp.html">"../../DJVM/consistent-state"</a></span>)
+(include-book <span class="string"><a href="../consistent-state-properties.lisp.html">"../../DJVM/consistent-state-properties"</a></span>)
+(include-book <span class="string"><a href="../../M6-DJVM-shared/jvm-bytecode.lisp.html">"../../M6-DJVM-shared/jvm-bytecode"</a></span>)
+
+(encapsulate ()
+  (local (include-book <span class="string"><a href="base-consistent-state-load-class-support.lisp.html">"base-consistent-state-load-class-support"</a></span>))
+  (defthm consistent-state-add-new-object-generalized-x
+    (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                  (consistent-object obj hp (instance-class-table s))
+                  (equal (heap s) hp)
+                  (or (not (isArrayType (obj-type obj)))
+                      (and (consistent-array-object obj hp
+                                                    (instance-class-table s)
+                                                    (array-class-table s))
+                           (or (primitive-type? (array-component-type (obj-type obj)))
+                               (array-content-initialized (array-data obj) (heap-init-map
+                                                                            (aux s)))))))
+             (<a href="../consistent-state.lisp.html">consistent-state</a>  (state-set-heap 
+                                 (bind (len hp)
+                                       obj hp) s)))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable state-set-heap)))))
+</pre>
+  </body>
+</html>

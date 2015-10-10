@@ -1,0 +1,7 @@
+#!/bin/csh
+set base=`pwd`
+setenv PATH      ${PATH}:${base}/bin
+setenv CFPARSE_HOME ${base}/lib/CFParse
+setenv CLASSPATH .:${base}/lib/CFParse/cfparse.jar:${base}/lib/jvm2acl2:${base}/data/benchmark/scimark2
+
+

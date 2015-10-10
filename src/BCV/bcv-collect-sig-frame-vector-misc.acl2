@@ -1,0 +1,2 @@
+(ld "../BCV/bcv.pkg")
+(certify-book "bcv-collect-sig-frame-vector-misc" 5 t :skip-proofs-okp t)

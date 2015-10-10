@@ -1,0 +1,213 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>bcv-is-suffix-facts.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"BCV"</span>)
+(include-book <span class="string"><a href="typechecker.lisp.html">"typechecker"</a></span>)
+(include-book <span class="string"><a href="typechecker-ext.lisp.html">"typechecker-ext"</a></span>)
+(include-book <span class="string"><a href="typechecker-simple.lisp.html">"typechecker-simple"</a></span>)
+(include-book <span class="string"><a href="bcv-base.lisp.html">"bcv-base"</a></span>)
+
+<span class="comment">;;(i-am-here) ;; Sat Dec 31 02:24:36 2005
+</span>
+(defthm is-suffix-facts
+  (implies (IS-SUFFIX (LIST* MERGEDCODE1 any) mergedcode)
+           (is-suffix any mergedcode))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+(defthm is-suffix-facts-member
+  (implies (IS-SUFFIX (LIST* MERGEDCODE1 any) mergedcode)
+           (member mergedcode1 mergedcode))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+
+<span class="comment">;; (defthm is-suffix-implies-next-inst
+;;    (implies  (IS-SUFFIX (LIST* frame <a href="../DJVM/INST/inst.lisp.html">inst</a> rest) mergedcode)
+;;              (equal (next-inst frame mergedcode)
+;;                     <a href="../DJVM/INST/inst.lisp.html">inst</a>))
+;;    :hints (("Goal" :do-not '(generalize)
+;;             :expand (IS-SUFFIX (LIST* frame <a href="../DJVM/INST/inst.lisp.html">inst</a> rest) mergedcode))))
+;; ;; this is not true!!! 
+</span>
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(local 
+ (defthm next-inst-append
+   (implies (not (member <a href="../DJVM/INST/inst.lisp.html">inst</a> prefix))
+            (equal (next-<a href="../DJVM/INST/inst.lisp.html">inst</a> <a href="../DJVM/INST/inst.lisp.html">inst</a> (append prefix suffix))
+                   (next-<a href="../DJVM/INST/inst.lisp.html">inst</a> <a href="../DJVM/INST/inst.lisp.html">inst</a> suffix)))))
+
+<span class="comment">;;;
+;;; list with duplicates!! 
+;;;
+</span>
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;; (i-am-here) ;; Sun Jan  1 19:21:02 2006
+</span>
+(defthm pc-wff-mergedcode1-equal-pc
+  (implies (and (pc-wff-mergedcode1 pc mergedcode)
+                (consp mergedcode)
+                (not (isEnd (car mergedcode))))
+           (equal (instrOffset (car (extract-code mergedcode))) pc))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize fertilize)
+           <span class="builtin">:in-theory</span> (disable instructionIsTypeSafe
+                               instructionSatisfiesHandlers
+                               instrOffset
+                               sig-do-inst
+                               allinstructions
+                               isEnd
+                               mapFrame
+                               jvm::inst-size
+                               getMap mapOffset
+                               frameIsAssignable
+                               isInstruction
+                               isStackMap))))
+
+
+(defthm is-suffix-pc-equal
+  (implies (and (IS-SUFFIX (LIST* MERGEDCODE1 mergedcode4) mergedcode)
+                (isStackMap mergedcode1)
+                (pc-wff-mergedcode1 pc  mergedcode))
+           (equal (instrOffset (car (extract-code mergedcode4)))
+                  (mapOffset (getMap mergedcode1))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize fertilize)
+           <span class="builtin">:in-theory</span> (disable instructionIsTypeSafe
+                               instructionSatisfiesHandlers
+                               instrOffset
+                               sig-do-inst
+                               allinstructions
+                               isEnd
+                               mapFrame
+                               jvm::inst-size
+                               getMap mapOffset
+                               frameIsAssignable
+                               isInstruction
+                               isStackMap))))
+
+
+
+
+                  
+(defthm pc-wff-mergedcode1-implies-wff-merged-code-instr
+  (implies (pc-wff-mergedcode1 pc mergedcode)
+           (wff-mergedcode-instr mergedcode))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isInstruction isStackMap
+                                      isEnd
+                                      jvm::inst-size)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+(defthm is-suffix-extract-code-is-consp-lemma
+  (implies (and (wff-mergedcode-instr mergedcode)
+                (IS-SUFFIX (LIST* MERGEDCODE1 mergedcode4) mergedcode)
+                (isStackMap mergedcode1))
+           (consp (extract-code mergedcode4)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize fertilize)
+           <span class="builtin">:in-theory</span> (disable instructionIsTypeSafe
+                               instructionSatisfiesHandlers
+                               instrOffset
+                               sig-do-inst
+                               allinstructions
+                               isEnd
+                               mapFrame
+                               jvm::inst-size
+                               getMap mapOffset
+                               frameIsAssignable
+                               isInstruction
+                               isStackMap)))
+    <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+(defthm is-suffix-not-end
+  (implies (and (IS-SUFFIX (LIST* MERGEDCODE1 mergedcode4) mergedcode)
+                (wff-merged-code-weak mergedcode)
+                (isStackMap mergedcode1))
+           (not (isEnd (car mergedcode))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isInstruction isStackMap
+                                      isEnd
+                                      jvm::inst-size)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+
+(defthm isInstruction-car-extract-code-x
+  (implies (consp (extract-code mergedcode))
+           (isInstruction (car (extract-code mergedcode))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize fertilize)
+           <span class="builtin">:in-theory</span> (disable instructionIsTypeSafe
+                               instructionSatisfiesHandlers
+                               instrOffset
+                               sig-do-inst
+                               allinstructions
+                               isEnd
+                               mapFrame
+                               jvm::inst-size
+                               getMap mapOffset
+                               frameIsAssignable
+                               isInstruction
+                               isStackMap)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+                          
+(defthm is-suffix-extract-code-is-code
+  (implies (and (IS-SUFFIX (LIST* MERGEDCODE1 mergedcode4) mergedcode)
+                (isStackMap mergedcode1)
+                (pc-wff-mergedcode1 pc mergedcode))
+           (isInstruction (car (extract-code mergedcode4))))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+(defthm is-suffix-extract-code-is-consp
+  (implies (and (IS-SUFFIX (LIST* MERGEDCODE1 mergedcode4) mergedcode)
+                (isStackMap mergedcode1)
+                (pc-wff-mergedcode1 pc mergedcode))
+           (consp (extract-code mergedcode4)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span></pre>
+  </body>
+</html>

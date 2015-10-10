@@ -1,0 +1,262 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>djvm-type-value.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(acl2::set-verify-guards-eagerness 2)
+(include-book <span class="string"><a href="../M6-DJVM-shared/jvm-type-value.lisp.html">"../M6-DJVM-shared/jvm-type-value"</a></span>)
+(include-book <span class="string"><a href="../M6-DJVM-shared/jvm-class-table.lisp.html">"../M6-DJVM-shared/jvm-class-table"</a></span>)
+(include-book <span class="string"><a href="../M6-DJVM-shared/jvm-obj.lisp.html">"../M6-DJVM-shared/jvm-obj"</a></span>)
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">wff-tagged-value</span> (tagged-value)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:verify-guards</span> t))
+  (and (consp tagged-value)
+       (equal (len tagged-value) 1))) 
+
+(<span class="keyword">defun</span> <span class="function-name">tag-of</span> (tagged-value)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-tagged-value tagged-value)))
+  (car tagged-value)) 
+
+(<span class="keyword">defun</span> <span class="function-name">value-of</span> (tagged-value)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-tagged-value tagged-value)))
+  (cdr tagged-value))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;; Need a reference type predicate: 
+</span>(<span class="keyword">defun</span> <span class="function-name">wff-REFp</span> (ref)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:verify-guards</span> t))
+  <span class="comment">;; when we assert globally syntax correct.  we need assert wff-tagged-value
+</span>  <span class="comment">;; and appropriate wff-REFp like predicate.
+</span>  (and (wff-tagged-value ref)
+       (equal (tag-of ref) 'REF)
+       (integerp (value-of ref))))
+       <span class="comment">;; we probably do not to assert (integerp (value-of ref))
+</span>       <span class="comment">;; because we never only use those as key into heap. 
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">rREF</span> (ref)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-REFp ref)))
+  <span class="comment">;; make sure it is only called after we can establish ref is a wff-REFp
+</span>  (cdr ref))
+
+<span class="comment">;; only called on wff-REFp
+</span>
+(<span class="keyword">defun</span> <span class="function-name">NULLp</span> (ref)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:verify-guards</span> t))
+  (and (wff-REFp ref)
+       (equal (rREF ref) -1)))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;; (defun wff-Heap (hp)
+;;   (declare (xargs :verify-guards t))
+;;   (alistp hp)) ;; minium requirement 
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">Valid-REFp</span> (ref hp)
+  <span class="comment">;; somethin about consistency
+</span>  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-Heap hp)))
+  (and (wff-REFp ref)
+       (bound? (rREF ref) hp)))
+
+<span class="comment">;; Note: We do not assert objected at (rREF ref) is a valid object. 
+;; Because that would cause mutual recurision. 
+;; We will be relying on the fact that every object in the heap is a
+;; valid-object (valid-object means its reference valued fields are REFp)
+</span>
+(<span class="keyword">defun</span> <span class="function-name">REFp</span> (ref hp)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-Heap hp)))
+  <span class="comment">;; more semantic REF bounded! 
+</span>  (or (NULLp ref)
+      (Valid-REFp ref hp)))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">wff-INT</span> (tagged-value)
+  (and (wff-tagged-value tagged-value)
+       (equal  (tag-of tagged-value) 'INT)
+       (integerp (value-of tagged-value)))) 
+
+
+(<span class="keyword">defun</span> <span class="function-name">Valid-INTp</span> (tagged-value)
+  (and (wff-INT tagged-value)
+       (int32p (value-of tagged-value))))
+
+<span class="comment">;;  int32p defined in primitive.lisp
+</span>
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;; (defun wff-array-type (arraytype)
+;;   (declare (xargs :verify-guards t))
+;;   (and (consp arraytype)
+;;        (equal (car arraytype) 'ARRAY)
+;;        (equal (len arraytype) 2)))
+</span>
+<span class="comment">;; (defun array-component-type (arraytype)
+;;   (declare (xargs :guard (wff-array-type arraytype)))
+;;   (cadr arraytype))
+</span>
+<span class="comment">;; (defun primitive-type (type)
+;;   (declare (xargs :verify-guards t))
+;;   (or (equal type 'INT)
+;;       (equal type 'ADDR) ;; different from jvm's definition. WHY?
+;;       (equal type 'BYTE)
+;;       (equal type 'LONG)
+;;       (equal type 'SHORT)
+;;       (equal type 'CHAR)));; ARRAY-type MAY NEED THIS
+;;                              ;; need to deal with LONG, etc.  
+</span>
+<span class="comment">;; (defun primitive-opvalue-type (type) 
+;;   (declare (xargs :verify-guards t))
+;;    (or (equal type 'INT)
+;;        (equal type 'ADDR)
+;;        (equal type 'LONG)))
+</span>
+
+<span class="comment">;; ;----------------------------------------------------------------------
+</span>
+<span class="comment">;; (mutual-recursion 
+;;  (defun reference-type-s (type cl)
+;;    ;; why reference-type-s should it just be reference-type
+;;    ;; this recursive.
+;;    (declare (xargs :guard (wff-instance-class-table cl)
+;;                    :measure (cons (+ (acl2-count type) 1) 1)))
+;;    (or (equal type 'NULL) ;; never used. ;; we represent NULL with (REF . -1)
+;;        (array-type-s type cl)
+;;        (class-exists? type cl)))
+</span> 
+<span class="comment">;;  (defun array-type-s (type cl)
+;;    (declare (xargs :guard (wff-instance-class-table cl)
+;;                    :measure (cons (+ (acl2-count type) 1) 0)))
+;;    (and (wff-array-type type)
+;;         (or (primitive-type (array-component-type type))
+;;             (reference-type-s (array-component-type type) cl)))))
+</span>
+<span class="comment">;; ;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;; (defun wff-type-desc (type-desc)
+;;   (or (primitive-type type-desc)
+;;       (isClassType type-desc)
+;;       (isArrayType type-desc)))
+;; ;;
+</span>
+<span class="comment">;; (defun classname-classtype (ctype)
+;;   (declare (xargs :guard (isClassType ctype)))
+;;   ctype) ;; FIXED  10/28/03. see above fix for isClassType
+</span>
+<span class="comment">;; (defun compound (x)
+;;   (consp x))
+</span>
+<span class="comment">;; (defun isJavaLangObject (type)
+;;   (equal type '(class  "java.lang.Object")))
+</span>
+<span class="comment">;; ; -- used only on arrayType
+;; (defun component-type (aArrayType)
+;;   (declare (xargs :guard (isArrayType aArrayType)))
+;;   (cadr aArrayType))
+</span>
+
+<span class="comment">;; ;;; from consistent-state.lisp
+</span>
+
+<span class="comment">;; ;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;; (defun ADDRp (v) 
+;;   (integerp v))
+</span>
+<span class="comment">;; (defun CHARp (v)
+;;   ;; temp implementation
+;;   ;; should be 16 bit unsigned integer.
+;;   ;;
+;;   (INT32p v))
+</span>
+<span class="comment">;; (defun jvmBOOLEANp (v)
+;;   ;; temp implementation
+;;   ;; should be 1 bit unsigned integer.
+;;   (INT32p v))
+</span>
+
+<span class="comment">;; (defun SHORTp (v)
+;;   (INT32p v)) ;; Mon May 30 14:40:10 2005
+</span>
+<span class="comment">;; (defun BYTEp (v)
+;;   (INT32p v))
+</span>
+<span class="comment">;; (defun jvmFLOATp (v) 
+;;   (stringp v))
+</span>
+<span class="comment">;; (defun DOUBLEp (v) 
+;;   (stringp v))
+</span>
+
+<span class="comment">;;; moved to jvm-type-value.lisp
+;; ;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">tag</span> (untagged-value field-type)
+  (<span class="keyword">if</span> (primitive-type? field-type)
+      (cons field-type untagged-value)
+    (cons 'REF untagged-value)))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">deref2</span> (ref hp)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-Heap hp)
+                              (Valid-REFp ref hp))))
+  <span class="comment">;; never deref2 a non pointer. 
+</span>  <span class="comment">;; ensure our owm implementation is right. 
+</span>              
+  (binding (rREF ref) hp))
+
+</pre>
+  </body>
+</html>

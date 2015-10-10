@@ -1,0 +1,212 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>m6-static-initializer.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"M6"</span>)
+(include-book <span class="string"><a href="m6-state.lisp.html">"../M6/m6-state"</a></span>)
+(include-book <span class="string"><a href="m6-class-table.lisp.html">"../M6/m6-class-table"</a></span>)
+(include-book <span class="string"><a href="m6-verifier.lisp.html">"../M6/m6-verifier"</a></span>)
+(include-book <span class="string"><a href="m6-frame-manipulation-primitives.lisp.html">"../M6/m6-frame-manipulation-primitives"</a></span>)
+(include-book <span class="string"><a href="m6-linker.lisp.html">"../M6/m6-linker"</a></span>)
+(include-book <span class="string"><a href="m6-monitor-failure-as-fatalError.lisp.html">"../M6/m6-monitor-failure-as-fatalError"</a></span>)
+
+<span class="comment">;; assume class is loaded 
+;;
+;; need to hijack the class initialization of java.lang.System? 
+;; or make every method in it Native??
+;; thus no complicated initialization .
+;; chose to latter. easier.
+;;
+;; need to dealing with IO, add more entry into the ENV
+;; 
+</span>(<span class="keyword">defun</span> <span class="function-name">initializeClass1</span> (classname s)
+  (<span class="keyword">let</span> ((class-rep (class-by-name classname (instance-class-table s))))
+    (<span class="keyword">if</span> (class-rep-in-error-state? class-rep) <span class="comment">;; loading error may exists, 
+</span>        s  <span class="comment">;; loading error should set the flag to be class_error.
+</span>      (<span class="keyword">if</span> (not (class-rep-verified? class-rep))
+          (<span class="keyword">let</span> ((new-state (verify-class class-rep s)))
+            (<span class="keyword">if</span> (not (no-fatal-error? new-state))
+                new-state
+              <span class="comment">;; fake a call to Class.runCustomCode to invoke runClinit
+</span>              (<span class="keyword">let*</span> ((s1 (pushFrame (RunCustomCode-method-ptr) nil new-state))
+                     (s2 (pushStack (make-callback-func-ptr '*runClinit*) s1))
+                     (s3 (pushStack 1 s2)))
+                s3)))
+        (<span class="keyword">let*</span> ((s1 (pushFrame (RunCustomCode-method-ptr) nil s))
+               (s2 (pushStack (make-callback-func-ptr '*runClinit*) s1))
+               (s3 (pushStack classname s2))
+               (s4 (pushStack 1 s3)))
+          s4)))))
+
+
+<span class="comment">;; if anything went wrong with load_class, class-rep should be in an
+;; error-state.
+</span>(<span class="keyword">defun</span> <span class="function-name">initializeClass</span> (classname s)
+  (<span class="keyword">if</span> (class-loaded? classname s)
+      (initializeClass1 classname s)
+    (initializeClass1 classname (load_class classname s))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">runClinit6</span> (classname s)
+  (prog2$ (acl2::debug-print <span class="string">"Class initialization in stage ~p0~%"</span> 6)
+  (<span class="keyword">let*</span> ((s1 (setClassInitialThread classname -1 s))<span class="comment">;; indicate no thread is
+</span>                                                    <span class="comment">;; initializing the object
+</span>        (s2 (setClassStatus classname 'class_ready s1)))
+    (mv-let  (mstatus s3)
+             (classMonitorNotifyX classname 'ALL s2)
+             (<span class="keyword">declare</span> (ignore mstatus))
+             (mv-let (monitorStatus exception-name s4)
+                     (classMonitorExitX classname s3)
+                     (<span class="keyword">declare</span> (ignore monitorStatus exception-name))
+                     (popFrame s4))))))  <span class="comment">;; KVM doesn't implement this correctly.
+</span>
+<span class="comment">;; popFrame. 
+</span>
+<span class="comment">;; If exception is thrown, then it is not handled as described in the JVM
+;; specification 2.17.5 (10-11) but the class will be in an error state, we
+;; will detect it through this.
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">set-clinit-stage</span> (th stage s)
+  (<span class="keyword">let</span> ((cid (current-thread s)))
+    (state-set-current-thread 
+       cid 
+       (pushStack stage (popStack (state-set-current-thread th s))))))                  
+
+<span class="comment">;; "don't" means that "we chose not to" 
+</span>
+<span class="comment">;; don't implement the short cut, always grab the monitor.
+</span>(<span class="keyword">defun</span> <span class="function-name">runClinit5</span> (classname s)
+  (<span class="keyword">let</span> ((cid (current-thread s)))
+    (prog2$ (acl2::debug-print <span class="string">"Class initialization in stage ~p0~%"</span> 5)
+            (mv-let (mstatus new-s)
+                    (classMonitorEnterX classname s)
+                    (<span class="keyword">if</span> (not (equal mstatus 'JVM::MonitorStatusOwn))
+                        (set-clinit-stage cid 6 new-s)
+                      (runClinit6 classname new-s))))))
+
+<span class="comment">;; don't deal with resource limitations.
+</span>
+(<span class="keyword">defun</span> <span class="function-name">runClinit4</span> (classname s)
+  (prog2$ (acl2::debug-print <span class="string">"Class initialization in stage ~p0~%"</span> 4)
+  (<span class="keyword">let*</span> ((clinitMethod-ptr (clinitMethod-ptr classname))
+         (thisMethod       (getSpecialMethod clinitMethod-ptr s)))
+    (<span class="keyword">if</span> (not (equal thisMethod nil))
+        (pushFrame clinitMethod-ptr nil 
+                   (set-clinit-stage (current-thread s) 5 s))
+      <span class="comment">;; assuming no stack overflow while pushing frame
+</span>      (runClinit5 classname s))))) <span class="comment">;; fall through
+</span>
+
+
+(<span class="keyword">defun</span> <span class="function-name">runClinit3</span> (classname s)
+  (prog2$ (acl2::debug-print <span class="string">"Class initialization in stage ~p0~%"</span> 3)
+   (<span class="keyword">let</span> ((class-rep (class-by-name classname (instance-class-table s)))
+         (cid (current-thread s)))
+     (<span class="keyword">if</span> (not (isInterface class-rep))
+         (<span class="keyword">if</span> (and (super-exists class-rep)
+                  (not (class-initialized? (super class-rep) s)))
+             (initializeClass (super class-rep) 
+                              (set-clinit-stage cid 4 s))
+           (runClinit4 classname s))
+       (runClinit4 classname s)))))
+       
+
+<span class="comment">;; in state 2 we always have monitor.
+;; invariant current-thread has the monitor.
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">runClinit2</span> (classname s)
+  (prog2$ (acl2::debug-print <span class="string">"Class initialization in stage ~p0~%"</span> 2)
+  (<span class="keyword">let*</span> ((class-rep (class-by-name classname (instance-class-table s)))
+         (initThread (init-thread-id class-rep))
+         (cid (current-thread s)))
+    (<span class="keyword">cond</span> ((and (not (equal initThread -1))
+                (not (equal initThread (current-thread s))))
+           (<span class="keyword">let</span> ((new-s (classMonitorWaitX classname s)))
+                 <span class="comment">;; yield the monitor and wait, when return has monitor again.
+</span>             (set-clinit-stage cid 2 new-s)))
+          ((or (equal initThread (current-thread s))
+               (class-initialized? classname s))
+           (mv-let (mstatus exception-name new-state)
+                   (classMonitorExitX classname s)
+                   (<span class="keyword">declare</span> (ignore mstatus exception-name))
+                   (popFrame new-state)))
+          ((class-rep-in-error-state? class-rep)
+           (fatalError <span class="string">"bad-class-state"</span> s))
+          (t (<span class="keyword">let</span> ((s-start-init (setClassInitialThread classname
+                                                        (current-thread s) s)))
+               (mv-let (mstatus exception-name s-new)
+                       (classMonitorExitX classname s-start-init)
+                       (<span class="keyword">declare</span> (ignore mstatus exception-name))
+                       (runClinit3 classname s-new))))))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">runClinit1</span> (classname s)
+  (<span class="keyword">let</span> ((cid (current-thread s)))
+    (prog2$ (acl2::debug-print <span class="string">"Class initialization in stage ~p0~%"</span> 1)
+            (mv-let (mstatus new-s)
+                    (classMonitorEnterX classname s)
+                    (<span class="keyword">if</span> (not (equal mstatus 'MonitorStatusOwn))
+                        (set-clinit-stage cid 2 s)
+                      (runClinit2 classname new-s))))))
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">runClinit</span> (s) <span class="comment">;; put up top element to see which stage it is in.
+</span>  (<span class="keyword">let</span> ((st (topStack s))
+        (classname (secondStack s)))
+    (<span class="keyword">cond</span> ((equal st  1) (runClinit1 classname s))
+          ((equal st 2)  (runClinit2 classname s))
+          ((equal st 3)  (runClinit3 classname s))
+          ((equal st 4)  (runClinit4 classname s))
+          ((equal st 5)  (runClinit5 classname s))
+          ((equal st 6)  (runClinit5 classname s))
+          (t (fatalError <span class="string">"static-initializer-failed"</span> s)))))
+
+
+
+
+
+
+
+</pre>
+  </body>
+</html>

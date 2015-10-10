@@ -1,0 +1,2 @@
+(ld "../BCV/bcv.pkg")
+(certify-book "bcv-next-stackframe-equal-suffix-suffix" 5 t :skip-proofs-okp t)

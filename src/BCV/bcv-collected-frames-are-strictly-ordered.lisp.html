@@ -1,0 +1,375 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>bcv-collected-frames-are-strictly-ordered.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"BCV"</span>)
+(include-book <span class="string"><a href="typechecker.lisp.html">"typechecker"</a></span>)
+(include-book <span class="string"><a href="typechecker-ext.lisp.html">"typechecker-ext"</a></span>)
+(include-book <span class="string"><a href="typechecker-simple.lisp.html">"typechecker-simple"</a></span>)
+(include-book <span class="string"><a href="bcv-base.lisp.html">"bcv-base"</a></span>)
+
+
+
+(defthm extract-frame-pc-subset-extract-pc
+  (implies (member pc (extract-frame-pc 
+                       (collect-sig-frame-vector env mergedcode stackmap)))
+           (member pc (extract-pc (extract-code mergedcode))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable instructionIsTypeSafe
+                                      instructionSatisfiesHandlers
+                                      instrOffset
+                                      jvm::inst-size
+                                      next-pc
+                                      sig-do-inst
+                                      isstackmap
+                                      makestackmap
+                                      allinstructions
+                                      isEnd
+                                      mapFrame
+                                      getMap 
+                                      mapOffset
+                                      frameIsAssignable
+                                      isInstruction
+                                      isStackMap))))
+
+<span class="comment">;;;
+;;; need a good library of is-suffix and is-subsequence 
+;;;
+</span>
+<span class="comment">;; (defthm ordered-implies-ordered2 
+;;   (iff  (ordered l)
+;;         (ordered2 l)))
+</span>
+(defthm subsetp-extract-code-l
+  (subsetp (extract-code l) l))
+
+
+(defthm member-x-member-extract-pc
+  (implies (and (member x (extract-pc l1))
+                (subsetp l1 l2)
+                (wff-merged-code-weak l2))
+           (member x (extract-pc l2))))
+
+
+(defthm subsetp-cdr-subsetp
+  (implies (subsetp l1 l2)
+           (subsetp (cdr l1) l2)))
+
+(defthm member-x-mermber-extract-pc
+  (implies (and (member x l)
+                (isInstruction x)
+                (wff-merged-code-weak l))
+           (member (instrOffset x) (extract-pc l)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+           <span class="builtin">:in-theory</span> (disable isInstruction isStackMap
+                               isEnd instrOffset
+                               mapOffset))))
+
+
+(defthm member-x-mermber-extract-pc-2
+  (implies (and (member x l)
+                (isStackMap x)
+                (wff-merged-code-weak l))
+           (member (mapOffset (getMap x)) (extract-pc l)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+           <span class="builtin">:in-theory</span> (disable isInstruction isStackMap
+                               isEnd instrOffset
+                               getMap
+                               mapOffset))))
+
+(defthm subsetp-subsetp-extract-pc
+  (implies (and (subsetp l1 l2)
+                (wff-merged-code-weak l2))
+           (subsetp (extract-pc l1) (extract-pc l2)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isInstruction isStackMap
+                                      isEnd instrOffset getMap
+                                      mapOffset)
+           <span class="builtin">:do-not</span> '(generalize))))
+
+
+(defthm all-no-less-than-subsetp
+  (implies (and (all-no-less-than x s2)
+                (subsetp s1 s2))
+           (all-no-less-than x s1)))
+
+(defthm all-no-less-than-all-no-less-than
+  (implies (and (all-no-less-than y l)
+                (&lt; x y))
+           (all-no-less-than x l)))
+
+
+(defthm pc-wff-mergedcode1-all-no-less
+  (implies (pc-wff-mergedcode1 pc mergedcode)
+           (all-no-less-than pc (extract-pc mergedcode)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+           <span class="builtin">:in-theory</span> (disable isInstruction isStackMap
+                               isEnd getMap instrOffset
+                               mapOffset
+                               jvm::inst-size))))
+<span class="comment">;; above not necessary!! 
+</span>
+(defthm pc-wff-mergedcode1-ordered-pc
+  (implies (pc-wff-mergedcode1 pc mergedcode)
+           (ordered (extract-pc mergedcode)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+           <span class="builtin">:in-theory</span> (disable isInstruction isStackMap
+                                      isEnd getMap instrOffset
+                                      mapOffset
+                                      jvm::inst-size))))
+
+
+<span class="comment">;; (skip-proofs 
+;;  (defthm pc-wff-mergedcode1-ordered-pc-2
+;;    (implies (pc-wff-mergedcode1 pc mergedcode)
+;;             (ordered2 (extract-pc mergedcode)))
+;;    :hints (("Goal" :in-theory (disable isInstruction isStackMap
+;;                                        isEnd
+;;                                        jvm::inst-size)))
+;;    :rule-classes :forward-chaining))
+</span>
+                 
+                 
+
+
+
+<span class="comment">;; (defthm ordered-ordered-extract-code
+;;   (implies (ordered2 (extract-pc l))
+;;            (ordered2 (extract-pc (extract-code l))))
+;;   :hints (("Goal" :in-theory (disable isInstruction isStackMap 
+;;                                       instrOffset)
+;;            :do-not '(generalize))))
+</span>                                      
+
+(defthm all-strictly-less-if-less-than-first-orderred
+  (implies (and (ordered l)
+                (&lt; pc (car l)))
+           (all-strictly-less-than pc l)))
+
+
+(defthm pc-wff-mergedcode1-isInstruction-then-next-pc-is-greater-lemma
+   (implies (and (pc-wff-mergedcode1 pc mergedcode)
+                 (consp mergedcode)
+                (isInstruction (car mergedcode)))
+           (all-strictly-less-than pc (extract-pc (cdr mergedcode))))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+             <span class="builtin">:do-not-induct</span> t
+             <span class="builtin">:use</span> ((<span class="builtin">:instance</span> all-strictly-less-if-less-than-first-orderred
+                              (l (extract-pc (cdr mergedcode)))))
+             <span class="builtin">:in-theory</span> (disable instructionIsTypeSafe
+                                 instructionSatisfiesHandlers
+                                 instrOffset
+                                 <span class="comment">;;ordered-implies-ordered2 
+</span>                                 all-strictly-less-if-less-than-first-orderred
+                                 pc-wff-mergedcode1-ordered-pc
+                                 jvm::inst-size
+                                 next-pc
+                                 sig-do-inst
+                                 isstackmap
+                                 makestackmap
+                                 allinstructions
+                                 isEnd
+                                 mapFrame
+                                 getMap 
+                                 mapOffset
+                                 frameIsAssignable
+                                 isInstruction
+                                 isStackMap))
+            (<span class="string">"Subgoal 2"</span> <span class="builtin">:use</span> ((<span class="builtin">:instance</span> pc-wff-mergedcode1-ordered-pc
+                                          (pc (+ (JVM::INST-SIZE (car MERGEDCODE))
+                                                 (INSTROFFSET (car MERGEDCODE))))
+                                          (mergedcode (cdr mergedcode)))))
+            (<span class="string">"Subgoal 1"</span> <span class="builtin">:expand</span> (PC-WFF-MERGEDCODE1 (+ (JVM::INST-SIZE MERGEDCODE1)
+                                                        (INSTROFFSET MERGEDCODE1))
+                                                     MERGEDCODE2))))
+        
+
+
+(defthm all-strictly-less-than-subsetp
+  (implies (and (all-strictly-less-than x s2)
+                (subsetp s1 s2))
+           (all-strictly-less-than x s1)))
+
+
+
+(defthm pc-wff-mergedcode1-isInstruction-then-next-pc-is-greater
+   (implies (and (pc-wff-mergedcode1 pc mergedcode)
+                 (consp mergedcode)
+                 (isInstruction (car mergedcode)))
+           (all-strictly-less-than (instroffset (car mergedcode))
+                                   (extract-pc (extract-code (cdr mergedcode)))))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+             <span class="builtin">:do-not-induct</span> t
+             <span class="builtin">:in-theory</span> (disable instructionIsTypeSafe
+                                 instructionSatisfiesHandlers
+                                 instrOffset
+                                 <span class="comment">;;ordered-implies-ordered2 
+</span>                                 all-strictly-less-if-less-than-first-orderred
+                                 pc-wff-mergedcode1-ordered-pc
+                                 jvm::inst-size
+                                 next-pc
+                                 sig-do-inst
+                                 isstackmap
+                                 makestackmap
+                                 allinstructions
+                                 isEnd
+                                 mapFrame
+                                 getMap 
+                                 mapOffset
+                                 frameIsAssignable
+                                 isInstruction
+                                 isStackMap)
+             <span class="builtin">:use</span> ((<span class="builtin">:instance</span> all-strictly-less-than-subsetp
+                              (s2 (extract-pc (cdr mergedcode)))
+                              (s1 (extract-pc (extract-code (cdr mergedcode))))
+                              (x pc))))))
+
+
+(defthm pc-wff-mergedcode1-isInstruction-then-next-pc-is-greater-specific
+   (implies (and (PC-WFF-MERGEDCODE1 (+ (JVM::INST-SIZE MERGEDCODE1)
+                                        (INSTROFFSET MERGEDCODE1))
+                                     MERGEDCODE2)
+                 (&lt;= 1  (JVM::INST-SIZE MERGEDCODE1))
+                 (isInstruction mergedcode1))
+           (all-strictly-less-than (instroffset mergedcode1)
+                                   (extract-pc (extract-code mergedcode2))))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+             <span class="builtin">:do-not-induct</span> t
+             <span class="builtin">:in-theory</span> (disable instructionIsTypeSafe
+                                 instructionSatisfiesHandlers
+                                 instrOffset
+                                 <span class="comment">;;ordered-implies-ordered2 
+</span>                                 all-strictly-less-if-less-than-first-orderred
+                                 pc-wff-mergedcode1-ordered-pc
+                                 jvm::inst-size
+                                 next-pc
+                                 sig-do-inst
+                                 isstackmap
+                                 makestackmap
+                                 allinstructions
+                                 isEnd
+                                 mapFrame
+                                 getMap 
+                                 mapOffset
+                                 frameIsAssignable
+                                 isInstruction
+                                 isStackMap)
+             <span class="builtin">:use</span> ((<span class="builtin">:instance</span>
+                    pc-wff-mergedcode1-isInstruction-then-next-pc-is-greater
+                    (pc (instrOffset mergedcode1))
+                    (mergedcode (cons mergedcode1
+                                      mergedcode2)))))))
+
+
+(defthm subset-cons
+  (implies (subsetp x l)
+           (subsetp x (cons y l))))
+
+
+(defthm subsetp-extract-frame-pc-subset-pc
+  (subsetp (extract-frame-pc (collect-sig-frame-vector env mergedcode frame))
+           (extract-pc (extract-code mergedcode)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+           <span class="builtin">:in-theory</span> (disable instructionIsTypeSafe
+                               instructionSatisfiesHandlers
+                               instrOffset
+                               jvm::inst-size
+                               next-pc
+                               sig-do-inst
+                               isstackmap
+                               makestackmap
+                               allinstructions
+                               isEnd
+                               mapFrame
+                               getMap 
+                               mapOffset
+                               frameIsAssignable
+                               isInstruction
+                               isStackMap))))
+
+
+<span class="comment">;;; no need to go through these troubles!!! 
+</span>
+(defthm all-strictly-less-than-subsetp-specific
+  (implies (all-strictly-less-than x (extract-pc (extract-code mergedcode)))
+           (all-strictly-less-than x (extract-frame-pc
+                                      (collect-sig-frame-vector env mergedcode
+                                                                init-frame))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable extract-frame-pc extract-pc extract-code
+                                      all-strictly-less-than collect-sig-frame-vector))))
+        
+
+(defthm pc-wff-mergedcode1-pc-wff-merged-code1
+  (implies (and (PC-WFF-MERGEDCODE1 pc MERGEDCODE2)
+                (case-split (not (isEnd (car mergedcode2)))))
+           (pc-wff-mergedcode1 (next-pc mergedcode2) mergedcode2))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable isInstruction instrOffset
+                                      isStackMap mapOffset
+                                      jvm::inst-size
+                                      isEnd)
+           <span class="builtin">:do-not</span> '(generalize))))
+
+
+(defthm collect-sig-frame-vector-return-ordered-list
+  (implies (pc-wff-mergedcode1 (next-pc mergedcode) mergedcode)
+           (strictly-ordered (extract-frame-pc 
+                              (collect-sig-frame-vector env
+                                                        mergedcode init-frame))))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+           <span class="builtin">:in-theory</span> (disable instructionIsTypeSafe
+                               instructionSatisfiesHandlers
+                               instrOffset
+                               jvm::inst-size
+                               next-pc
+                               sig-do-inst
+                               isstackmap
+                               makestackmap
+                               allinstructions
+                               isEnd
+                               mapFrame
+                               getMap 
+                               mapOffset
+                               frameIsAssignable
+                               isInstruction
+                               isStackMap)
+           <span class="builtin">:induct</span> (collect-sig-frame-vector env mergedcode init-frame))))
+
+
+</pre>
+  </body>
+</html>

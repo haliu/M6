@@ -1,0 +1,102 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>wff-data-structure.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"JVM"</span>)
+(include-book <span class="string"><a href="jvm-state.lisp.html">"../M6-DJVM-shared/jvm-state"</a></span>)
+(include-book <span class="string"><a href="jvm-thread.lisp.html">"../M6-DJVM-shared/jvm-thread"</a></span>)
+(include-book <span class="string"><a href="jvm-frame-manipulation-primitives.lisp.html">"../M6-DJVM-shared/jvm-frame-manipulation-primitives"</a></span>)
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">wff-method-ptr-regular</span> (method-ptr)
+  (and (wff-method-ptr method-ptr)
+       (equal (make-method-ptr (method-ptr-classname method-ptr)
+                               (method-ptr-methodname method-ptr) 
+                               (method-ptr-args-type  method-ptr)
+                               (method-ptr-returntype method-ptr))
+              method-ptr)))
+
+(<span class="keyword">defun</span> <span class="function-name">wff-call-frame-regular</span> (frame)
+  (and (wff-call-frame frame)
+       (equal (make-frame (return-pc frame)
+                          (operand-stack frame)
+                          (locals frame)
+                          (method-ptr frame)
+                          (sync-obj-ref frame)
+                          (resume-pc frame)
+                          (frame-aux frame))
+              frame)))
+
+(<span class="keyword">defun</span> <span class="function-name">wff-call-stack-regular</span> (cs)
+  (wff-call-stack cs))
+
+(<span class="keyword">defun</span> <span class="function-name">wff-thread-regular</span> (thread)
+  (and (wff-thread thread)
+       (equal (make-thread (thread-id thread)
+                           (thread-saved-pc thread)
+                           (thread-call-stack thread)
+                           (thread-state thread)
+                           (thread-mref thread)
+                           (thread-mdepth thread)
+                           (thread-ref thread))
+              thread)))
+
+(<span class="keyword">defun</span> <span class="function-name">wff-thread-table-regular</span> (thread-table)
+  (<span class="keyword">if</span> (not (consp thread-table)) t
+    (and (wff-thread-regular (car thread-table))
+         (wff-thread-table-regular (cdr thread-table)))))
+
+(<span class="keyword">defun</span> <span class="function-name">wff-state-regular</span> (s)
+  (and (wff-state s)
+       (equal (make-state (pc s)
+                          (current-thread s)
+                          (heap s)
+                          (thread-table s)
+                          (class-table s)
+                          (env s)
+                          (error-flag s)
+                          (aux s))
+              s)))
+
+<span class="comment">;----------------------------------------------------------------------
+</span></pre>
+  </body>
+</html>

@@ -1,0 +1,284 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>djvm-is-safe.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+<span class="comment">;------------------------------------------------------
+; proof shows that DJVM in fact "safe"
+;
+; 1. Success in "guard verifing" of the DJVM 
+; 2. Execution of DJVM preserves safety
+;
+;-----------------------------------------------------
+</span>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="djvm-simple.lisp.html">"djvm-simple"</a></span>)
+
+<span class="comment">;; step functions 
+;; note here is the simplified version of the run function!
+;;
+;; With this approach, we can only show executions that do not create new call
+;; frame.
+</span>
+
+(defthm all-instrs-wff-implies-wff-insts
+  (implies (all-instrs-wff insts)
+           (wff-insts insts))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable wff-inst))))
+
+(local 
+ (in-theory (union-theories 
+            '(djvm-step
+              natp
+              zp
+              all-instrs-wff-implies-wff-insts
+              consistent-state-strong-implies-consistent-state-f
+              consistent-state-strong-implies-consistent-state-obj-init-f
+              consistent-state-strong-implies-consistent-state-b
+              consistent-state-strong-implies-consistent-state-obj-init-b
+              consistent-state-strong-implied-by-b
+              CONSISTENT-STATE-WFF-STATE
+              ANEWARRAY-guard-implies-execute-ANEWARRAY-perserve-consistency
+              check-ANEWARRAY-implies-guard-succeeds
+              GETFIELD-guard-implies-execute-GETFIELD-perserve-consistency
+              check-GETFIELD-implies-guard-succeeds
+              ASTORE-guard-implies-execute-ASTORE-perserve-consistency
+              check-ASTORE-implies-guard-succeeds
+              ALOAD-guard-implies-execute-ALOAD-perserve-consistency
+              check-ALOAD-implies-guard-succeeds
+              AALOAD-guard-implies-execute-AALOAD-perserve-consistency
+              check-AALOAD-implies-guard-succeeds
+              AASTORE-guard-implies-execute-AASTORE-perserve-consistency
+              check-AASTORE-implies-guard-succeeds
+              ACONST_NULL-guard-implies-execute-ACONST_NULL-perserve-consistency
+              check-ACONST_NULL-implies-guard-succeeds
+              IFEQ-guard-implies-execute-IFEQ-perserve-consistency
+              check-IFEQ-implies-guard-succeeds)
+            (theory 'minimal-theory))))
+
+<span class="comment">;;; this should be generated!! 
+;;;
+;;; notice this consistency does not assert the execution matches up with 
+;;; BCV execution!! 
+;;; 
+</span>
+(defthm djvm-step-preserve-consistent-state
+  (implies (<a href="../DJVM/consistent-state-strong.lisp.html">consistent-state-strong</a> s)
+           (<a href="../DJVM/consistent-state-strong.lisp.html">consistent-state-strong</a> (djvm-step <a href="../DJVM/INST/inst.lisp.html">inst</a> s))))
+                 
+(local (defthm wff-inst-strong-implies-wff-inst
+         (implies (wff-<a href="../DJVM/INST/inst.lisp.html">inst</a>-strong <a href="../DJVM/INST/inst.lisp.html">inst</a>)
+                  (wff-<a href="../DJVM/INST/inst.lisp.html">inst</a> <a href="../DJVM/INST/inst.lisp.html">inst</a>))
+         <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable wff-inst-strong)))))
+
+(verify-guards djvm-step)
+
+
+<span class="comment">;;;
+;;; this take some time to verify!! 
+;;;
+</span>
+<span class="comment">;;
+;; note need to write program to generate those theorems 
+;; or properly define such theories!! 
+;;
+</span>
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(in-theory (disable djvm-step))
+
+(include-book <span class="string"><a href="djvm-consistent-state-facts.lisp.html">"djvm-consistent-state-facts"</a></span>)
+
+
+(defthm consistent-state-strong-implies-next-inst-guard
+  (implies (<a href="../DJVM/consistent-state-strong.lisp.html">consistent-state-strong</a> jvm::s)
+           (AND
+            (WFF-STATE JVM::S)
+            (CURRENT-FRAME-GUARD JVM::S)
+            (WFF-CALL-FRAME (CURRENT-FRAME JVM::S))
+            (WFF-METHOD-PTR (CURRENT-METHOD-PTR JVM::S))
+            (WFF-CLASS-TABLE (CLASS-TABLE JVM::S))
+            (WFF-INSTANCE-CLASS-TABLE (INSTANCE-CLASS-TABLE JVM::S))
+            (WFF-METHOD-DECL
+             (DEREF-METHOD (CURRENT-METHOD-PTR JVM::S)
+                           (INSTANCE-CLASS-TABLE JVM::S)))
+            (WFF-CODE
+             (METHOD-CODE
+              (DEREF-METHOD (CURRENT-METHOD-PTR JVM::S)
+                            (INSTANCE-CLASS-TABLE JVM::S))))
+            (WFF-INSTS
+             (CODE-INSTRS
+              (METHOD-CODE
+               (DEREF-METHOD (CURRENT-METHOD-PTR JVM::S)
+                             (INSTANCE-CLASS-TABLE JVM::S)))))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../DJVM/consistent-state-strong.lisp.html">consistent-state-strong</a>)
+                                  (wff-state 
+                                   current-frame-guard
+                                   wff-call-frame
+                                   wff-method-ptr
+                                   current-method-ptr
+                                   wff-class-table
+                                   wff-instance-class-table
+                                   wff-method-decl
+                                   wff-code
+                                   method-code
+                                   code-instrs
+                                   wff-insts))))))
+
+
+<span class="comment">;; (skip-proofs 
+;;   (defthm consistent-state-strong-implies-wff-inst-next-inst
+;;     (IMPLIES (CONSISTENT-STATE-STRONG S)
+;;              (WFF-INST (NEXT-INST S)))))
+</span>
+
+
+<span class="comment">;; ;; ;;;; ^^^^^^^^^^^^^^ 
+;; ;; ;;;; this above is difficult!!! 
+;; ;; ;;;; We need to assert that <a href="../DJVM/consistent-state.lisp.html">consistent-state</a> implies not out of bound!!
+;; ;; ;;;; 
+;; ;; ;;;; this will obilge us either change the next-inst to always to return
+;; ;; ;;;; a wff-inst? 
+;; ;; ;;;; ....
+;; ;; ;;;;
+;; ;; ;;;; Or introduce BCV into the <a href="../DJVM/consistent-state.lisp.html">consistent-state</a> itself. 
+;; ;; ;;;; 
+</span>
+
+<span class="comment">;;;; this above is not right!! 
+;;;; 
+;;;; because we don't know that next-inst will be always within bounds!!! 
+;;;;
+;;;; We can only know that if we know that the <a href="../DJVM/consistent-state-strong.lisp.html">consistent-state-strong</a> 
+;;;; asserts something more, such as <a href="../DJVM/consistent-state-bcv-on-track.lisp.html">consistent-state-bcv-on-track</a> !!!! 
+;;;;
+;;;; Even in that case, we need to assert that very first frame
+;;;; has a halt instruction for a state to be a consistent-state...  
+;;;;
+</span>
+<span class="comment">;;;
+;;; Just to assert that one can legally invoke (next-inst st)!!! 
+;;; and invoke (djvm-step (next-inst st)) 
+;;;
+;;; note this above skip-proofs is not true!!  because so far, we have not
+;;; asserted wff-inst-strong for all instructions that contained in method
+;;;
+;;; We can only prove this, when we add all method "verified" to
+;;; <a href="../DJVM/consistent-state.lisp.html">consistent-state</a>
+;;; 
+;;; Our current BCV does not check assert wff-inst-strong, because it accepts
+;;; more instructions!!! 
+;;;
+;;; Tue Oct 25 15:57:23 2005 As a result I need to write a simpler version of
+;;; the BCV that only accept the limit number of instructions!! 
+;;; 
+;;;
+;;; Shall I write a model of the BCV that function like tiny jvm's BCV??? 
+;;;
+;;; suppose this can be proved. by directly assserting <a href="../DJVM/consistent-state.lisp.html">consistent-state</a> that
+;;; all instructions in state is ... 
+;;;
+</span>
+
+
+<span class="comment">;; (skip-proofs 
+;;    (defthm consistent-state-strong-implies-wff-inst-next-inst
+;;      (IMPLIES (and (CONSISTENT-STATE-STRONG S)
+;;               (WFF-INST (NEXT-INST S)))))
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">djvm-simple-run</span> (n s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (natp n)
+                              (<a href="../DJVM/consistent-state-strong.lisp.html">consistent-state-strong</a> s))))
+  (<span class="keyword">if</span> (zp n) s
+    (mylet* ((<a href="../DJVM/INST/inst.lisp.html">inst</a> (next-<a href="../DJVM/INST/inst.lisp.html">inst</a> s))
+             (ns   (djvm-step <a href="../DJVM/INST/inst.lisp.html">inst</a> s)))
+            (<span class="keyword">if</span> (wff-<a href="../DJVM/INST/inst.lisp.html">inst</a> <a href="../DJVM/INST/inst.lisp.html">inst</a>)
+                (djvm-simple-run (- n 1) ns)
+              s))))
+            
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm djvm-simple-run-preserve-consistent-state
+  (implies (<a href="../DJVM/consistent-state-strong.lisp.html">consistent-state-strong</a> s)
+           (<a href="../DJVM/consistent-state-strong.lisp.html">consistent-state-strong</a> (djvm-simple-run n s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable djvm-step <a href="../DJVM/consistent-state-strong.lisp.html">consistent-state-strong</a>))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;;
+;; (defun djvm-simple-run (n program s)
+;;   (declare (xargs :guard (and (natp n)
+;;                               (<a href="../DJVM/consistent-state-strong.lisp.html">consistent-state-strong</a> s)
+;;                               (all-instrs-wff program))))
+;;   (if (zp n) s
+;;     (mylet* ((<a href="../DJVM/INST/inst.lisp.html">inst</a> (<a href="../DJVM/INST/inst.lisp.html">inst</a>-by-offset1 (pc s) program))
+;;              (ns   (djvm-step <a href="../DJVM/INST/inst.lisp.html">inst</a> s)))
+;;             (if (wff-<a href="../DJVM/INST/inst.lisp.html">inst</a>-strong <a href="../DJVM/INST/inst.lisp.html">inst</a>)
+;;                 (djvm-simple-run (- n 1) program ns)
+;;               s))))
+;;      
+;; ;----------------------------------------------------------------------
+</span>      
+
+<span class="comment">;; ;----------------------------------------------------------------------
+</span>
+<span class="comment">;; (defthm djvm-simple-run-preserve-consistent-state
+;;   (implies (<a href="../DJVM/consistent-state-strong.lisp.html">consistent-state-strong</a> s)
+;;            (<a href="../DJVM/consistent-state-strong.lisp.html">consistent-state-strong</a> (djvm-simple-run n program s))))
+</span>
+<span class="comment">;; ;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;; 
+;; need to define a djvm-simple-run so that it read the next instruction 
+;; from the state!! 
+</span>
+
+
+
+
+
+</pre>
+  </body>
+</html>

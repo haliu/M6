@@ -1,0 +1,149 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>jvm-loader-inv.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+<span class="comment">;; this file comes necessary definitions to introduce the class loading
+;; invariant. Which will be introduced in the guard of
+;; build-a-java-visible-instance, and load_class2
+</span>
+(<span class="keyword">in-package</span> <span class="string">"JVM"</span>)
+(include-book <span class="string"><a href="jvm-loader-primitives.lisp.html">"../M6-DJVM-shared/jvm-loader-primitives"</a></span>)
+(include-book <span class="string"><a href="jvm-loader-constant-pool-primitives.lisp.html">"../M6-DJVM-shared/jvm-loader-constant-pool-primitives"</a></span>)
+
+(acl2::set-verify-guards-eagerness 2)
+
+(<span class="keyword">defun</span> <span class="function-name">class-is-loaded?</span> (classname class-table)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (wff-instance-class-table class-table)))
+  (isClassTerm (class-by-name classname class-table)))
+
+<span class="comment">;; now class-is-loaded-from only check that classname, superclass, interfaces
+;; because we only care about the loader's property that if a class is loaded,
+;; its super classes are also loaded.
+;;
+</span>(<span class="keyword">defun</span> <span class="function-name">class-is-loaded-from</span> (class-rep class-rep-static)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-class-rep class-rep)
+                              (wff-class-rep-static class-rep-static))))
+  (and (equal (classname  class-rep) (classname-s  class-rep-static))
+       (equal (super      class-rep) (super-s      class-rep-static))
+       (equal (interfaces class-rep) (interfaces-s class-rep-static))))
+       
+
+               <span class="comment">;(wff-class-rep (class-by-name classname class-table))
+</span>               <span class="comment">;(wff-class-rep (class-by-name classname class-table))
+</span>
+(defthm loaded-from-wff-implies-wff
+  (implies (and (class-is-loaded? classname cl)
+                (wff-instance-class-table-strong cl))
+           (wff-class-rep (class-by-name classname cl))))
+
+
+(defthm loaded-from-wff-implies-wff-static
+  (implies (and (mv-nth 0 (class-by-name-s classname env-cl))
+                (wff-static-class-table-strong env-cl))
+           (wff-class-rep-static (mv-nth 1 (class-by-name-s classname env-cl)))))
+           
+
+(<span class="keyword">defun</span> <span class="function-name">correctly-loaded?</span> (classname class-table env-class-table)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-instance-class-table-strong class-table)
+                              (wff-static-class-table-strong env-class-table))
+                  <span class="builtin">:guard-hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable wff-class-rep 
+                                                            wff-class-rep-static)))))
+  (mv-let (found class-rep-static)
+          (class-by-name-s classname env-class-table)
+          (and found <span class="comment">;; should we move this into the guard??. We can. 
+</span>               (class-is-loaded? classname class-table)
+               (class-is-loaded-from 
+                                 (class-by-name classname class-table) 
+                                 class-rep-static))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">all-correctly-loaded?</span> (supers class-table env-class-table)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-instance-class-table-strong class-table)
+                              (wff-static-class-table-strong env-class-table))))
+  (<span class="keyword">if</span> (not (consp supers))
+      t
+    (and (correctly-loaded? (car supers) class-table env-class-table)
+         (all-correctly-loaded? (cdr supers) class-table env-class-table))))
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">loader-inv-helper1</span> (class-rep class-table env-class-table)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-class-rep class-rep)
+                              (wff-instance-class-table-strong class-table)
+                              (wff-static-class-table-strong env-class-table))))
+  (<span class="keyword">let*</span> ((classname (classname class-rep))
+         (supers    (collect-assignableToName classname env-class-table)))
+    (all-correctly-loaded? supers class-table env-class-table))) 
+
+
+(<span class="keyword">defun</span> <span class="function-name">loader-inv-helper</span> (classes class-table env-class-table)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (wff-instance-class-table-strong classes)
+                              (wff-instance-class-table-strong class-table)
+                              (wff-static-class-table-strong env-class-table))))
+  (<span class="keyword">if</span> (not (consp classes))
+      t
+    (and (loader-inv-helper1 (car classes) class-table env-class-table)
+         (loader-inv-helper (cdr classes) class-table env-class-table))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">loader-inv</span> (s)
+ (and (wff-state s)
+      (wff-class-table (class-table s))
+      (wff-env (env s))
+      (wff-instance-class-table-strong (instance-class-table s))
+      (wff-static-class-table-strong (external-class-table s))
+      (or (not (no-fatal-error? s))
+          (loader-inv-helper (instance-class-table s) (instance-class-table s)
+                             (env-class-table (env s))))))
+  
+
+
+
+
+
+
+
+</pre>
+  </body>
+</html>

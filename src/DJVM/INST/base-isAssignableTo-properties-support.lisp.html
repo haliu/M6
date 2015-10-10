@@ -1,0 +1,261 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-isAssignableTo-properties-support.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+
+(include-book <span class="string"><a href="../consistent-state.lisp.html">"../../DJVM/consistent-state"</a></span>)
+(include-book <span class="string"><a href="../consistent-state-properties.lisp.html">"../../DJVM/consistent-state-properties"</a></span>)
+(include-book <span class="string"><a href="../../M6-DJVM-shared/jvm-object-type-hierachy.lisp.html">"../../M6-DJVM-shared/jvm-object-type-hierachy"</a></span>)
+
+
+(include-book <span class="string"><a href="base-valid-type-s.lisp.html">"base-valid-type-s"</a></span>)
+
+
+
+(local (in-theory (e/d (class-exists? class-loaded? isAssignableTo) 
+                       (<a href="../consistent-state.lisp.html">consistent-state</a> primitive-type?
+                        array-type? obj-type isClassTerm))))
+
+
+
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-consistent-state-class-names-are-string.lisp.html">"base-consistent-state-class-names-are-string"</a></span>))
+  (defthm consistent-state-class-name-is-stringp
+    (implies (and (class-by-name name (instance-class-table s))
+                  (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+             (stringp name))
+    <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+
+(defthm consistent-state-not-bound-null-classname
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (not (CLASS-BY-NAME 'NULL
+                               (INSTANCE-CLASS-TABLE S))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:cases</span> (CLASS-BY-NAME 'NULL
+                               (INSTANCE-CLASS-TABLE S)))))
+
+
+(local (in-theory (disable ISSUPERCLASS1-INVARIANT)))
+
+
+
+(defthm wff-instance-class-table-implies-isClassTerm-equiv
+  (implies (wff-instance-class-table cl)
+           (iff (isClassTerm (class-by-name name cl))
+                (class-by-name name cl)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable isClassTerm wff-class-rep))))
+                
+
+
+(defthm consistent-state-class-by-name-isClassTerm
+   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+            (iff (isClassTerm (class-by-name name (instance-class-table s)))
+                 (class-by-name name (instance-class-table s))))))
+                
+(defthm boot-strap-class-okp-implies-class-bound
+  (implies (boot-strap-class-okp s)
+           (class-by-name <span class="string">"java.lang.Object"</span> 
+                          (instance-class-table s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable boot-strap-class-okp))))
+
+
+
+(defthm consistent-state-implies-java-lang-Object-bound
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (class-by-name <span class="string">"java.lang.Object"</span> 
+                          (instance-class-table s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a>)
+                                  (boot-strap-class-okp
+                                   class-by-name)))))
+
+
+
+
+
+
+
+(local 
+ (defthm
+   class-hierachy-consistent1-class-n-implies-not-java-lang-Object-super-bounded
+   (implies 
+    (and (class-hierachy-consistent1-class-n name cl)
+         (not (equal name <span class="string">"java.lang.Object"</span>)))
+    (class-by-name (super (class-by-name name cl))
+                   cl))))
+
+
+(local 
+ (defthm
+   class-hierachy-consistent1-aux-implies-bounded-class-hierachy-consistent1-class-n
+   (implies (and (class-hierachy-consistent1-aux cl1 cl)
+                 (class-by-name name cl1))
+            (class-hierachy-consistent1-class-n name cl))))
+
+
+(local 
+ (defthm consistent-state-implies-class-hierachy-consistent1-aux
+   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+            (class-hierachy-consistent1-aux (instance-class-table s)
+                                            (instance-class-table s)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a>
+                                      consistent-class-hierachy)))))
+
+
+
+(defthm consistent-state-implies-not-equal-java-lang-Object-super-bounded
+   (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                 (not (equal name <span class="string">"java.lang.Object"</span>))
+                 (class-by-name name (instance-class-table s)))
+            (class-by-name (super (class-by-name name
+                                                 (instance-class-table s)))
+                           (instance-class-table s)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (consistent-class-hierachy)
+                                   (class-hierachy-consistent1-class-n
+                                    <a href="../consistent-state.lisp.html">consistent-state</a>
+                                    isClassTerm))
+            <span class="builtin">:use</span> ((<span class="builtin">:instance</span>
+                   class-hierachy-consistent1-aux-implies-bounded-class-hierachy-consistent1-class-n
+                   (cl1 (instance-class-table s))
+                   (cl (instance-class-table s)))))))
+
+
+(defthm bounded-implies-super-bound
+  (implies (and (NOT (EQUAL TYP1 <span class="string">"java.lang.Object"</span>))
+                (CLASS-BY-NAME TYP1 (INSTANCE-CLASS-TABLE S))
+                (CONSISTENT-STATE S))
+           (class-by-name (super (class-by-name typ1
+                                                (instance-class-table s)))
+                          (instance-class-table s))))
+
+
+
+
+
+(defthm consistent-state-java-lang-Object-super-empty
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (equal (super (class-by-name <span class="string">"java.lang.Object"</span>
+                                        (instance-class-table s)))
+                  <span class="string">""</span>))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a>))))
+
+
+
+(defthm super-never-null
+  (implies (CONSISTENT-STATE S)
+           (not (equal (super (class-by-name typ1
+                                             (instance-class-table s)))
+                       'NULL)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:cases</span> ((equal typ1 <span class="string">"java.lang.Object"</span>)))
+          (<span class="string">"Subgoal 2"</span> <span class="builtin">:cases</span> ((CLASS-BY-NAME TYP1 (INSTANCE-CLASS-TABLE S))))
+          (<span class="string">"Subgoal 2.1"</span> <span class="builtin">:use</span> bounded-implies-super-bound)))
+                                           
+
+
+
+
+
+(defthm issuperclass1-then-loaded
+   (implies (and (car (issuperclass1 typ1 typ2 s seen))
+                 (not (equal typ1 typ2))
+                 (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+            (valid-type-strong typ2 (instance-class-table s)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+            <span class="builtin">:in-theory</span> (e/d (issuperclass1) ()))))
+
+
+
+
+
+(defthm true-listp-implies-len-1-is-cons-nil
+  (implies (and (true-listp l)
+                (equal (len l) 1))
+           (equal l (cons (car l) nil)))
+  <span class="builtin">:rule-classes</span> nil)
+
+
+
+(defthm array-type-equal
+  (implies  (and (array-type? typ1)
+                 (array-type? typ2)
+                 (equal (array-base-type typ1)
+                        (array-base-type typ2)))
+            (equal (equal typ1 typ2) t))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable array-type?
+                                     array-base-type))
+          (<span class="string">"Subgoal 1"</span> 
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span> true-listp-implies-len-1-is-cons-nil
+                            (l typ3))
+                 (<span class="builtin">:instance</span> true-listp-implies-len-1-is-cons-nil
+                            (l typ4))))))
+
+
+
+(defthm equal-wff-array-type-is-array-type?
+  (equal (wff-array-type typ)
+         (array-type? typ))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable array-type? wff-array-type))))
+
+            
+(defthm isinterface-implies-not-nil
+  (implies (isinterface (class-by-name name cl))
+           (class-by-name name cl)))
+
+
+(defthm array-component-type-array-base-type
+  (equal (array-base-type type)
+         (array-component-type type))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable array-component-type
+                                     array-base-type))))
+
+
+(defthm isAssignable-to-then-loaded
+   (implies (and (car (isAssignableTo typ1 typ2 s))
+                 (not (equal typ1 typ2))
+                 (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+            (valid-type-strong typ2 (instance-class-table s)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize))))
+
+<span class="comment">;
+;----------------------------------------------------------------------
+;</span></pre>
+  </body>
+</html>

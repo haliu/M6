@@ -1,0 +1,195 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-type-size-normalize-fix-type.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="../../M6-DJVM-shared/jvm-class-table.lisp.html">"../../M6-DJVM-shared/jvm-class-table"</a></span>)
+(include-book <span class="string"><a href="../consistent-state-to-sig-state.lisp.html">"../../DJVM/consistent-state-to-sig-state"</a></span>)
+(include-book <span class="string"><a href="base-valid-type-s.lisp.html">"base-valid-type-s"</a></span>)
+
+
+(local 
+ (encapsulate () 
+              (defthm type-size-equal
+                (implies (or (not (equal (car type) 'class))
+                             (stringp (cadr type)))
+                         (equal (type-size (normalize-type-rep type))
+                                (type-size type)))
+                <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable type-size
+                                                   primitive-type?
+                                                   array-type?
+                                                   make-array-type
+                                                   normalize-type-rep))))
+
+
+
+              (defthm valid-type-s-mode-0-implies-car-fix-sig-array
+                (implies (valid-type-s type cl 0)
+                         (equal (car (fix-sig type)) 'ARRAY))
+                <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable fix-sig primitive-type?
+                                                   isarraytype
+                                                   wff-array-type))))
+
+              (defthm type-size-equal-lemma
+                (implies (and (valid-type-strong type cl)
+                              (equal (car (fix-sig type)) 'class))
+                         (isClassTerm (class-by-name type cl)))
+                <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (class-exists?
+                                                 fix-sig
+                                                 isarraytype
+                                                 ARRAY-COMPONENT-TYPE
+                                                 classname
+                                                 wff-array-type
+                                                 primitive-type?
+                                                 class-loaded?)
+                                                (isClassTerm)))))
+
+              (defthm isClassTerm-implies-class-by-name
+                (implies (isClassTerm (class-by-name type cl))
+                         (class-by-name type cl))
+                <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+              (encapsulate () 
+                           (local (include-book <span class="string"><a href="base-consistent-state-class-names-are-string.lisp.html">"base-consistent-state-class-names-are-string"</a></span>))
+                           (defthm consistent-state-class-name-is-stringp
+                             (implies (and (class-by-name name (instance-class-table s))
+                                           (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+                                      (stringp name))
+                             <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+              (defthm type-size-equal-lemma2
+                (implies  (stringp type)
+                          (EQUAL (TYPE-SIZE (FIX-SIG TYPE))
+                                 (TYPE-SIZE TYPE)))
+                <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable fix-sig type-size
+                                                   primitive-type?))))
+
+              (defthm valid-type-strong-implies-cadr-fix-sig
+                (implies (and (valid-type-strong type cl)
+                              (equal (car (fix-sig type)) 'class))
+                         (equal (cadr (fix-sig type)) type))
+                <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (fix-sig valid-type-strong
+                                                         primitive-type?)
+                                                ())
+                         <span class="builtin">:expand</span> (fix-sig type))))
+
+              (defthm type-size-equal-when-class-type
+                (implies (and (valid-type-strong type (instance-class-table s))
+                              (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                              (equal (car (fix-sig type)) 'class))
+                         (equal (type-size (normalize-type-rep (fix-sig type)))
+                                (type-size type)))
+                <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (type-size) (normalize-type-rep
+                                                             valid-type-strong
+                                                             <a href="../consistent-state.lisp.html">consistent-state</a>
+                                                             isClassTerm))
+                         <span class="builtin">:use</span> ((<span class="builtin">:instance</span> consistent-state-class-name-is-stringp
+                                          (name type))
+                               (<span class="builtin">:instance</span> type-size-equal-lemma
+                                          (cl (instance-class-table s)))
+                               (<span class="builtin">:instance</span> isClassTerm-implies-class-by-name
+                                          (cl (instance-class-table s)))
+                               (<span class="builtin">:instance</span> type-size-equal
+                                          (type (fix-sig type)))
+                               (<span class="builtin">:instance</span> valid-type-strong-implies-cadr-fix-sig
+                                          (cl (instance-class-table s)))))))
+
+
+<span class="comment">;;; not really thinking!! just want to get over it!! 
+;;; Mon Jun 20 21:06:32 2005
+</span>
+              (defthm not-car-equal-class-primitive-type-or-array-type
+                (implies (and (valid-type-strong type cl)
+                              (not (equal (car (fix-sig type)) 'class))
+                              (not (primitive-type? type)))
+                         (isarraytype type)))
+
+
+              (defthm isArrayType-type-size-equal
+                (implies (isarraytype type)
+                         (equal (type-size (normalize-type-rep (fix-sig type))) 1))
+                <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable type-size primitive-type? 
+                                                   fix-sig
+                                                   isarraytype))))
+
+
+              (defthm isArrayType-type-size-equal-2
+                (implies (isarraytype type)
+                         (equal (type-size type) 1))
+                <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable type-size primitive-type? 
+                                                   fix-sig
+                                                   isarraytype))))
+
+
+              (defthm primitive-type-fix-type-no-change
+                (implies (primitive-type? type)
+                         (equal (fix-sig type) type))
+                <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable type-size primitive-type? 
+                                                   fix-sig
+                                                   isarraytype))))
+
+
+              (defthm normalize-type-rep-type-no-change
+                (implies (primitive-type? type)
+                         (equal (normalize-type-rep type) type))
+                <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable type-size primitive-type? 
+                                                   fix-sig
+                                                   isarraytype))))))
+
+
+
+
+(defthm type-size-equal-specific
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (valid-type-strong type (instance-class-table s)))
+           (equal (type-size (normalize-type-rep (fix-sig type)))
+                  (type-size type)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (type-size 
+                                      <a href="../consistent-state.lisp.html">consistent-state</a>
+                                      normalize-type-rep
+                                      valid-type-strong))
+           <span class="builtin">:cases</span> ((equal (car (fix-sig type)) 'class)))
+          (<span class="string">"Subgoal 2"</span> <span class="builtin">:cases</span> ((primitive-type? type)))))
+
+</pre>
+  </body>
+</html>

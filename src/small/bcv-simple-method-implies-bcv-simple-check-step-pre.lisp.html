@@ -1,0 +1,79 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>bcv-simple-method-implies-bcv-simple-check-step-pre.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"ACL2"</span>)
+(include-book <span class="string"><a href="bcv-simple-model.lisp.html">"bcv-simple-model"</a></span>)
+
+<span class="comment">;;; Mon Nov 21 15:10:31 2005
+</span>
+
+(encapsulate () 
+  (local (include-book <span class="string"><a href="bcv-simple-method-properties.lisp.html">"bcv-simple-method-properties"</a></span>))
+  (defthm bcv-simple-method-implies-next-inst-verified
+    (implies (and (bcv-simple-method method method-table)
+                  (integerp pc)
+                  (&lt;= 0 pc)
+                  (&lt; pc (len (g 'code method))))
+             (bcv-simple-inst pc 
+                              (nth pc (g 'code method))
+                              (g 'sig-vector method)))))
+  
+
+(defthm method-verified-implies-bcv-simple-check-step-pre-on-recorded-signature-lemma                 
+  (implies (and (bcv-simple-method method method-table)
+                 (integerp pc)
+                 (&lt;= 0 pc)
+                 (&lt; pc (len (g 'code method)))
+                (equal inst (nth pc (g 'code method)))
+                (member inst (g 'code method)))
+            (bcv-simple-check-step-pre inst 
+                                       (cdr (assoc-equal pc (g 'sig-vector
+                                                               method)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (bcv-simple-method)
+                                  (bcv-simple-check-step-pre
+                                   all-next-state-safe))
+           <span class="builtin">:do-not-induct</span> t
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span> bcv-simple-method-implies-next-inst-verified)))))
+                            
+
+</pre>
+  </body>
+</html>

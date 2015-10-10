@@ -1,0 +1,128 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-bcv-protected-check-monotonic.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"BCV"</span>)
+(include-book <span class="string"><a href="../../BCV/typechecker.lisp.html">"../../BCV/typechecker"</a></span>)
+(include-book <span class="string"><a href="../../BCV/bcv-functions.lisp.html">"../../BCV/bcv-functions"</a></span>)
+(include-book <span class="string"><a href="base-bind-free.lisp.html">"base-bind-free"</a></span>)
+
+
+(local 
+ (encapsulate ()
+   (local (include-book <span class="string"><a href="../../BCV/bcv-isAssignable-transitive.lisp.html">"../../BCV/bcv-isAssignable-transitive"</a></span>))
+   (defthm isAssignable-Transitive
+     (implies (and (good-bcv-type t1 icl)
+                   (good-bcv-type t2 icl)
+                   (good-bcv-type t3 icl)
+                   (equal (classtableEnvironment env) scl)
+                   (good-icl icl)
+                   (good-scl scl)
+                   (icl-scl-compatible icl scl)
+                   (isAssignable t1 t2 env)
+                   (isAssignable t2 t3 env))
+              (isAssignable t1 t3 env))
+     <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (isjavaassignable good-scl jvm::primitive-type?))
+              <span class="builtin">:do-not</span> '(generalize fertilize))))))
+
+<span class="comment">;;;
+;;; note: Tue Jul 12 21:17:01 2005
+;;;
+;;;  bcv-isAssignable-transitive.lisp need major work to get rid of skip
+;;;  proofs!! 
+;;;
+;;;  Fri Jul 15 13:25:52 2005. Done. after 3 days. 
+;;;
+</span>
+<span class="comment">;; (local (include-book <a href="base-bcv-check-monotonic-support.lisp.html">"base-bcv-check-monotonic-support"</a>))
+</span>
+<span class="comment">;;(i-am-here) ;; Fri Jul 15 14:34:21 2005
+</span>
+(defthm passesprotectedfieldcheck-general-then-pass-in-specific
+  (implies (and (bind-free (replace-occurance-binding 'sFrame 'gframe s 'g)
+                            (g))
+                (bind-free (acl2::default-bind-free 'icl 'icl
+                                                    (acl2::pkg-witness
+                                                     <span class="string">"DJVM"</span>)) (icl))
+                (BCV::PASSESPROTECTEDFIELDCHECK
+                 ENV1
+                 fieldclassname
+                 fieldname
+                 fieldtype
+                 g)
+                (bcv::isassignable s g env1)
+                (bcv::good-bcv-type g icl)
+                (bcv::good-bcv-type s icl)
+                (bcv::good-bcv-type (bcv::prefix-class
+                                     (bcv::classClassname 
+                                      (bcv::classenvironment env1)))
+                                    icl)
+                (bcv::good-icl icl)
+                (bcv::good-scl (CLASSTABLEENVIRONMENT ENV1))
+                (bcv::icl-scl-compatible icl (bcv::classtableEnvironment env1)))
+           (BCV::PASSESPROTECTEDFIELDCHECK
+            ENV1
+            fieldclassname
+            fieldname
+            fieldtype
+            s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d ()
+                                  (bcv::consistent-sig-stack
+                                   bcv::prefix-class
+                                   bcv::good-icl
+                                   icl-scl-compatible
+                                   bcv::classtableEnvironment
+                                   bcv::classenvironment
+                                   bcv::classClassname
+                                   bcv::good-bcv-type
+                                   bcv::isassignable))
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span> isAssignable-Transitive
+                            (t1 s)
+                            (t2 g)
+                            (t3 (bcv::prefix-class
+                                 (bcv::classClassname 
+                                  (bcv::classenvironment env1))))
+                            (scl (classtableEnvironment env1))
+                            (env env1))))))
+          
+
+</pre>
+  </body>
+</html>

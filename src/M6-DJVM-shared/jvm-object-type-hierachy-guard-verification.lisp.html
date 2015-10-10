@@ -1,0 +1,65 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>jvm-object-type-hierachy-guard-verification.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"JVM"</span>)
+(include-book <span class="string"><a href="jvm-object-type-hierachy.lisp.html">"../M6-DJVM-shared/jvm-object-type-hierachy"</a></span>)
+(include-book <span class="string"><a href="jvm-loader-guard-verification.lisp.html">"../M6-DJVM-shared/jvm-loader-guard-verification"</a></span>)
+
+<span class="comment">;;; Thu Apr 8 22:13:56 2004 CHEAT. IN JVM LOADER I DID SOMETHING SIMILIAR!!
+</span>
+(skip-proofs (verify-guards superClass1-measure))
+(skip-proofs (verify-guards isSuperClass1-invariant))
+(skip-proofs (verify-guards isSuperClass1))
+(skip-proofs (verify-guards isSuperClass))
+(skip-proofs (verify-guards unseen-class-count)) 
+(skip-proofs (verify-guards classImplements-measure))
+(skip-proofs (verify-guards classImplementsInterface1-invariant))
+(skip-proofs (verify-guards classImplementsInterface1-aux-invariant))
+(skip-proofs (verify-guards interfacesImplementsInterface1-inv))
+(skip-proofs (verify-guards simple-inv1))
+(skip-proofs (verify-guards implementInterface-x-measure))
+(skip-proofs (verify-guards all-loaded?-x))
+(skip-proofs (verify-guards implementInterface-x-guard))
+(skip-proofs (verify-guards implementInterface-x))
+(skip-proofs (verify-guards interfacesImplementsInterface))
+(skip-proofs (verify-guards classImplementsInterface))
+(skip-proofs (verify-guards isAssignableTo))
+
+
+    </pre>
+  </body>
+</html>

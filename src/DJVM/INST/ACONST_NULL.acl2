@@ -1,0 +1,3 @@
+(ld "../../DJVM/djvm.pkg")
+(ld "../../M6/m6.pkg")
+(certify-book "ACONST_NULL" 7 t :skip-proofs-okp t)

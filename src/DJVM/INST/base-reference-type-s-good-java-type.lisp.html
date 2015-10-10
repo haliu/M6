@@ -1,0 +1,102 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-reference-type-s-good-java-type.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+
+(include-book <span class="string"><a href="base-consistent-state.lisp.html">"base-consistent-state"</a></span>)
+
+
+
+(local 
+ (skip-proofs 
+  (defthm consistent-class-table-not-stringp-not-class-exists?-f
+    (implies (and (consistent-class-table cl scl hp)
+                  (not (stringp type)))
+             (not (class-exists? type cl)))
+    <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)))
+
+(local 
+ (defthm consistent-class-table-not-stringp-not-class-exists?-b
+   (implies (and (consistent-class-table cl scl hp)
+                 (not (stringp type)))
+            (not (class-exists? type cl)))))
+
+
+(local 
+ (defthm consistent-class-table-implies-not-class-exists
+   (implies  (consistent-class-table cl scl hp)
+             (not (CLASS-EXISTS? 'NULL Cl)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable consistent-class-table)))))
+
+(local 
+ (defthm array-component-type-is-component-type
+   (equal (array-component-type type)
+          (component-type type))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable array-component-type component-type)))))
+
+
+(local 
+ (defthm not-component-type-null-bound
+   (implies (and (consistent-class-table cl scl hp)
+                 (CLASS-EXISTS? TYPE CL))
+            (not (equal (component-type type) 'NULL)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (component-type)
+                                   (consistent-class-table))))))
+
+(local 
+ (defthm isArrayType-not-class-exists
+   (implies (and (consistent-class-table cl scl hp)
+                 (isArrayType type))
+            (not (class-exists? type cl)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (isArrayType) (consistent-class-table))))))
+            
+
+(defthm reference-type-s-implies-good-java-type
+  (implies (and (reference-type-s type cl)
+                (consistent-class-table cl scl hp)
+                (not (equal type 'NULL)))
+           (bcv::good-java-type (fix-sig type) cl))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:induct</span> (bcv::good-java-type (fix-sig type) cl)
+           <span class="builtin">:do-not</span> '(generalize)
+           <span class="builtin">:in-theory</span> (e/d (array-type-s) (consistent-class-table
+                                           component-type)))))
+
+
+
+</pre>
+  </body>
+</html>

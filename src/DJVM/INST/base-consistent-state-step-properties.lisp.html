@@ -1,0 +1,304 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-consistent-state-step-properties.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="../consistent-state.lisp.html">"../../DJVM/consistent-state"</a></span>)
+(include-book <span class="string"><a href="../consistent-state-properties.lisp.html">"../../DJVM/consistent-state-properties"</a></span>)
+
+
+(defthm consistent-state-wff-env
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (wff-env (env s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a>))))
+
+
+(defthm consistent-state-wff-instance-class-table-strong
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (WFF-INSTANCE-CLASS-TABLE-STRONG (INSTANCE-CLASS-TABLE S)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a>))))
+
+(defthm consistent-state-wff-array-class-table
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (WFF-ARRAY-CLASS-TABLE (ARRAY-CLASS-TABLE S)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a>))))
+
+
+(defthm consistent-state-wff-static-class-table-strong
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (WFF-STATIC-CLASS-TABLE-STRONG (ENV-CLASS-TABLE (ENV S))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a>))))
+
+
+(defthm consistent-state-wff-methods-instance-class-table-strong
+    (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+             (WFF-METHODS-INSTANCE-CLASS-TABLE-STRONG (INSTANCE-CLASS-TABLE
+                                                       S)))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a>))))
+
+
+
+(defthm consistent-state-consistent-class-hierachy
+    (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+             (CONSISTENT-CLASS-HIERACHY (INSTANCE-CLASS-TABLE S)))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a>))))
+
+
+
+(defthm consistent-state-wff-heap-strong
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (wff-heap-strong (heap s)))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a>))))
+
+
+
+(defthm consistent-state-consistent-heap
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (consistent-heap (heap s) (instance-class-table s)
+                            (array-class-table s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a>)
+                                  (consistent-heap)))))
+
+
+(defthm consistent-state-class-table-is-loaded-from
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (CLASS-TABLE-IS-LOADED-FROM (INSTANCE-CLASS-TABLE S)
+                                       (ENV-CLASS-TABLE (ENV S))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a>) ()))))
+                                    
+
+(defthm consistent-state-consistent-thread-entries
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (CONSISTENT-THREAD-ENTRIES (THREAD-TABLE S)
+                                      (INSTANCE-CLASS-TABLE S)
+                                      (heap s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a>) ()))))
+
+
+
+(defthm consistent-state-nodup-set-threads
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (NODUP-SET (COLLECT-THREAD-ID (THREAD-TABLE S))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a>) ()))))
+
+
+
+(defthm consistent-state-loader-inv
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (loader-inv s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a>) ()))))
+
+
+
+
+
+(defthm wff-heap-bind-wff-heap
+  (implies (wff-heap hp)
+           (wff-heap (bind ref obj hp)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable wff-heap bind))))
+
+
+
+(defthm consistent-state-class-loaded-java-lang-Object
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (class-loaded? <span class="string">"java.lang.Object"</span> s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a>) ()))))
+
+
+
+(defthm consistent-state-class-loaded-java-lang-Class
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (class-loaded? <span class="string">"java.lang.Class"</span> s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a>) ()))))
+
+
+
+(defthm consistent-state-class-loaded-java-lang-String
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (class-loaded? <span class="string">"java.lang.String"</span> s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a>) ()))))
+
+
+(defthm consistent-state-wff-static-class-table
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (WFF-STATIC-CLASS-TABLE (ENV-CLASS-TABLE (ENV S))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a>) ()))))
+
+
+
+(defthm consistent-state-array-class-table-inv-helper
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (JVM::ARRAY-CLASS-TABLE-INV-HELPER
+            (JVM::ALL-ARRAY-SIGS (ARRAY-CLASS-TABLE S))
+            S))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a>) ()))))
+
+
+
+
+(defthm consistent-state-super-java-lang-Object
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (EQUAL (SUPER (CLASS-BY-NAME <span class="string">"java.lang.Object"</span>
+                                        (INSTANCE-CLASS-TABLE S)))
+                  <span class="string">""</span>))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a>) ()))))
+
+
+
+
+(defthm consistent-state-correctly-loaded-java-lang-Object
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (correctly-loaded? <span class="string">"java.lang.Object"</span> 
+                              (instance-class-table s)
+                              (env-class-table (env s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a>) ()))))
+
+
+
+(defthm consistent-state-correctly-loaded-java-lang-Class
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (correctly-loaded? <span class="string">"java.lang.Class"</span> 
+                              (instance-class-table s)
+                              (env-class-table (env s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a>) ()))))
+
+
+
+(defthm consistent-state-correctly-loaded-java-lang-String
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (correctly-loaded? <span class="string">"java.lang.String"</span>
+                              (instance-class-table s)
+                              (env-class-table (env s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a>) ()))))
+
+
+(defthm consistent-state-bound-array-char
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (BOUND? '(ARRAY CHAR)
+                   (ARRAY-CLASS-TABLE S)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a>) ()))))
+
+
+
+
+(defthm consistent-and-found-implies-not-equal-empty-string
+  (implies (boot-strap-class-okp s)
+           (not (car (class-by-name-s <span class="string">""</span> (env-class-table (env s))))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable boot-strap-class-okp)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+
+(defthm consistent-state-not-bound-empty-string-x
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (NOT (CAR (CLASS-BY-NAME-S <span class="string">""</span> (ENV-CLASS-TABLE (ENV S))))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a>) (boot-strap-class-okp)))))
+
+
+
+(defthm consistent-state-not-env-class-table-normal
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (EQUAL (BCV::SCL-BCV2JVM (BCV::SCL-JVM2BCV (ENV-CLASS-TABLE (ENV S))))
+                  (ENV-CLASS-TABLE (ENV S))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a>) ()))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(defthm consistent-state-implies-consistent-jvp
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (CONSISTENT-JVP <span class="string">"java.lang.Object"</span>
+                           '((<span class="string">"java.lang.Object"</span>))
+                           (INSTANCE-CLASS-TABLE S)
+                           (HEAP S)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a>)
+                                  (consistent-jvp)))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm consistent-state-implies-java-lang-Object-no-fields
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (NOT (FIELDS (CLASS-BY-NAME <span class="string">"java.lang.Object"</span>
+                                       (INSTANCE-CLASS-TABLE S)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a> boot-strap-class-okp)
+                                  ()))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm consistent-state-implies-heap-init-state
+  (IMPLIES (CONSISTENT-STATE S)
+           (CONSISTENT-HEAP-INIT-STATE (HEAP S)
+                                       (INSTANCE-CLASS-TABLE S)
+                                       (HEAP-INIT-MAP (AUX s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a>) ()))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(defthm consistent-state-implies-java-lang-Object-loaded
+  (IMPLIES (CONSISTENT-STATE S)
+           (class-loaded? <span class="string">"java.lang.Object"</span> s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a>) ()))))
+
+
+(defthm consistent-state-implies-java-lang-Object-loaded-2
+  (IMPLIES (CONSISTENT-STATE S)
+           (isClassTerm (class-by-name <span class="string">"java.lang.Object"</span> (instance-class-table s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a> class-loaded?)
+                                  (isClassTerm)))))
+
+
+
+(defthm consistent-state-implies-java-lang-Class-loaded-2
+  (IMPLIES (CONSISTENT-STATE S)
+           (isClassTerm (class-by-name <span class="string">"java.lang.Class"</span> (instance-class-table s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a> class-loaded?) (isClassTerm)))))
+
+
+
+(defthm consistent-state-implies-java-lang-String-loaded-2
+  (IMPLIES (CONSISTENT-STATE S)
+           (isClassTerm (class-by-name <span class="string">"java.lang.String"</span> (instance-class-table s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="../consistent-state.lisp.html">consistent-state</a> class-loaded?) (isClassTerm)))))
+</pre>
+  </body>
+</html>

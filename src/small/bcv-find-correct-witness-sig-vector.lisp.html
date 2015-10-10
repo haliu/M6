@@ -1,0 +1,362 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>bcv-find-correct-witness-sig-vector.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"ACL2"</span>)
+(include-book <span class="string"><a href="bcv-model.lisp.html">"bcv-model"</a></span>)
+(include-book <span class="string"><a href="bcv-simple-model.lisp.html">"bcv-simple-model"</a></span>)
+(include-book <span class="string"><a href="generic.lisp.html">"generic"</a></span>)
+
+<span class="comment">;; (local (include-book <a href="bcv-find-correct-witness-bcv-check-pre.lisp.html">"bcv-find-correct-witness-bcv-check-pre"</a>))
+</span>
+(encapsulate () 
+   (local (include-book <span class="string"><a href="bcv-find-correct-witness-sig-vector-1.lisp.html">"bcv-find-correct-witness-sig-vector-1"</a></span>))
+   (defthm verified-implies-partial-sig-vector-compatible-with-full-vector-lemma
+   (implies (and (merged-code-safe merged-code init-frame)
+                 (consp (cdr merged-code))
+                 (wff-code1 (extract-code merged-code)
+                            (g 'pc (car merged-code)))
+                 (member stack-map merged-code)
+                 (or (stack-map? init-frame)
+                     (equal init-frame 'aftergoto))
+                 (stack-map? stack-map)
+                 (equal (g 'pc stack-map) pc))
+            (sig-frame-compatible 
+             stack-map
+             (cdr (assoc-equal pc (collect-witness-merged-code-safe 
+                                   merged-code init-frame)))))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(local (include-book <span class="string"><a href="bcv-make-inst.lisp.html">"bcv-make-inst"</a></span>))
+
+
+(local 
+ (defthm wff-code-implies-mergedStackMapAndCode
+   (implies (and (consp code)
+                 (merged-code-safe (mergeStackMapAndCode maps code method method-table)
+                                   init-frame))
+            (consp (cdr (mergeStackMapAndCode maps code method-name method-table))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+            <span class="builtin">:in-theory</span> (disable bcv-check-step-pre
+                                bcv-execute-step
+                                make-inst
+                                makestackmap)))))
+
+
+(local 
+ (defthm extract-code-mergeStackMapAndCode-specific
+   (implies (and (equal (car (last (mergeStackMapAndCode maps code method-name
+                                                         method-table)))
+                        'END_OF_CODE)
+                 (wff-code code))
+            (equal (extract-code (mergeStackMapAndCode maps code method-name method-table))
+                   code))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> 
+            <span class="builtin">:in-theory</span> (e/d (wff-code) (extract-code mergeStackMapAndCode))
+            <span class="builtin">:use</span> ((<span class="builtin">:instance</span> extract-code-mergeStackMapAndCode
+                             (pc 0)))))))
+
+
+(local 
+ (defthm merged-code-safe-implies-end-with-end-of-code
+   (implies (merged-code-safe mergedcode init-frame)
+            (equal (car (last mergedcode))
+                   'END_OF_CODE))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable merged-code-safe)))))
+
+
+(local 
+ (defthm if-bound-then-g-pc-pc
+   (implies (bound? pc (extract-partial-sig-vector maps))
+            (equal (g 'pc (cdr (assoc-equal pc (extract-partial-sig-vector
+                                                maps))))
+                   pc))))
+
+
+(encapsulate ()
+ (local (include-book <span class="string"><a href="bcv-find-correct-witness-bcv-check-pre.lisp.html">"bcv-find-correct-witness-bcv-check-pre"</a></span>))             
+ (defthm wff-code1-uniqueness
+   (IMPLIES
+    (AND (WFF-CODE1 (EXTRACT-CODE MERGED-CODE4) any)
+         (MERGED-CODE-SAFE MERGED-CODE4 MERGED-CODE3))
+    (wff-code1 (extract-code merged-code4)
+               (g 'pc (car merged-code4))))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+<span class="comment">;; (defthm car-merged-code-stack-is-car-code
+;;   (implies (merged-code-safe (mergeStackMapAndCode 
+;;                               maps stack-map method-name
+;;                               method-table) init-frame)
+;;            (equal (g 'pc (car (mergeStackMapAndCode maps code method-name
+;;                                                     method-table)))
+;;                   (g 'pc (car code))))
+;;   :hints (("Goal" :do-not '(generalize)
+;;            :in-theory (disable bcv-check-step-pre
+;;                                bcv-execute-step
+;;                                make-inst
+;;                                makestackmap))))
+</span>
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm wff-code-implies
+  (implies (wff-code code)
+           (wff-code1 code (g 'pc (car code)))))
+           
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(defthm bound-implies-member
+  (implies (bound? pc (extract-partial-sig-vector maps))
+           (member (cdr (assoc-equal pc (extract-partial-sig-vector maps)))
+                   maps)))
+                   
+                   
+(defthm bound?-bound?-update-maps
+  (implies (bound? x (extract-partial-sig-vector maps))
+           (bound? x (extract-partial-sig-vector (update-maps-with-method-table
+                                                  maps method-name method-table)))))
+           
+
+(defthm member-extract-map
+  (implies (member x (extract-maps merged-code))
+           (member x merged-code)))
+
+(in-theory (disable member-extract-map))
+
+
+
+(defthm make-inst-never-end-of-code
+    (not (equal (make-inst inst) 'END_OF_CODE))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable make-inst-inst
+                                        not-inst-end-of-code)
+             <span class="builtin">:use</span> ((<span class="builtin">:instance</span> make-inst-inst)
+                   (<span class="builtin">:instance</span> not-inst-end-of-code)))))
+
+
+(encapsulate () 
+ (local (include-book <span class="string"><a href="bcv-find-correct-witness-sig-vector-1.lisp.html">"bcv-find-correct-witness-sig-vector-1"</a></span>))
+ (defthm merged-code-safe-implies-merged-code-pc-is-pc
+   (implies (and (merged-code-safe merged-code init-frame)
+                 (stack-map? init-frame))
+            (equal (g 'pc (car merged-code))
+                   (g 'pc init-frame)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+            <span class="builtin">:in-theory</span> (disable sig-frame-compatible inst? stack-map?
+                                bcv-check-step-pre
+                                bcv-execute-step)))))
+
+
+
+
+<span class="comment">;; (defthm merged-code-safe-implies-merged-code-pc-is-pc
+;;   (implies (and (merged-code-safe merged-code init-frame)
+;;                 (stack-map? init-frame))
+;;            (equal (g 'pc (car merged-code))
+;;                   (g 'pc init-frame)))
+;;   :hints (("Goal" :do-not '(generalize)
+;;            :in-theory (disable sig-frame-compatible inst? stack-map?
+;;                                bcv-check-step-pre
+;;                                bcv-execute-step))))
+</span>
+         
+
+(defthm stack-map-make-stack-map
+  (IMPLIES (STACK-MAP? MAPS1)
+           (STACK-MAP? (MAKESTACKMAP MAPS1 method-name METHOD-TABLE)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable stack-map?))))
+
+(defthm stack-map-set-method-table
+  (IMPLIES (STACK-MAP? MAPS1)
+           (STACK-MAP? (s 'max-stack max-stack 
+                          (s 'method-name method-name 
+                             (s 'method-table method-table maps1)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable stack-map?))))
+
+
+
+
+(defthm <span class="string">|s-same-g-lemma-2|</span>
+  (IMPLIES (AND (EQUAL (G 'IS-INST map) nil)
+                (equal (G 'IS-STACK-MAP map) t))
+           (EQUAL (S 'IS-STACK-MAP
+                     T (S 'IS-INST NIL map))
+                  map))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable s-same-g)
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span> S-SAME-G
+                            (a 'is-stack-map) 
+                            (R (s 'is-inst nil map)))
+                 (<span class="builtin">:instance</span> S-SAME-G
+                            (a 'is-inst)
+                            (R map))))))
+
+
+(local 
+ (defthm stack-map-set-equal
+   (IMPLIES (STACK-MAP? MAPS1)
+            (EQUAL (MAKESTACKMAP MAPS1 method-name METHOD-TABLE)
+                   (S 'METHOD-TABLE METHOD-TABLE 
+                      (s 'method-name method-name 
+                         (s 'max-stack (g 'max-stack 
+                                          (cdr (assoc-equal method-name method-table)))
+                            MAPS1)))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable stack-map?)))))
+
+
+
+(defthm extract-code-wff-code1-same
+  (implies (wff-code1 code pc)
+           (equal (extract-code (append code '(END_OF_CODE)))
+                  code)))
+
+
+(defthm extract-code-wff-code1-same-2
+  (implies (wff-code1 code pc)
+           (equal (extract-maps (append code '(END_OF_CODE)))
+                  nil)))
+
+
+(defthm extract-maps-merged-code-safe-is-maps
+  (implies (and (wff-maps maps)
+                (wff-code1 code any)
+                (equal (car (last (mergeStackMapAndCode maps code method-name
+                                                        method-table)))
+                       'END_OF_CODE))
+           (equal (extract-maps (mergeStackMapAndCode maps code method-name method-table))
+                  (update-maps-with-method-table maps method-name method-table)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d ()
+                                  (make-inst inst? stack-map?
+                                   makeStackmap))
+           <span class="builtin">:do-not</span> '(generalize))))
+
+
+
+(defthm extract-maps-merged-code-safe-is-maps-specific
+  (implies (and (wff-maps maps)
+                (wff-code code)
+                (equal (car (last (mergeStackMapAndCode maps code method-name
+                                                        method-table)))
+                       'END_OF_CODE))
+           (equal (extract-maps (mergeStackMapAndCode maps code method-name method-table))
+                  (update-maps-with-method-table maps method-name method-table)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (wff-code)
+                                  (make-inst)))))
+
+
+(defthm member-binding-in-partial-sig-vector
+   (implies (and (bound? pc (extract-partial-sig-vector maps))
+                 (equal (car (last (mergeStackMapAndCode maps code method-name
+                                                         method-table)))
+                        'END_OF_CODE)
+                 (wff-maps maps)
+                 (wff-code code))
+            (MEMBER
+             (CDR (ASSOC-EQUAL PC
+                               (EXTRACT-PARTIAL-SIG-VECTOR
+                                (UPDATE-MAPS-WITH-METHOD-TABLE MAPS method-name
+                                                               method-table))))
+             (MERGESTACKMAPANDCODE MAPS CODE method-name method-table)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable wff-code wff-maps
+                                       extract-partial-sig-vector
+                                       update-maps-with-method-table
+                                       mergestackmapandcode)
+            <span class="builtin">:use</span> ((<span class="builtin">:instance</span> member-extract-map
+                             (x (CDR (ASSOC-EQUAL PC
+                                                  (EXTRACT-PARTIAL-SIG-VECTOR
+                                                   (UPDATE-MAPS-WITH-METHOD-TABLE MAPS method-name method-table)))))
+                             (merged-code  (MERGESTACKMAPANDCODE MAPS CODE
+                                                                 method-name 
+                                                                 method-table)))))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm member-update-maps-stack-map
+  (implies (and (wff-maps maps)
+                (member x (update-maps-with-method-table maps method-name method-table)))
+           (stack-map? x)))
+
+
+(defthm stack-map-specific
+  (implies (and (bound? pc (extract-partial-sig-vector maps))
+                (wff-maps maps))
+           (stack-map? (cdr (assoc-equal pc
+                         (extract-partial-sig-vector
+                          (update-maps-with-method-table maps method-name
+                                                         method-table)))))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(defthm  verified-implies-partial-sig-vector-compatible-with-full-vector
+   (implies (and (merged-code-safe (mergeStackMapAndCode maps code
+                                                         method-name
+                                                         method-table)
+                                   init-frame)
+                 (wff-code code)
+                 (wff-maps maps)
+                 (stack-map? init-frame)
+                 (equal (g 'pc init-frame) 0)
+                 (equal (g 'method-table init-frame) method-table)
+                 (bound? pc (extract-partial-sig-vector maps)))
+            (sig-frame-compatible 
+             (cdr (assoc-equal pc (extract-partial-sig-vector 
+                                   (update-maps-with-method-table maps
+                                                                  method-name method-table))))
+             (cdr (assoc-equal pc (collect-witness-merged-code-safe 
+                                   (mergeStackMapAndCode maps code method-name method-table)
+                                   init-frame)))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span>
+            <span class="builtin">:in-theory</span> (disable sig-frame-compatible
+                                mergeStackMapAndCode
+                                member
+                                stack-map?
+                                update-maps-with-method-table
+                                collect-witness-merged-code-safe
+                                merged-code-safe)
+            <span class="builtin">:do-not-induct</span> t)))
+
+<span class="comment">;----------------------------------------------------------------------
+</span></pre>
+  </body>
+</html>

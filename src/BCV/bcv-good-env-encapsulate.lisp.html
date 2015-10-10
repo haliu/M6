@@ -1,0 +1,120 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>bcv-good-env-encapsulate.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"BCV"</span>)
+(include-book <span class="string"><a href="typechecker.lisp.html">"typechecker"</a></span>)
+(include-book <span class="string"><a href="typechecker-ext.lisp.html">"typechecker-ext"</a></span>)
+(include-book <span class="string"><a href="typechecker-simple.lisp.html">"typechecker-simple"</a></span>)
+(include-book <span class="string"><a href="../M6-DJVM-shared/jvm-bytecode.lisp.html">"../M6-DJVM-shared/jvm-bytecode"</a></span>)
+(include-book <span class="string"><a href="bcv-functions.lisp.html">"bcv-functions"</a></span>)
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+
+(encapsulate
+  (((good-env *) =&gt; *)
+   ((icl-witness *) =&gt; *))
+ 
+   (local 
+    (<span class="keyword">defun</span> <span class="function-name">good-env</span> (env)
+      (<span class="keyword">declare</span> (ignore env))
+      nil))
+
+   (local 
+    (<span class="keyword">defun</span> <span class="function-name">icl-witness</span> (env)
+      (<span class="keyword">declare</span> (ignore env))
+      nil))
+
+<span class="comment">;;;  We can provide real definitions for 
+;;;  good-frame and good-typelist 
+;;;
+;;;  So one only need to convince ourselves the existance of good-env and
+;;;  icl-witness!! 
+</span>
+
+   (<span class="keyword">defun</span> <span class="function-name">good-typelist</span> (l env)
+     (<span class="keyword">let</span> ((icl (icl-witness env)))
+       (<span class="keyword">if</span> (endp l) t
+         (and (good-bcv-type (car l) icl)
+              (good-typelist (cdr l) env)))))
+   
+   (<span class="keyword">defun</span> <span class="function-name">good-frame</span> (frame env)
+     (and (good-typelist (framelocals frame) env)
+          (good-typelist (framestack frame) env)))
+   
+
+   (defthm good-env-ipmlies-good-scl
+     (implies (good-env env)
+              (good-scl (classtableEnvironment env))))
+
+
+   (defthm good-env-implies-good-icl-icl-witness
+     (implies (good-env env)
+              (good-icl (icl-witness env))))
+
+
+   (defthm good-env-implies-icl-scl-compatible
+     (implies (good-env env)
+              (icl-scl-compatible (icl-witness env)
+                                  (classtableEnvironment env))))
+
+   (defthm good-frame-sig-do-inst-1
+     (implies (and (good-env env)
+                   (good-frame frame env))
+              (good-frame (car (sig-do-inst any env frame))
+                          env)))
+
+   
+   (defthm good-frame-sig-do-inst-2
+     (implies (and (good-env env)
+                   (good-frame frame env))
+              (good-frame (mv-nth 1 (sig-do-inst any env frame))
+                          env))))
+
+<span class="comment">;
+;
+;----------------------------------------------------------------------
+</span>
+</pre>
+  </body>
+</html>

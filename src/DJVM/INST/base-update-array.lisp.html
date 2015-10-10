@@ -1,0 +1,153 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-update-array.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="base.lisp.html">"base"</a></span>)
+(include-book <span class="string"><a href="base-consistent-state.lisp.html">"base-consistent-state"</a></span>)
+
+
+(local 
+ (defthm consistent-heap-array-init-state3-array-content-initialized
+   (implies (and (consistent-heap-array-init-state3 hp hp-init)
+                 (bound? v hp)
+                 (isArrayType (obj-type (binding v hp)))
+                 (wff-internal-array (binding v hp))
+                 (not (primitive-type? (array-component-type 
+                                        (obj-type (binding v hp))))))
+            (array-content-initialized 
+             (array-data (binding v hp)) hp-init))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> 
+            <span class="builtin">:in-theory</span> (enable binding bound? 
+                               array-content-initialized)
+            <span class="builtin">:do-not</span> '(generalize)))))
+
+
+
+(local 
+ (defthm isArrayType-implied-by-wff-internal-array
+   (implies (wff-internal-array obj)
+            (isArrayType (obj-type obj)))))
+
+
+(defthm consistent-state-array-content-initialized
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (REFp v (heap s))
+                (not (NULLp v))
+                (not (primitive-type? (array-component-type
+                                       (obj-type (deref2 v (heap s))))))
+                (check-array-guard (rREF v) (heap s))
+                (equal (heap-init-map (aux s)) hp-init))
+           (array-content-initialized
+            (array-data (deref2 v (heap s)))
+            hp-init))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (REFp NULLp check-array-guard
+                                        deref2)
+                                  (binding-rref-normalize)))))
+
+(local 
+ (defthm array-content-initialized-set-element-at-lemma
+   (implies (and (array-content-initialized l hp-init)
+                 (integerp index)                
+                 (&lt;= 0 index)
+                 (&lt; index (len l)))
+            (array-content-initialized 
+             (update-nth index -1 l)
+             hp-init))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable array-data binding)))))
+                                      
+
+(defthm array-content-initialized-set-element-at
+  (implies (and (array-content-initialized (array-data array) hp-init)
+                (integerp index)                
+                (&lt;= 0 index)
+                (&lt; index (len (array-data array))))
+           (array-content-initialized 
+            (array-data
+             (car (set-element-at 
+                   index -1 
+                   array s)))
+            hp-init))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable array-data binding))))
+                                      
+
+(local 
+ (defthm array-content-initialized-set-element-at-2-lemma
+   (implies (and (array-content-initialized l hp-init)
+                 (integerp index)                
+                 (&lt;= 0 index)
+                 (&lt; index (len l))
+                 (or (not (bound? (rREF v) hp-init))
+                     (not (consp (deref2-init v hp-init)))))
+            (array-content-initialized 
+             (update-nth index (value-of v) l)
+             hp-init))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d 
+                               (array-data deref2 
+                                           bound? binding
+                                           rREF value-of
+                                           deref2-init)
+                               (binding-rref-normalize))))))
+                              
+
+(defthm array-content-initialized-set-element-at-2
+  (implies (and (array-content-initialized (array-data array) hp-init)
+                (integerp index)                
+                (&lt;= 0 index)
+                (&lt; index (len (array-data array)))
+                (or (not (bound? (rREF v) hp-init))
+                    (not (consp (deref2-init v hp-init)))))                
+           (array-content-initialized 
+            (array-data
+             (car (set-element-at 
+                   index (value-of v)
+                   array s)))
+            hp-init))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable array-data))))
+
+                                      
+(defthm wff-internal-array-implies-within-bound
+  (implies (wff-internal-array obj)
+           (equal (len (array-data obj))
+                  (array-bound obj)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable wff-internal-array
+                                     array-bound
+                                     array-data))))
+
+
+</pre>
+  </body>
+</html>

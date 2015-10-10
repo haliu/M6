@@ -1,0 +1,78 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>hanoi-model.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"HANOI"</span>)
+
+(include-book <span class="string">"misc/records"</span> <span class="builtin">:dir</span> <span class="builtin">:system</span>)
+(include-book <span class="string"><a href="basic.lisp.html">"basic"</a></span>)
+(include-book <span class="string"><a href="stack.lisp.html">"stack"</a></span>)
+(include-book <span class="string"><a href="state.lisp.html">"state"</a></span>)
+(include-book <span class="string"><a href="move.lisp.html">"move"</a></span>)
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">do-move</span> (m st)
+  (<span class="keyword">let*</span> ((from (src m))
+         (to   (dest m))
+         (from-stk (get-peg from st))
+         (to-stk   (get-peg to st)))
+    (set-peg from 
+             (pop from-stk)
+             (set-peg to 
+                      (push (top from-stk)
+                            to-stk)
+                      st))))
+
+(<span class="keyword">defun</span> <span class="function-name">play</span> (moves s)
+  (<span class="keyword">if</span> (endp moves)
+      s
+    (play (cdr moves)
+          (<span class="keyword">do-move</span> (car moves) s))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span></pre>
+  </body>
+</html>

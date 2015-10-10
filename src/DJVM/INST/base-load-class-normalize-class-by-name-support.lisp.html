@@ -1,0 +1,216 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-load-class-normalize-class-by-name-support.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="../../M6-DJVM-shared/jvm-linker.lisp.html">"../../M6-DJVM-shared/jvm-linker"</a></span>)
+
+
+(local (in-theory (disable isClassTerm)))
+
+
+(defthm instance-class-table-load_cp_entry
+  (equal (instance-class-table (mv-nth 1 (load_cp_entry any s)))
+         (instance-class-table s)))
+
+(defthm instance-class-table-load_cp_entries
+  (equal (instance-class-table (mv-nth 1 (load_cp_entries cps s)))
+         (instance-class-table s)))
+
+
+
+(defthm isClassTerm-remains-isClassTerm-load_array2-lemma
+  (implies (and (isClassTerm (class-by-name name cl))
+                (isClassTerm class-rep))
+           (isClassTerm (class-by-name name (cons class-rep cl)))))
+
+
+
+
+
+
+(defthm class-by-name-no-change-after-load_class2-lemma
+  (implies (and (class-exists? name s)
+                (not (equal (classname class-rep) name)))
+           (equal (class-by-name name (cons class-rep cl))
+                  (class-by-name name cl))))
+
+
+
+(defthm isClassTerm-remain-isClassTerm-load-class2
+  (implies (isClassTerm (class-by-name name (instance-class-table s)))
+           (isClassTerm (class-by-name name 
+                                       (instance-class-table 
+                                        (load_class2 any s)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+           <span class="builtin">:in-theory</span> (e/d (load_class2 add-instance-class-entry)
+                           (make-runtime-class-rep)))))
+
+
+(defthm class-by-name-no-change-after-load_class2
+  (implies (and (isClassTerm (class-by-name name (instance-class-table s)))
+                (not (isClassTerm (class-by-name any (instance-class-table s)))))
+           (equal (class-by-name name (instance-class-table
+                                       (load_class2 any s)))
+                  (class-by-name name (instance-class-table s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (load_class2 add-instance-class-entry)
+                                  (make-runtime-class-rep)))))
+
+<span class="comment">;; Time:  34.13 seconds (prove: 33.76, print: 0.33, other: 0.04)
+;;  CLASS-BY-NAME-NO-CHANGE-AFTER-LOAD_CLASS2
+</span>
+<span class="comment">;; not too good. but ok.
+</span>
+<span class="comment">;;; this is stange 
+;;; to prove this theorem, 
+;;;
+;;; we need to first prove an easier version which is 
+;;;
+;;; isClassTerm remains isClassTerm (first) 
+;;;
+</span>
+<span class="comment">;; (local 
+;;  (defthm load_class_x-mode-1-expansion
+;;    (equal (load_class_x any s seen 1)
+;;           (IF
+;;            (NOT (NO-FATAL-ERROR? S))
+;;            S
+;;           (if
+;;            (not (load_class_2-inv any s seen))
+;;            (fatalerror "load_class_2 violate internal inv"
+;;                        s)
+;;            (mv-let
+;;             (def-found static-class-rep)
+;;             (class-by-name-s
+;;              any (external-class-table s))
+;;             (declare (ignore def-found))
+;;             (let ((interfaces (interfaces-s static-class-rep)))
+;;                  (load_class_x interfaces
+;;                                s (cons any seen)
+;;                                0))))))
+;;    :hints (("Goal" :in-theory (disable load_class_x)
+;;             :expand (load_class_x any s seen 1)))))
+</span>
+
+(defthm isClassTerm-remain-isClassTerm-load-class-x
+  (implies (isClassTerm (class-by-name name (instance-class-table s)))
+           (isClassTerm (class-by-name name (instance-class-table (load_class_x
+                                                                   any s  seen mode)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize))))
+
+
+(local 
+ (encapsulate () 
+   (local (include-book <span class="string"><a href="base-loader-preserve-consistent-state.lisp.html">"base-loader-preserve-consistent-state"</a></span>))
+   (local (defthm not-loaded-notloaded-after-load-class-x-specific
+            (implies (not (class-loaded? any s))
+                     (NOT (CLASS-LOADED? ANY
+                                         (LOAD_CLASS_X ANY (LOAD_CLASS_X ANY S SEEN '2)
+                                                       SEEN '1))))))
+
+   (defthm not-loaded-notloaded-after-load-class-x-specific-isClassTerm
+     (implies (not (isClassTerm (class-by-name any (instance-class-table s))))
+              (NOT (isClassTerm (class-by-name ANY (instance-class-table 
+                                                    (LOAD_CLASS_X ANY (LOAD_CLASS_X ANY S SEEN '2)
+                                                                  SEEN '1))))))
+     <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> not-loaded-notloaded-after-load-class-x-specific
+              <span class="builtin">:in-theory</span> (e/d (class-loaded?) (isClassTerm)))))))
+          
+
+(defthm class-by-name-no-change-after-load_class_x
+  (implies (isClassTerm (class-by-name name (instance-class-table s)))
+           (equal (class-by-name name (instance-class-table
+                                       (load_class_x any s seen mode)))
+                  (class-by-name name (instance-class-table s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize)
+           <span class="builtin">:in-theory</span> (e/d (class-exists?
+                            class-loaded?)
+                           (no-fatal-error?)))))
+
+
+
+(defthm class-by-name-no-change-after-load_array_class
+  (implies (isClassTerm (class-by-name name (instance-class-table s)))
+           (equal (class-by-name name (instance-class-table
+                                       (load_array_class any s)))
+                  (class-by-name name (instance-class-table s)))))
+
+
+(defthm isClassTerm-remain-isClassTerm-load-array-class
+  (implies (isClassTerm (class-by-name name (instance-class-table s)))
+           (isClassTerm (class-by-name name (instance-class-table (load_array_class
+                                                                   any s)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize))))
+
+
+
+
+(defthm class-by-name-no-change-after-resolveClassReference
+  (implies (isClassTerm (class-by-name name (instance-class-table s)))
+           (equal (class-by-name name (instance-class-table
+                                       (resolveclassreference any s)))
+                  (class-by-name name (instance-class-table s)))))
+
+
+
+(defthm isClassTerm-remain-isClassTerm-resolveClassRefernece
+  (implies (isClassTerm (class-by-name name (instance-class-table s)))
+           (isClassTerm (class-by-name name (instance-class-table
+                                             (resolveclassreference any s)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize))))
+
+  
+(defthm class-by-name-no-change-after-getArrayClass
+  (implies (isClassTerm (class-by-name name (instance-class-table s)))
+           (equal (class-by-name name (instance-class-table
+                                       (getArrayClass any s)))
+                  (class-by-name name (instance-class-table s))))))
+  
+
+
+
+(defthm isClassTerm-remain-isClassTerm-getArrayClass
+  (implies (isClassTerm (class-by-name name (instance-class-table s)))
+           (isClassTerm (class-by-name name (instance-class-table
+                                             (getArrayClass any s)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not</span> '(generalize))))
+</pre>
+  </body>
+</html>

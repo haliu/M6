@@ -1,0 +1,310 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-consistent-state-lookupfield-bcv.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="../../M6-DJVM-shared/jvm-linker.lisp.html">"../../M6-DJVM-shared/jvm-linker"</a></span>)
+(include-book <span class="string"><a href="../../M6-DJVM-shared/jvm-class-table.lisp.html">"../../M6-DJVM-shared/jvm-class-table"</a></span>)
+(include-book <span class="string"><a href="../../M6-DJVM-shared/jvm-object-type-hierachy.lisp.html">"../../M6-DJVM-shared/jvm-object-type-hierachy"</a></span>)
+(include-book <span class="string"><a href="../consistent-state.lisp.html">"../../DJVM/consistent-state"</a></span>)
+(include-book <span class="string"><a href="../consistent-state-to-sig-state.lisp.html">"../../DJVM/consistent-state-to-sig-state"</a></span>)
+
+
+(defthm bcv-class-is-interface-normalize
+  (equal (bcv::classIsInterface
+          (BCV::CLASS-BY-NAME name (BCV::SCL-JVM2BCV SCL)))
+         (mem '*interface* (accessflags-s 
+                            (mv-nth 1 (class-by-name-s name scl)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable bcv::classisinterface
+                                     BCV::MAKE-CLASS-TERM
+                                     bcv::class-by-name
+                                     classname-s
+                                     accessflags-s
+                                     bcv::classclassname
+                                     )
+           <span class="builtin">:do-not</span> '(generalize))))
+
+
+(defthm classIsInterface-implies-isInterface
+  (implies (and (class-table-is-loaded-from cl scl)
+                (bcv::classIsInterface 
+                 (bcv::class-by-name name 
+                                    (bcv::scl-jvm2bcv scl)))
+                (class-by-name name cl))
+           (isInterface (class-by-name name cl)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d ( isInterface 
+                                    bcv::classIsInterface
+                                    class-exists?)
+                                  (class-accessflags))
+           <span class="builtin">:do-not</span> '(generalize))))
+
+<span class="comment">;; Tue Jun 21 16:28:22 2005
+</span>
+
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-consistent-state-lookupfield-support.lisp.html">"base-consistent-state-lookupfield-support"</a></span>))
+  (defthm consistent-state-implie-super-of-interface-is-java-lang-Object
+    (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                  (isInterface (class-by-name name (instance-class-table s))))
+             (equal (super (class-by-name name (instance-class-table s)))
+                    <span class="string">"java.lang.Object"</span>))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (<a href="../consistent-state.lisp.html">consistent-state</a>
+                                        WFF-CLASS-REP-STATIC-STRONG
+                                        JVM::WFF-STATIC-CP-OK-S))))))
+
+
+(defthm consistent-class-decl-interface-implies-no-fields
+  (implies (and (consistent-class-decl class-rep cl hp)
+                (isInterface class-rep))
+           (equal (fields class-rep) nil)))
+
+
+(defthm consistent-class-decls-class-by-name
+  (implies (and (consistent-class-decls cl1 cl hp)
+                (class-by-name name cl1))
+           (consistent-class-decl (class-by-name name cl1) cl hp))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable consistent-class-decl))))
+
+(defthm isInterface-type-class-by-name
+  (implies (isInterface (class-by-name name cl))
+           (class-by-name name cl)))
+
+
+(defthm consistent-state-implies-consistent-class-decl
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (consistent-class-decls (instance-class-table s)
+                                   (instance-class-table s)
+                                   (heap s))))
+  
+
+
+(defthm consistent-state-interface-implies-no-fields
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (isInterface (class-by-name name (instance-class-table s))))
+           (equal (fields (class-by-name name (instance-class-table s))) nil))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (fields <a href="../consistent-state.lisp.html">consistent-state</a>))
+           <span class="builtin">:cases</span> ((consistent-class-decl (class-by-name name
+                                                         (instance-class-table
+                                                          s))
+                                          (instance-class-table s)
+                                          (heap s))))))
+
+
+
+(encapsulate ()
+  (local (include-book <span class="string"><a href="base-consistent-state-lookupfield-support.lisp.html">"base-consistent-state-lookupfield-support"</a></span>))
+  (defthm consistent-state-implies-java-lang-Object-not-fields
+    (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+             (not (fields (class-by-name <span class="string">"java.lang.Object"</span> (instance-class-table s)))))))
+
+
+
+(encapsulate ()
+ (local (include-book <span class="string"><a href="base-loader-preserve-consistent-state.lisp.html">"base-loader-preserve-consistent-state"</a></span>))
+ (defthm consistent-state-super-java-lang-object
+   (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+            (equal (super (class-by-name <span class="string">"java.lang.Object"</span>
+                                         (instance-class-table s)))
+                   <span class="string">""</span>))))
+
+
+
+(defthm consistent-state-lookfield-java-lang-Object-nil
+  (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+           (not (lookupField (make-field-ptr <span class="string">"java.lang.Object"</span>
+                                             anyname
+                                             anytype)
+                             s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (lookupField 
+                                   searchfields
+                                   deref-field) (<a href="../consistent-state.lisp.html">consistent-state</a>))
+           <span class="builtin">:expand</span> (lookupField (make-field-ptr <span class="string">"java.lang.Object"</span>
+                                             anyname
+                                             anytype)
+                             s))))
+                                   
+            
+
+
+
+
+
+
+(defthm consistent-state-implies-if-found-field-then-not-interface-lemma
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (isInterface (class-by-name (field-ptr-classname field-ptr)
+                                            (instance-class-table s))))
+           (not  (LOOKUPFIELD field-ptr s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (lookupfield 
+                                   deref-field 
+                                   searchfields) (fields
+                                                  <a href="../consistent-state.lisp.html">consistent-state</a>
+                                                  )))))
+
+
+(defthm consistent-state-implies-if-class-not-found-not-nil
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (not (class-by-name (field-ptr-classname field-ptr) 
+                                    (instance-class-table s))))
+           (not  (LOOKUPFIELD field-ptr s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (lookupfield 
+                                   deref-field 
+                                   searchfields) 
+                                  (fields
+                                   <a href="../consistent-state.lisp.html">consistent-state</a>)))))
+                                   
+
+
+(defthm consistent-state-implies-class-table-loaded-from
+  (implies (and (equal (env-class-table (env s)) scl)
+                (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+           (CLASS-TABLE-IS-LOADED-FROM
+            (INSTANCE-CLASS-TABLE s)
+            scl))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="../consistent-state.lisp.html">consistent-state</a>))))
+
+
+(defthm classtable-from-env-sig-normalize
+  (equal (BCV::CLASSTABLEENVIRONMENT (ENV-SIG s))
+         (bcv::scl-jvm2bcv (env-class-table (env s))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable env-sig bcv::classtableenvironment
+                                     makeEnvironment))))
+
+
+
+(encapsulate () 
+   (local (include-book <span class="string"><a href="base-consistent-state-load-class.lisp.html">"base-consistent-state-load-class"</a></span>))
+   (defthm resolveClassReference-preserve-consistency
+     (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+              (<a href="../consistent-state.lisp.html">consistent-state</a> (resolveClassReference any s)))))
+
+(defthm env-resolveClassReference-no-change
+   (equal (env (resolveClassReference any s))
+          (env s)))
+
+
+<span class="comment">;;(i-am-here)
+</span>
+(defthm consistent-state-implies-if-found-field-then-not-interface
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (LOOKUPFIELD (FIELDCP-TO-FIELD-PTR fieldcp) 
+                             (RESOLVECLASSREFERENCE (FIELDCP-CLASSNAME fieldcp)
+                                                    S)))
+             (not (bcv::ClassIsInterface  (bcv::class-by-name 
+                                         (fieldcp-classname fieldcp)
+                                         (BCV::CLASSTABLEENVIRONMENT
+                                          (ENV-SIG S))))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> 
+           <span class="builtin">:in-theory</span> (e/d (env-sig)
+                           (bcv::classisinterface
+                            fieldcp-classname
+                            resolveclassreference
+                            <a href="../consistent-state.lisp.html">consistent-state</a>))
+           <span class="builtin">:cases</span> ((<a href="../consistent-state.lisp.html">consistent-state</a> (resolveclassreference 
+                                      (FIELDCP-CLASSNAME fieldcp)
+                                      s))))
+          (<span class="string">"Subgoal 1"</span>  <span class="builtin">:use</span> ((<span class="builtin">:instance</span> classIsInterface-implies-isInterface
+                                         (cl (instance-class-table 
+                                              (resolveclassreference 
+                                               (FIELDCP-CLASSNAME fieldcp) s)))
+                                         (scl (env-class-table 
+                                               (env (resolveclassreference 
+                                                     (FIELDCP-CLASSNAME
+                                                     fieldcp) s))))
+                                         (name (fieldcp-classname
+                                                fieldcp)))))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(defthm bcv-class-by-name-is-normalize
+  (implies (car (class-by-name-s name scl))
+           (equal (bcv::class-by-name name (bcv::scl-jvm2bcv scl))
+                  (bcv::make-class-def (mv-nth 1 (class-by-name-s name scl)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (bcv::make-class-term
+                                   bcv::classclassname
+                                   classname-s
+                                   bcv::class-by-name) ()))))
+
+
+(defthm class-not-bound-in-bcv-class-table-not-bound-in-internal-table
+  (implies (and (class-table-is-loaded-from cl scl)
+                <span class="comment">;;(wff-static-class-table-strong scl)
+</span>                (class-by-name name cl))
+           (bcv::class-by-name name (bcv::scl-jvm2bcv scl)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (classname 
+                                   bcv::make-class-term
+                                   classname-s
+                                   bcv::class-by-name
+                                   bcv::classclassname) (isClassTerm))
+           <span class="builtin">:do-not</span> '(generalize))))
+
+
+(defthm if-not-found-not-lookupfield
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (not (class-by-name (fieldcp-classname fieldcp)
+                                    (instance-class-table s))))
+           (not (lookupfield (fieldcp-to-field-ptr fieldcp) s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (<a href="../consistent-state.lisp.html">consistent-state</a>)))))
+
+
+(defthm consistent-state-implies-if-found-field-then-class-found
+  (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                (LOOKUPFIELD (FIELDCP-TO-FIELD-PTR fieldcp) 
+                             (resolveclassreference (fieldcp-classname fieldcp) s)))
+           (BCV::CLASS-BY-NAME (fieldcp-classname fieldcp)
+                               (BCV::CLASSTABLEENVIRONMENT (ENV-SIG S))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (<a href="../consistent-state.lisp.html">consistent-state</a> 
+                                      resolveclassreference
+                                      fieldcp-classname))
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span>
+                  class-not-bound-in-bcv-class-table-not-bound-in-internal-table
+                  (cl (instance-class-table (resolveclassreference
+                                             (fieldcp-classname fieldcp) s)))
+                  (scl (env-class-table (env s)))
+                  (name (fieldcp-classname fieldcp)))))))
+           
+
+
+
+</pre>
+  </body>
+</html>

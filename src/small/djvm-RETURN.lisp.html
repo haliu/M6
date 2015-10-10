@@ -1,0 +1,397 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>djvm-RETURN.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"ACL2"</span>)
+(include-book <span class="string"><a href="djvm-model.lisp.html">"djvm-model"</a></span>)
+(include-book <span class="string"><a href="generic.lisp.html">"generic"</a></span>)
+(include-book <span class="string"><a href="consistent-state.lisp.html">"consistent-state"</a></span>)
+(include-book <span class="string"><a href="consistent-state-properties.lisp.html">"consistent-state-properties"</a></span>)
+
+
+(local (include-book <span class="string"><a href="consistent-state-step.lisp.html">"consistent-state-step"</a></span>))
+(local (in-theory (disable <a href="consistent-state.lisp.html">consistent-state</a>)))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(local 
+ (defthm consistent-state-op-code-RETURN-implies-pc-in-range
+   (implies (and (<a href="consistent-state.lisp.html">consistent-state</a> st)
+                 (equal (op-code (next-inst st)) '<a href="RETURN.lisp.html">RETURN</a>))
+            (pc-in-range st))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable next-inst)))))
+
+
+
+
+(local (in-theory (disable next-inst bcv-simple-check-step-pre
+                           extract-sig-frame pc-in-range
+                           op-code <a href="consistent-state.lisp.html">consistent-state</a>
+                           bcv-method collect-witness-bcv-method
+                           sig-frame-compatible
+                           current-method)))
+
+
+
+
+(local 
+ (defthm consistent-state-implies-consistent-caller-frame-f
+   (implies (and (consp (cdr (g 'call-stack st)))
+                 (<a href="consistent-state.lisp.html">consistent-state</a> st))
+            (consistent-caller-frame (cadr (g 'call-stack st))
+                                     (car (g 'call-stack st))
+                                     (g 'method-table st)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="consistent-state.lisp.html">consistent-state</a>) 
+                                   (consistent-caller-frame))))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+
+(local (in-theory (disable consistent-caller-frame)))
+
+
+(local 
+ (defthm consistent-frame-implies-max-stack-equal-f
+   (implies (consistent-frame frame method-table)
+            (equal (g 'max-stack frame)
+                   (g 'max-stack (cdr (assoc-equal (g 'method-name frame)
+                                                   method-table)))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable consistent-frame)))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+
+
+
+(local 
+ (defthm consistent-state-implies-consistent-frame-f
+   (implies (and (consp (cdr (g 'call-stack st)))
+                 (<a href="consistent-state.lisp.html">consistent-state</a> st))
+            (consistent-frame (cadr (g 'call-stack st))
+                              (g 'method-table st)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (<a href="consistent-state.lisp.html">consistent-state</a>)
+                                   (consistent-frame))))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+(local 
+(defthm consistent-state-implies-bcv-simple-method-f
+  (implies (and (consp (cdr (g 'call-stack st)))
+                (<a href="consistent-state.lisp.html">consistent-state</a> st))
+           (bcv-simple-method (s 'sig-vector
+                                 (collect-witness-bcv-method 
+                                  (cdr (assoc-equal (g 'method-name (cadr (g 'call-stack
+                                                                  st)))
+                                                    (g 'method-table st)))
+                                  (g 'method-table st))
+                                 (cdr (assoc-equal (g 'method-name (cadr (g 'call-stack
+                                                                            st)))
+                                                   (g 'method-table st))))
+                       (g 'method-table st)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (consistent-caller-frame) (bcv-simple-method))
+           <span class="builtin">:use</span> consistent-state-implies-consistent-caller-frame-f))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+
+(local 
+ (defthm consistent-state-implies-bcv-simple-method
+   (implies (and (consp (cdr (g 'call-stack st)))
+                 (<a href="consistent-state.lisp.html">consistent-state</a> st)
+                 (equal (g 'method-table st) method-table))
+           (bcv-simple-method (s 'sig-vector
+                                 (collect-witness-bcv-method 
+                                  (cdr (assoc-equal (g 'method-name (cadr (g 'call-stack
+                                                                             st)))
+                                                    method-table))
+                                  method-table)
+                                 (cdr (assoc-equal (g 'method-name (cadr (g 'call-stack
+                                                                            st)))
+                                                   method-table)))
+                              method-table))))
+
+
+
+(local 
+ (defthm consistent-caller-frame-implies-pc-pc-equal-f
+   (implies (consistent-caller-frame caller callee method-table)
+            (equal (g 'pc caller)
+                   (g 'pc (cdr (assoc-equal (g 'pc caller)
+                                            (collect-witness-bcv-method 
+                                             (cdr (assoc-equal 
+                                                   (g 'method-name caller)
+                                                   method-table))
+                                             method-table))))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable 
+                               sig-frame-compatible
+                               consistent-caller-frame)))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+
+(local 
+ (defthm consistent-caller-frame-implies-max-stack-max-stack-equal-f
+   (implies (consistent-caller-frame caller callee method-table)
+            (equal (g 'max-stack caller)
+                   (g 'max-stack (cdr (assoc-equal (g 'pc caller)
+                                            (collect-witness-bcv-method 
+                                             (cdr (assoc-equal 
+                                                   (g 'method-name caller)
+                                                   method-table))
+                                             method-table))))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable 
+                               sig-frame-compatible
+                               consistent-caller-frame)))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+(local 
+ (defthm consistent-caller-frame-implies-method-table-method-table-equal-f
+   (implies (consistent-caller-frame caller callee method-table)
+            (equal method-table
+                   (g 'method-table (cdr (assoc-equal (g 'pc caller)
+                                            (collect-witness-bcv-method 
+                                             (cdr (assoc-equal 
+                                                   (g 'method-name caller)
+                                                   method-table))
+                                             method-table))))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable 
+                               sig-frame-compatible
+                               consistent-caller-frame)))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+<span class="comment">;;;
+;;; in fact all this forward chainings rules can be derived from the fact 
+;;; that 
+;;;      consistent-caller-frame implies sig-frame-compatible
+;;;
+;;; However, we want sig-frame-compatible to be enabled in our main proof! 
+;;;
+</span>
+
+<span class="comment">;; (skip-proofs 
+;;  (defthm consistent-caller-frame-implies-sig-frame-compatible-f
+;;    (implies (consistent-caller-frame caller callee method-table)
+;;             (sig-frame-compatible (sig-frame-push-value (g 'ret callee) 
+;;                                                         caller)
+;;                                   (cdr (assoc-equal (g 'pc caller)
+;;                                                     (g 'sig-vector
+;;                                                        (cdr (assoc-equal 
+;;                                                              (g 'method-name
+;;                                                                 caller)
+;;                                                              method-table)))))))
+;;    :rule-classes :forward-chaining))
+</span>
+<span class="comment">;; moved in front. 
+</span>
+(local 
+ (defthm consistent-caller-frame-sig-frame-push-value-f
+   (implies (consistent-caller-frame caller callee method-table)
+            (equal (+ 1 (len (g 'op-stack caller)))
+                   (g 'op-stack   (cdr (assoc-equal (g 'pc caller)
+                                            (collect-witness-bcv-method 
+                                             (cdr (assoc-equal 
+                                                   (g 'method-name caller)
+                                                   method-table))
+                                             method-table))))))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable 
+                               sig-frame-compatible
+                               consistent-caller-frame)))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+
+(local 
+  (defthm consistent-caller-frame-implies-op-stack-ok-f
+    (implies (consistent-caller-frame caller callee method-table)
+             (&lt;= (+ 1 (len (g 'op-stack caller)))
+                 (g 'max-stack caller)))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable  consistent-caller-frame)))
+    <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+ 
+<span class="comment">;; this is a bit difficult! We will first prove that 
+</span>
+
+
+
+(defthm consistent-call-stack1-consistent-call-stack1
+  (implies (and (consistent-call-stack1 (cdr call-stack) top-frame method-table)
+                (consp (cdr call-stack)))
+           (consistent-call-stack1 (cddr call-stack) (cadr call-stack)
+                                   method-table))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+            
+
+(defthm consistent-state-consp-call-stack
+  (implies (and (<a href="consistent-state.lisp.html">consistent-state</a> st)
+                (consp (cdr (g 'call-stack st))))
+           (consistent-call-stack1 (cddr (g 'call-stack st))
+                                   (cadr (g 'call-stack st))
+                                   (g 'method-table st)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable <a href="consistent-state.lisp.html">consistent-state</a>))))
+                                   
+           
+
+<span class="comment">;;(i-am-here) ;; Thu Nov  3 22:27:31 2005
+</span>(local (in-theory (disable sig-frame-push-value)))
+
+(local 
+  (defthm consistent-caller-frame-implies-sig-frame-compatible-ok-f
+    (implies (consistent-caller-frame caller callee method-table)
+             (sig-frame-compatible 
+              (sig-frame-push-value (g 'ret (cdr (assoc-equal 
+                                                  (g 'method-name callee)
+                                                  method-table)))
+                                    (extract-sig-frame caller method-table))
+              (cdr (assoc-equal (g 'pc caller)
+                                (collect-witness-bcv-method 
+                                 (cdr (assoc-equal 
+                                       (g 'method-name caller)
+                                       method-table))
+                                 method-table)))))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (consistent-caller-frame)
+                                    (bcv-simple-method))
+             <span class="builtin">:do-not-induct</span> t))
+    <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+   
+
+
+(local 
+  (defthm consistent-caller-frame-implies-method-name-ok-f
+    (implies (consistent-caller-frame caller callee method-table)
+             (equal (g 'method-name 
+                       (cdr (assoc-equal (g 'pc caller)
+                                (collect-witness-bcv-method 
+                                 (cdr (assoc-equal 
+                                       (g 'method-name caller)
+                                       method-table))
+                                 method-table))))
+                    (g 'method-name caller)))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () (consistent-caller-frame))))
+    <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+   
+
+<span class="comment">;; (i-am-here) ;; Sun Nov 20 21:25:17 2005
+</span>
+
+(local 
+  (defthm consistent-caller-frame-implies-pc-ok-f-1
+    (implies (consistent-caller-frame caller callee method-table)
+             (integerp (g 'pc caller)))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (consistent-caller-frame) ())))
+    <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+(local 
+  (defthm consistent-caller-frame-implies-pc-ok-f-2
+    (implies (consistent-caller-frame caller callee method-table)
+             (&lt;= 1 (g 'pc caller)))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (consistent-caller-frame) ())))
+    <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+(local 
+  (defthm consistent-caller-frame-implies-pc-ok-f-3
+    (implies (consistent-caller-frame caller callee method-table)
+             (&lt; (g 'pc caller)
+                (len (g 'code (cdr (assoc-equal (g 'method-name caller)
+                                                method-table))))))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (consistent-caller-frame) ())))
+    <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+
+(local 
+  (defthm consistent-caller-frame-implies-bcv-method
+    (implies (consistent-caller-frame caller callee method-table)
+             (bcv-method (cdr (assoc-equal (g 'method-name caller)
+                                           method-table))
+                         method-table))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (consistent-caller-frame) ())))
+    <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+
+
+(local 
+ (defthm consistent-state-preserved-by-RETURN-lemma
+   (implies (and (<a href="consistent-state.lisp.html">consistent-state</a> st)
+                 (equal (next-inst st) inst)
+                 (equal (op-code inst) '<a href="RETURN.lisp.html">RETURN</a>)
+                 (djvm-check-RETURN inst st))
+            (<a href="consistent-state-step.lisp.html">consistent-state-step</a>
+             (djvm-execute-RETURN inst st)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable sig-frame-compatible pc-in-range)))))
+
+
+<span class="comment">; ----- Export ------
+</span>
+(local (in-theory (disable djvm-execute-RETURN <a href="consistent-state-step.lisp.html">consistent-state-step</a>)))
+
+(local 
+ (defthm consistent-state-step-implies-consistent-state-djvm-execute-RETURN
+   (implies (<a href="consistent-state-step.lisp.html">consistent-state-step</a> (djvm-execute-RETURN inst st))
+            (<a href="consistent-state.lisp.html">consistent-state</a> (djvm-execute-RETURN inst st)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> ((<span class="builtin">:instance</span>
+                          consistent-state-step-implies-implies-consistent-state
+                          (s (djvm-execute-RETURN inst st))))))))
+
+
+
+
+(defthm consistent-state-preserved-by-DJVM-RETURN
+  (implies (and (<a href="consistent-state.lisp.html">consistent-state</a> st)
+                (equal (next-inst st) inst)
+                (equal (op-code inst) '<a href="RETURN.lisp.html">RETURN</a>)
+                (djvm-check-RETURN inst st))
+           (<a href="consistent-state.lisp.html">consistent-state</a>
+            (djvm-execute-RETURN inst st))))
+
+
+
+<span class="comment">;; this may have something new!! 
+;;
+;;
+;; how the check done by <a href="INVOKE.lisp.html">INVOKE</a> can be "noticed". The result of check is
+;; registered in the consistent-state, already!
+;;
+</span>
+</pre>
+  </body>
+</html>

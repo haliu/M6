@@ -1,0 +1,88 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>bcv-instructionIsTypeSafe-if-verified.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"BCV"</span>)
+(include-book <span class="string"><a href="typechecker.lisp.html">"typechecker"</a></span>)
+(include-book <span class="string"><a href="typechecker-ext.lisp.html">"typechecker-ext"</a></span>)
+(include-book <span class="string"><a href="typechecker-simple.lisp.html">"typechecker-simple"</a></span>)
+(include-book <span class="string"><a href="../M6-DJVM-shared/jvm-bytecode.lisp.html">"../M6-DJVM-shared/jvm-bytecode"</a></span>)
+
+
+(include-book <span class="string"><a href="bcv-base.lisp.html">"bcv-base"</a></span>)
+
+
+
+(local 
+ (encapsulate () 
+   (local (include-book <span class="string"><a href="bcv-wff-code.lisp.html">"bcv-wff-code"</a></span>))           
+   (defthm pc-wff-mergedcode1-offset-specific
+     (implies (and (IS-SUFFIX (CONS instr1 mergedcode1)
+                              mergedcode)
+                   (isInstruction instr1)
+                   (pc-wff-mergedcode1 0 mergedcode)
+                   (member instr2 (extract-code mergedcode1)))
+              (not (equal  (instrOffset instr1)
+                           (instrOffset instr2)))))))
+
+
+(defthm mergedcodeIsTypesafe-implies-instructionIsTypeSafe
+  (implies (and (mergedcodeIsTypesafe env mergedcode stackframe)
+                (pc-wff-mergedcode1 0 (allinstructions env))
+                (is-suffix mergedcode (allinstructions env))
+                (member <a href="../DJVM/INST/inst.lisp.html">inst</a> (extract-code mergedcode)))
+           (instructionIsTypeSafe 
+            <a href="../DJVM/INST/inst.lisp.html">inst</a> 
+            env
+            (searchStackFrame (<a href="../DJVM/INST/inst.lisp.html">inst</a>rOffset <a href="../DJVM/INST/inst.lisp.html">inst</a>)
+                              (stack-map-wrap 
+                               (collect-sig-frame-vector env
+                                                         mergedcode
+                                                         stackframe)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> 
+           <span class="builtin">:in-theory</span> (disable instructionIsTypeSafe
+                               instructionSatisfiesHandlers
+                               instrOffset
+                               sig-do-inst
+                               frameIsAssignable
+                               isEnd
+                               allinstructions
+                               isInstruction
+                               isStackMap)
+           <span class="builtin">:do-not</span> '(generalize))))
+</pre>
+  </body>
+</html>

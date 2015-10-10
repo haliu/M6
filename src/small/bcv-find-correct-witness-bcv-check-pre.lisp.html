@@ -1,0 +1,226 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>bcv-find-correct-witness-bcv-check-pre.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"ACL2"</span>)
+(include-book <span class="string"><a href="bcv-model.lisp.html">"bcv-model"</a></span>)
+(include-book <span class="string"><a href="bcv-simple-model.lisp.html">"bcv-simple-model"</a></span>)
+(include-book <span class="string"><a href="generic.lisp.html">"generic"</a></span>)
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+
+
+<span class="comment">;; This is not as straightforward as we would like to think:
+</span>
+<span class="comment">;;; Because 
+;;;;;  It is not obvious (to us and computer) 
+;;;;;
+;;;;;        if one has an instruction that instruction is a member of merged code
+;;;;;        then, there is we did a bcv-check-step-pre on it at some point
+;;;;;        during execution. 
+;;;;;        
+;;;;;  It is not obvious that the stack map recorded into 
+;;;;;  collect-witness-merged-code-safe will not be "masked" by a later stack
+;;;;;  map declared for the same pc!
+;;;;;
+</span>
+
+<span class="comment">;; (defthm merge-code-safe-implies-bcv-check-step-pre-lemma
+;;   (implies (and (merged-code-safe merged-code sig-frame)
+;;                 (member inst merged-code)
+;;                 (wff-code1 (extract-code merged-code)
+;;                            (g 'pc (car merged-code)))
+;;                 (inst? inst)
+;;                 (equal pc (g 'pc inst))
+;;                 (bound?  pc (collect-witness-merged-code-safe 
+;;                              merged-code sig-frame)))
+;;            (bcv-check-step-pre inst 
+;;                                (cdr (assoc-equal pc 
+;;                                                  (collect-witness-merged-code-safe 
+;;                                                   merged-code sig-frame)))))
+;;   :hints (("Goal" :in-theory (e/d (merged-code-safe
+;;                                    collect-witness-merged-code-safe)
+;;                                   (bcv-check-step-pre inst?
+;;                                                       sig-frame-compatible
+;;                                                       stack-map?
+;;                                                       bcv-execute-step))
+;;            :do-not '(generalize fertilize)
+;;            :induct (merged-code-safe merged-code sig-frame))))
+</span>
+(local 
+ (encapsulate () 
+   (local 
+    (defthm wff-code1-implies-not-member-lemma
+      (implies (and (wff-code1 code pc)
+                    (&lt; (g 'pc inst) pc))
+               (not (member inst code)))))
+
+
+   (defthm wff-code1-implies-not-member-lemma-specific
+     (implies (and (wff-code1 (extract-code merged-code) (+ 1 (g 'pc inst)))
+                   (inst? inst))
+              (not (member inst (extract-code merged-code))))
+     <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> ((<span class="builtin">:instance</span> wff-code1-implies-not-member-lemma
+                                      (code (extract-code merged-code))
+                                      (pc (+ 1 (g 'pc inst)))))
+              <span class="builtin">:in-theory</span> (disable wff-code1-implies-not-member-lemma))))))
+
+(local 
+ (defthm inst-not-member-code-not-member-mergedcode-instance
+   (implies (and (not (member inst (extract-code merged-code)))
+                 (equal (car (last merged-code)) 'END_OF_CODE)
+                 (inst? inst))
+            (not (member inst merged-code)))))
+
+(local 
+ (defthm merged-code-safe-implies-end-with-end-of-code
+   (implies (merged-code-safe mergedcode init-frame)
+            (equal (car (last mergedcode))
+                   'END_OF_CODE))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable merged-code-safe)))))
+
+
+(local 
+ (defthm <span class="string">|Subgoal *1/9.7|</span>
+   (IMPLIES
+    (AND (MERGED-CODE-SAFE MERGED-CODE sig-frame)
+         (inst? inst)
+         (WFF-CODE1 (EXTRACT-CODE MERGED-CODE)
+                    (+ 1 (G 'PC INST))))
+    (not (MEMBER INST MERGED-CODE)))
+   <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:do-not-induct</span> t))))
+
+
+(defthm merged-code-safe-implies-extract-code-pc-is-same
+  (implies (and (merged-code-safe merged-code sig-frame)
+                (stack-map? (car merged-code)))
+           (equal (g 'pc (car (extract-code merged-code)))
+                  (g 'pc (car merged-code)))))
+
+
+(defthm merged-code-safe-implies-extract-code-pc-is-same-strong
+  (implies (merged-code-safe merged-code sig-frame)
+           (equal (g 'pc (car (extract-code merged-code)))
+                  (g 'pc (car merged-code)))))
+
+
+
+<span class="comment">;; (local 
+;;  (defthm wff-code1-implies-car-pc
+;;    (implies (and (wff-code1 code pc)
+;;                  (consp code))
+;;             (equal (g 'pc (car code)) pc))))
+</span>
+
+(local 
+ (defthm wff-code1-uniqueness
+   (IMPLIES
+    (AND (WFF-CODE1 (EXTRACT-CODE MERGED-CODE4) any)
+         (MERGED-CODE-SAFE MERGED-CODE4 MERGED-CODE3))
+    (wff-code1 (extract-code merged-code4)
+               (g 'pc (car merged-code4))))
+   <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>))
+
+<span class="comment">;----------------------------------------------------------------------
+;
+; EXport 
+</span>         
+
+(defthm merge-code-safe-implies-bcv-check-step-pre-lemma
+  (implies (and (merged-code-safe merged-code sig-frame)
+                (member inst merged-code)
+                (wff-code1 (extract-code merged-code)
+                           (g 'pc (car merged-code)))
+                (inst? inst)
+                (equal pc (g 'pc inst)))
+           (bcv-check-step-pre inst 
+                               (cdr (assoc-equal pc 
+                                                 (collect-witness-merged-code-safe 
+                                                  merged-code sig-frame)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (merged-code-safe
+                                   collect-witness-merged-code-safe)
+                                  (bcv-check-step-pre inst?
+                                                      sig-frame-compatible
+                                                      stack-map?
+                                                      bcv-execute-step))
+           <span class="builtin">:do-not</span> '(generalize fertilize)
+           <span class="builtin">:induct</span> (merged-code-safe merged-code sig-frame))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm member-extract-code-member-merged-code
+  (implies (member inst (extract-code merged-code))
+           (member inst merged-code))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+(defthm member-extract-code-implies-inst
+  (implies (member inst (extract-code merged-code))
+           (inst? inst))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm merge-code-safe-implies-bcv-check-step-pre
+  (implies (and (merged-code-safe merged-code sig-frame)
+                (equal (g 'pc sig-frame) 0)
+                (wff-code (extract-code merged-code))
+                (member inst (extract-code merged-code))
+                (equal pc (g 'pc inst)))
+           (bcv-check-step-pre inst 
+                               (cdr (assoc-equal pc 
+                                                 (collect-witness-merged-code-safe 
+                                                  merged-code sig-frame)))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable inst? bcv-check-step-pre)
+           <span class="builtin">:do-not-induct</span> t)))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(defthm wff-code1-uniqueness
+  (IMPLIES
+   (AND (WFF-CODE1 (EXTRACT-CODE MERGED-CODE4) any)
+        (MERGED-CODE-SAFE MERGED-CODE4 MERGED-CODE3))
+    (wff-code1 (extract-code merged-code4)
+               (g 'pc (car merged-code4))))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)</pre>
+  </body>
+</html>

@@ -1,0 +1,135 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>djvm-simple.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+<span class="comment">;;; this file (should be) generated with tool-gen-functions.lisp
+</span>
+<span class="comment">; a place to define the top level DJVM
+; As of Thu Aug 11 13:21:27 2005, we only have a simple execution engine. 
+; that takes a sequence of instructions execute it. 
+</span>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="../DJVM/consistent-state-strong.lisp.html">"../DJVM/consistent-state-strong"</a></span>)
+(include-book <span class="string"><a href="../DJVM/INST/inst.lisp.html">"../DJVM/INST/inst"</a></span>) <span class="comment">;; include all the instructions. 
+</span>
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(acl2::set-verify-guards-eagerness 0)
+
+<span class="comment">;;; note the following definition is incomplete. 
+;;; We have not implement the full instruction set in INST/inst.lisp
+;;; only a couple of them. 
+</span>(ENCAPSULATE
+ NIL
+ (DEFUN WFF-INST-STRONG (INST)
+   (AND (WFF-INST INST)
+        (LET ((OPCODE (INST-OPCODE INST)))
+             (COND ((EQUAL OPCODE 'HALT)  t)
+                   ((EQUAL OPCODE '<a href="../DJVM/INST/AALOAD.lisp.html">AALOAD</a>)
+                    (WFF-AALOAD INST))
+                   ((EQUAL OPCODE '<a href="../DJVM/INST/AASTORE.lisp.html">AASTORE</a>)
+                    (WFF-AASTORE INST))
+                   ((EQUAL OPCODE '<a href="../DJVM/INST/ALOAD.lisp.html">ALOAD</a>) (WFF-<a href="../DJVM/INST/ALOAD.lisp.html">ALOAD</a> INST))
+                   ((EQUAL OPCODE '<a href="../DJVM/INST/ASTORE.lisp.html">ASTORE</a>)
+                    (WFF-ASTORE INST))
+                   ((EQUAL OPCODE '<a href="../DJVM/INST/ANEWARRAY.lisp.html">ANEWARRAY</a>)
+                    (WFF-ANEWARRAY INST))
+                   ((EQUAL OPCODE '<a href="../DJVM/INST/IFEQ.lisp.html">IFEQ</a>) (WFF-<a href="../DJVM/INST/IFEQ.lisp.html">IFEQ</a> INST))
+                   ((EQUAL OPCODE '<a href="../DJVM/INST/GETFIELD.lisp.html">GETFIELD</a>)
+                    (WFF-GETFIELD INST))
+                   ((EQUAL OPCODE '<a href="../DJVM/INST/ACONST_NULL.lisp.html">ACONST_NULL</a>)
+                    (WFF-ACONST_NULL INST))))))
+ (DEFUN ALL-INSTRS-WFF (INSTRS)
+   (IF (NOT (CONSP INSTRS))
+       T
+       (AND (WFF-INST-STRONG (CAR INSTRS))
+            (ALL-INSTRS-WFF (CDR INSTRS)))))
+ (DEFUN DJVM-STEP (INST S)
+   (DECLARE (XARGS <span class="builtin">:GUARD</span> (AND (WFF-INST INST)
+                               (CONSISTENT-STATE-STRONG S))))
+   (<span class="keyword">if</span> (not (no-fatal-error? s)) s
+     (LET ((OPCODE (INST-OPCODE INST)))
+          (COND ((EQUAL OPCODE 'HALT) S)
+                ((EQUAL OPCODE '<a href="../DJVM/INST/AALOAD.lisp.html">AALOAD</a>)
+                 (IF (CHECK-AALOAD INST S)
+                     (EXECUTE-AALOAD INST S)
+                     S))
+                ((EQUAL OPCODE '<a href="../DJVM/INST/AASTORE.lisp.html">AASTORE</a>)
+                 (IF (CHECK-AASTORE INST S)
+                     (EXECUTE-AASTORE INST S)
+                     S))
+                ((EQUAL OPCODE '<a href="../DJVM/INST/ALOAD.lisp.html">ALOAD</a>)
+                 (IF (CHECK-ALOAD INST S)
+                     (EXECUTE-ALOAD INST S)
+                     S))
+                ((EQUAL OPCODE '<a href="../DJVM/INST/ASTORE.lisp.html">ASTORE</a>)
+                 (IF (CHECK-ASTORE INST S)
+                     (EXECUTE-ASTORE INST S)
+                     S))
+                ((EQUAL OPCODE '<a href="../DJVM/INST/ANEWARRAY.lisp.html">ANEWARRAY</a>)
+                 (IF (CHECK-ANEWARRAY INST S)
+                     (EXECUTE-ANEWARRAY INST S)
+                     S))
+                ((EQUAL OPCODE '<a href="../DJVM/INST/IFEQ.lisp.html">IFEQ</a>)
+                 (IF (CHECK-IFEQ INST S)
+                     (EXECUTE-IFEQ INST S)
+                     S))
+                ((EQUAL OPCODE '<a href="../DJVM/INST/GETFIELD.lisp.html">GETFIELD</a>)
+                 (IF (CHECK-GETFIELD INST S)
+                     (EXECUTE-GETFIELD INST S)
+                     S))
+                ((EQUAL OPCODE '<a href="../DJVM/INST/ACONST_NULL.lisp.html">ACONST_NULL</a>)
+                 (IF (CHECK-ACONST_NULL INST S)
+                     (EXECUTE-ACONST_NULL INST S)
+                     S))
+                (T S))))))
+
+(acl2::verify-guards WFF-INST-STRONG)
+(acl2::verify-guards all-instrs-wff)
+
+
+<span class="comment">;;
+;; Tue Oct 25 16:11:29 2005
+</span>
+<span class="comment">;; We may have to modify djvm-step to check for wff-inst-strong!! 
+;; or change the guard for djvm-step!! 
+</span></pre>
+  </body>
+</html>

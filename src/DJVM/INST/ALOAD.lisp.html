@@ -1,0 +1,392 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>ALOAD.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+
+(include-book <span class="string"><a href="base.lisp.html">"base"</a></span>)
+(include-book <span class="string"><a href="base-consistent-state.lisp.html">"base-consistent-state"</a></span>)
+(include-book <span class="string"><a href="base-locals.lisp.html">"base-locals"</a></span>)
+(include-book <span class="string"><a href="base-extra.lisp.html">"base-extra"</a></span>)
+<span class="comment">;;
+;; Fri Aug  5 22:49:40 2005. <a href="ALOAD.lisp.html">ALOAD</a> is a bit special
+;; from ASTORE. in maintain consistent-state-strong! 
+;;
+</span>
+<span class="comment">;----------------------------------------------------------------------
+;
+;  <a href="ALOAD.lisp.html">ALOAD</a>
+;
+;----------------------------------------------------------------------
+</span>
+(acl2::set-verify-guards-eagerness 2)
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">wff-aload</span> (<a href="inst.lisp.html">inst</a>)
+  (and  (wff-one-arg <a href="inst.lisp.html">inst</a>)
+        (integerp (arg <a href="inst.lisp.html">inst</a>))
+        (&lt;= 0 (arg <a href="inst.lisp.html">inst</a>))
+        (&lt; (arg <a href="inst.lisp.html">inst</a>) *local-index-limit*)))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">ALOAD-guard</span> (<a href="inst.lisp.html">inst</a> s)
+  (mylet* ((cframe (current-frame s))
+           (locals (locals cframe))
+           (opstack (operand-stack cframe))
+           (index  (arg <a href="inst.lisp.html">inst</a>))
+           (value  (local-at index s)))
+          (and (wff-aload <a href="inst.lisp.html">inst</a>)
+               (<a href="../consistent-state-strong.lisp.html">consistent-state-strong</a> s)
+               (&lt; index (len locals))
+               (valid-local-index index locals)
+               (REFp value (heap s))
+               <span class="comment">; (&lt;= (len locals) (max-local s)) 
+</span>               <span class="comment">; this is easy to enforce by a simple pass checking. 
+</span>               <span class="comment">; ??? Thu Mar 10 15:32:22 2005
+</span>               (and (not (mem '*abstract* (method-accessflags (current-method s))))
+                    <span class="comment">;; Mon Oct 18 09:33:08 2004. This above is implied by <a href="../consistent-state.lisp.html">consistent-state</a> 
+</span>                    (not (mem '*native* (method-accessflags (current-method s))))
+                    <span class="comment">;; this is not 
+</span>                    (&lt;= (+ (len opstack) 1)
+                        (max-stack s))))))
+       
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">execute-ALOAD</span> (<a href="inst.lisp.html">inst</a> s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (ALOAD-guard <a href="inst.lisp.html">inst</a> s)))
+  (mylet* ((cframe (current-frame s))
+           (locals (locals cframe))
+           (index  (arg <a href="inst.lisp.html">inst</a>))
+           (value  (local-at index s)))
+          (ADVANCE-PC (safe-pushStack value s))))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">check-ALOAD</span> (<a href="inst.lisp.html">inst</a> s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (<a href="../consistent-state.lisp.html">consistent-state</a> s)))
+  (mylet* ((cframe (current-frame s))
+           (locals (locals cframe))
+           (opstack (operand-stack cframe))
+           (index  (arg <a href="inst.lisp.html">inst</a>))
+           (value  (local-at index s)))
+          (and (wff-aload <a href="inst.lisp.html">inst</a>)
+               (not (mem '*native* (method-accessflags (current-method s))))
+               (&lt; index (len locals)) 
+               (valid-local-index index locals)
+               (REFp value (heap s))
+               (&lt; index (max-local s))
+               (&lt;= (+ (len opstack) 1)
+                   (max-stack s)))))
+
+<span class="comment">;----------------------------------------------------------------------
+;; (i-am-here)
+</span>
+(defthm check-ALOAD-implies-guard-succeeds
+  (implies (and (<a href="../consistent-state-strong.lisp.html">consistent-state-strong</a> s)
+               (check-ALOAD <a href="inst.lisp.html">inst</a> s))
+          (ALOAD-guard <a href="inst.lisp.html">inst</a> s)))
+
+
+<span class="comment">;;; FIXED 
+;;; Tue Aug 10 14:24:02 2004
+;;; This is wrong!! 
+;;; because of the uninitialized variable!!
+;;; the wrong version of valid-index only asserts that 
+;;; the index is on the right boundary!! We probably need assertions that it is
+;;; of right type. 
+;;;
+;;; Since the consistent-locals's definition is also wrong. 
+;;; The current definition will assert that locals with holes in it are not
+;;; consistent!! 
+;;;  
+;;; 
+</span>
+<span class="comment">;;; Wed May 18 12:49:12 2005
+</span>
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+(defthm ALOAD-guard-implies-execute-ALOAD-perserve-consistency
+  (implies (ALOAD-guard <a href="inst.lisp.html">inst</a> s)
+           (<a href="../consistent-state-strong.lisp.html">consistent-state-strong</a> (execute-ALOAD <a href="inst.lisp.html">inst</a> s)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d () 
+                                  (local-at arg locals REFp
+                                   pushStack consistent-value-x)))))
+
+<span class="comment">;; Tue Mar 30 15:51:15 2004. I still have not dealt with
+;; inst-size!!  nor raise-exception!!
+;;
+;; Thu Mar 10 15:50:54 2005. I am still dealing with these
+;; instructions!! Still not inst-size and raise-exception!! 
+;; Wed May 18 12:51:04 2005
+</span>
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+<span class="comment">;-- BCV::check-ALOAD implies DJVM::check-ALOAD on a corresponding state -----
+</span>
+<span class="comment">;(i-am-here) ;; Fri May 20 23:56:43 2005
+</span>
+
+(encapsulate ()
+  (local (include-book <span class="string"><a href="base-bcv.lisp.html">"base-bcv"</a></span>))
+  (local (include-book <span class="string"><a href="base-bcv-locals.lisp.html">"base-bcv-locals"</a></span>))
+  (defthm bcv-check-ALOAD-ensures-djvm-check-ALOAD
+    (implies (and (bcv::check-ALOAD <a href="inst.lisp.html">inst</a> (env-sig s) 
+                                     (frame-sig  (current-frame s)
+                                                 (instance-class-table s)
+                                                 (heap s)
+                                                 (heap-init-map (aux s))))
+                  
+                  (wff-aload <a href="inst.lisp.html">inst</a>) 
+                  <span class="comment">;; implied by valid-local-index and in 
+</span>                  (not (mem '*native* (method-accessflags (current-method s))))
+                  (<a href="../consistent-state.lisp.html">consistent-state</a> s))
+             (djvm::check-ALOAD <a href="inst.lisp.html">inst</a> s))))
+
+
+
+<span class="comment">;-- BCV::check-ALOAD monotonic   -------------------------------------
+</span>
+
+(encapsulate ()
+    (local (include-book <span class="string"><a href="base-bcv-check-monotonic.lisp.html">"base-bcv-check-monotonic"</a></span>))
+    (defthm sig-check-ALOAD-on-more-general-implies-more-specific
+      (implies (and (bcv::good-icl icl)
+                    (bcv::good-scl (bcv::classtableEnvironment env1))
+                    (bcv::consistent-sig-locals (bcv::frameLocals gframe) icl)
+                    (bcv::consistent-sig-locals (bcv::frameLocals sframe) icl)
+                    (bcv::sig-frame-more-general gframe sframe env1)
+                    (bcv::check-ALOAD <a href="inst.lisp.html">inst</a> env1 gframe)
+                    (bcv::icl-scl-compatible icl (bcv::classtableEnvironment env1)))
+               (bcv::check-ALOAD <a href="inst.lisp.html">inst</a> env1 sframe))))
+
+
+<span class="comment">;;;
+;;; showing the next step is monotonic is more difficult!! 
+</span>
+<span class="comment">;-- BCV::execute-ALOAD next step  monotonic ---------------------------
+</span>
+(encapsulate () 
+     (local (include-book <span class="string"><a href="base-bcv-step-monotonic.lisp.html">"base-bcv-step-monotonic"</a></span>))
+     (defthm ALOAD-monotonicity
+       (implies (and (bcv::sig-frame-more-general gframe sframe env1)
+                     (bcv::consistent-sig-locals (bcv::frameLocals gframe) icl)
+                     (bcv::consistent-sig-locals (bcv::frameLocals sframe) icl)
+                     (bcv::check-ALOAD <a href="inst.lisp.html">inst</a> env1 gframe) 
+                     (bcv::check-ALOAD <a href="inst.lisp.html">inst</a> env1 sframe) 
+                     (bcv::good-icl icl)
+                     (bcv::good-scl (bcv::classtableEnvironment env1))
+                     (bcv::icl-scl-compatible icl (bcv::classtableEnvironment env1)))
+                (bcv::sig-frame-more-general 
+                 (bcv::normal-frame (bcv::execute-ALOAD <a href="inst.lisp.html">inst</a> env gframe))
+                 (bcv::normal-frame (bcv::execute-ALOAD <a href="inst.lisp.html">inst</a> env sframe)) env1))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+
+<span class="comment">;-- DJVM::execute-ALOAD expansion -------------------------------------
+</span>
+
+<span class="comment">;; (i-am-here) ;; Mon May 23 01:10:15 2005
+</span>
+(encapsulate ()
+    (local (include-book <span class="string"><a href="base-frame-sig-expansion.lisp.html">"base-frame-sig-expansion"</a></span>))   
+    (defthm execute-ALOAD-frame-sig-is
+      (mylet* ((ns (execute-ALOAD <a href="inst.lisp.html">inst</a> s)))
+       (implies 
+        (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+             (check-ALOAD <a href="inst.lisp.html">inst</a> s))
+        (equal (frame-sig (current-frame ns)
+                          (instance-class-table ns)
+                          (heap ns)
+                          (heap-init-map (aux ns)))
+               (frame-push-value-sig (value-sig (nth (arg <a href="inst.lisp.html">inst</a>) 
+                                                     (locals (current-frame s)))
+                                                (instance-class-table s)
+                                                (heap s)
+                                                (heap-init-map (aux s))
+                                                (method-ptr (current-frame s)))
+                                     (frame-sig (current-frame s)
+                                                (instance-class-table s)
+                                                (heap s)
+                                                (heap-init-map (aux s)))))))))
+                                                  
+
+
+<span class="comment">;-- BCV::execute-ALOAD expansion --------------------------------------
+</span>
+
+(encapsulate ()
+  (local (include-book <span class="string"><a href="base-bcv-frame-sig-expansion.lisp.html">"base-bcv-frame-sig-expansion"</a></span>))
+  (defthm bcv-execute-ALOAD-is
+    (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                  (check-ALOAD <a href="inst.lisp.html">inst</a> s)
+                  (bcv::check-ALOAD <a href="inst.lisp.html">inst</a> (env-sig s) 
+                                    (frame-sig (current-frame s)
+                                               (instance-class-table s)
+                                               (heap s)
+                                               (heap-init-map (aux s)))))
+             (equal (mv-nth 0 (bcv::execute-ALOAD
+                               <a href="inst.lisp.html">inst</a> (env-sig s) 
+                               (frame-sig (current-frame s)
+                                          (instance-class-table s)
+                                          (heap s)
+                                          (heap-init-map (aux s)))))
+                    (frame-push-value-sig  (value-sig (nth (arg <a href="inst.lisp.html">inst</a>) 
+                                                           (locals (current-frame s)))
+                                                      (instance-class-table s)
+                                                      (heap s)
+                                                      (heap-init-map (aux s))
+                                                      (method-ptr (current-frame s)))
+                                           (frame-sig (current-frame s)
+                                                      (instance-class-table s)
+                                                      (heap s)
+                                                      (heap-init-map (aux
+                                                                      s))))))))
+
+<span class="comment">;--  bcv next-state is more general than djvm next-state ---------------
+</span>
+
+
+(encapsulate ()
+  (local (include-book <span class="string"><a href="base-next-state-more-specific.lisp.html">"base-next-state-more-specific"</a></span>))
+  (defthm next-state-no-more-general-aload
+    (mylet* ((oframe (frame-sig (current-frame s)
+                                (instance-class-table s)
+                                (heap s)
+                                (heap-init-map (aux s))))
+             (ns   (execute-ALOAD <a href="inst.lisp.html">inst</a> s))
+             (nframe (frame-sig (current-frame ns)
+                                (instance-class-table ns)
+                                (heap ns)
+                                (heap-init-map (aux ns)))))
+            (implies (and (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+                          (bcv::check-ALOAD <a href="inst.lisp.html">inst</a> (env-sig s) oframe)
+                          (check-ALOAD <a href="inst.lisp.html">inst</a> s))
+                     (bcv::sig-frame-more-general 
+                      (mv-nth 0 (bcv::execute-ALOAD
+                                 <a href="inst.lisp.html">inst</a> 
+                                 (env-sig s)
+                                 oframe))
+                      nframe
+                      (env-sig s))))
+    <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable execute-ALOAD bcv::execute-ALOAD)))))
+
+
+  
+<span class="comment">;----------------------------------------------------------------------
+</span>
+<span class="comment">;; (i-am-here) ;; Tue Aug  2 13:54:38 2005
+</span>
+
+(include-book <span class="string"><a href="../../M6/m6-bytecode.lisp.html">"../../M6/m6-bytecode"</a></span>)
+(include-book <span class="string"><a href="../consistent-state-to-untag-state.lisp.html">"../../DJVM/consistent-state-to-untag-state"</a></span>)
+
+<span class="comment">;; (encapsulate ()
+;;    (local (include-book "base-untag-state"))
+;;    (defthm equal-ALOAD-when-guard-succeeds
+;;      (implies (ALOAD-guard <a href="inst.lisp.html">inst</a> s)
+;;               (equal (untag-state (djvm::execute-ALOAD <a href="inst.lisp.html">inst</a> s))
+;;                      (m6::execute-ALOAD <a href="inst.lisp.html">inst</a> (untag-state s))))))
+</span>
+<span class="comment">;; ;;
+;; ;; this is not good enough for our purpose!! Sun Jul 31 18:59:52 2005
+;; ;;
+;; ;; need to be fixed!! 
+</span>
+(local (include-book <span class="string"><a href="base-state-equiv.lisp.html">"base-state-equiv"</a></span>))
+
+(encapsulate ()
+    (local (include-book <span class="string"><a href="base-state-equiv.lisp.html">"base-state-equiv"</a></span>))
+    (defthm equal-ALOAD-when-guard-succeeds
+      (implies (and (ALOAD-guard <a href="inst.lisp.html">inst</a> djvm::djvm-s)
+                    (state-equiv m6::m6-s djvm::djvm-s))
+               (state-equiv (m6::execute-ALOAD <a href="inst.lisp.html">inst</a> m6::m6-s)
+                            (djvm::execute-ALOAD <a href="inst.lisp.html">inst</a> djvm::djvm-s)))))
+
+<span class="comment">;;;
+;;; Tue Aug  2 16:10:21 2005
+;;;
+;----------------------------------------------------------------------
+</span>
+<span class="comment">;----------------------------------------------------------------------
+;
+; Mon Aug 15 21:30:22 2005
+;
+</span>
+<span class="comment">;; (i-am-here) ;; Mon Aug 15 21:31:00 2005
+</span>
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-method-ptr-no-change.lisp.html">"base-method-ptr-no-change"</a></span>))
+  (defthm execute-ALOAD-change-no-method-ptr
+    (equal (method-ptr (current-frame (djvm::execute-ALOAD <a href="inst.lisp.html">inst</a> s)))
+           (method-ptr (current-frame s)))))
+
+<span class="comment">;;; next need to prove loaded class method-does-not-change! 
+</span>
+
+(encapsulate () 
+  (local (include-book <span class="string"><a href="base-method-no-change.lisp.html">"base-method-no-change"</a></span>))
+  (defthm deref-method-no-change-if-already-loaded-ALOAD
+    (implies (<a href="../consistent-state.lisp.html">consistent-state</a> s)
+             (equal (deref-method (method-ptr (current-frame s))
+                                  (instance-class-table 
+                                   (djvm::execute-ALOAD <a href="inst.lisp.html">inst</a> s)))
+                    (deref-method (method-ptr (current-frame s))
+                                  (instance-class-table s))))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+
+
+(in-theory (disable check-ALOAD ALOAD-guard execute-ALOAD wff-ALOAD))</pre>
+  </body>
+</html>

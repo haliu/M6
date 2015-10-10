@@ -1,0 +1,90 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-lookupfield-fieldname-normalize.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="../../M6-DJVM-shared/jvm-linker.lisp.html">"../../M6-DJVM-shared/jvm-linker"</a></span>)
+(include-book <span class="string"><a href="../../M6-DJVM-shared/jvm-class-table.lisp.html">"../../M6-DJVM-shared/jvm-class-table"</a></span>)
+
+
+
+
+(local 
+  (defthm field-fieldname-search-fields
+    (implies (searchfields field-ptr fields)
+             (equal (field-fieldname (searchfields field-ptr fields))
+                    (field-ptr-fieldname field-ptr)))))
+
+
+
+(defthm field-fieldname-reduce
+  (implies (LOOKUPFIELD field-ptr s)
+           (equal (FIELD-FIELDNAME (LOOKUPFIELD field-ptr s))
+                  (field-ptr-fieldname field-ptr)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (lookupfield) (LOOKUPFIELD-INV
+                                                 searchfields 
+                                                 fields
+                                                 field-fieldname 
+                                                 isClassTerm
+                                                 superclass-no-loop))
+           <span class="builtin">:do-not</span> '(generalize))))
+
+
+
+
+
+(local 
+  (defthm field-fieldtype-search-fields
+    (implies (searchfields field-ptr fields)
+             (equal (field-fieldtype (searchfields field-ptr fields))
+                    (field-ptr-type field-ptr)))))
+
+
+
+
+(defthm field-fieldtype-reduce
+  (implies (LOOKUPFIELD field-ptr s)
+           (equal (FIELD-FIELDTYPE (LOOKUPFIELD field-ptr s))
+                  (field-ptr-type field-ptr)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (e/d (lookupfield) (LOOKUPFIELD-INV
+                                                 searchfields 
+                                                 fields
+                                                 field-fieldtype
+                                                 isClassTerm
+                                                 superclass-no-loop))
+           <span class="builtin">:do-not</span> '(generalize))))</pre>
+  </body>
+</html>

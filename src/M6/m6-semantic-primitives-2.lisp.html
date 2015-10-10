@@ -1,0 +1,165 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>m6-semantic-primitives-2.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"M6"</span>)
+(include-book <span class="string"><a href="../M6-DJVM-shared/jvm-semantic-primitives-2.lisp.html">"../M6-DJVM-shared/jvm-semantic-primitives-2"</a></span>)
+(include-book <span class="string"><a href="m6-state.lisp.html">"../M6/m6-state"</a></span>)
+(include-book <span class="string"><a href="m6-thread.lisp.html">"../M6/m6-thread"</a></span>)
+(include-book <span class="string"><a href="m6-object-type-hierachy.lisp.html">"../M6/m6-object-type-hierachy"</a></span>)
+(include-book <span class="string"><a href="m6-frame-manipulation-primitives.lisp.html">"../M6/m6-frame-manipulation-primitives"</a></span>)
+(include-book <span class="string"><a href="m6-linker.lisp.html">"../M6/m6-linker"</a></span>)
+(include-book <span class="string"><a href="m6-thread-primitives.lisp.html">"../M6/m6-thread-primitives"</a></span>)
+(include-book <span class="string"><a href="m6-monitor-failure-as-fatalError.lisp.html">"../M6/m6-monitor-failure-as-fatalError"</a></span>)
+(include-book <span class="string"><a href="m6-object-manipulation-primitives.lisp.html">"../M6/m6-object-manipulation-primitives"</a></span>)
+(include-book <span class="string"><a href="m6-static-initializer.lisp.html">"../M6/m6-static-initializer"</a></span>)
+
+
+<span class="comment">;;
+;; set the return pc to KILL_THREAD
+;; so when a corresponding return is executed, system know to kill thread. 
+;; when there is no active thread, program terminates.
+;;
+</span>
+<span class="comment">;; for those call back functions, we may not want to use same operation to get
+;; access the state. topStack etc. has guards that works only on valid
+;; opstacks. 
+</span>
+<span class="comment">;;
+;; We want to share a major portion of code between Defensive JVM and Regular
+;; JVM, we need call back function behave the same. we need Native method
+;; behave properly if they manipulate the operand stack.
+;;
+</span>
+<span class="comment">;; Do I want to get into this?? 
+;; (defun topStackAsRef (
+</span>
+<span class="comment">;;
+;; Mon Dec 29 00:32:23 2003
+</span>
+<span class="comment">;;(acl2::set-verify-guards-eagerness 0)
+</span>
+(<span class="keyword">defun</span> <span class="function-name">initInitialThreadBehavior</span> (s) 
+  (<span class="keyword">let*</span> ((array-ref (topStack s))
+         (classname (secondStack s))
+         (main-method-ptr (make-method-ptr classname <span class="string">"main"</span> 
+                                           '((array <span class="string">"java.lang.String"</span>))
+                                           'void))
+         (mainMethod (getSpecialMethod main-method-ptr s)))
+    (<span class="keyword">if</span> (equal mainMethod nil)
+        (stopThread (alertUser <span class="string">"does not have a main function"</span> s))
+      (<span class="keyword">if</span> (not (mem '*public* (method-accessflags mainMethod)))
+          (stopThread (alertUser <span class="string">"main must be public"</span> s))
+        (<span class="keyword">let*</span> (<span class="comment">;;(class-ref (class-ref (class-by-name classname
+</span>               <span class="comment">;;                                     (instance-class-table s))))
+</span>               (locals (app (list <span class="comment">;; class-ref ;; Thu Nov 18 12:12:12 2004
+</span>                                  array-ref)
+                            (fill-top (- (method-maxlocals mainMethod) 1))))
+               (s1 (pushFrame main-method-ptr locals s))
+               (s2 (set-top-frame-return-pc 'KILL_THREAD s1)))
+          (<span class="keyword">if</span> (mem '*synchronized* (method-accessflags mainMethod))
+              <span class="comment">;; why need a synchronize object recorded on the frame??  because
+</span>              <span class="comment">;; we need to release the monitor when we return from the
+</span>              <span class="comment">;; methods.
+</span>              (<span class="keyword">let*</span> ((class-obj-ref (class-ref-by-name classname s2))
+                     (s3 (set-curframe-sync-obj class-obj-ref s2)))
+                (mv-let (mstatus s4)
+                    (monitorEnterX class-obj-ref s3)
+                    (<span class="keyword">declare</span> (ignore mstatus))
+                    s4))
+            (set-curframe-sync-obj -1 s2))))))) <span class="comment">;; use -1 to indicate null pointer.
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">initThreadBehaviorFromThread</span> (s)
+  (<span class="keyword">let*</span> ((s1 (popFrame s))
+         (sync-obj-ref (sync-obj-ref (current-frame s1))))
+    (<span class="keyword">if</span> (not (equal sync-obj-ref -1))
+        (mv-let (mstatus s2)
+                (monitorEnterX sync-obj-ref s1)
+                (<span class="keyword">declare</span> (ignore mstatus))
+                s2)
+     s1)))
+                
+
+
+(<span class="keyword">defun</span> <span class="function-name">interruptedGetOutput1Behavior</span> (s)
+  (prog2$ (acl2::debug-print <span class="string">"interruptedGetOutput1Behavior called"</span>)
+          (mv-let (os-ref s1)
+                  (new-instance <span class="string">"java.io.PrintStream"</span> (popFrame s))
+                  (pushStack os-ref s1))))
+
+
+(<span class="keyword">defun</span>  <span class="function-name">newInstanceReturnObject</span> (s) 
+  (popFrame s))
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">searchForFuncPtr1</span> (l)
+  (<span class="keyword">if</span> (endp l)
+      nil
+    (<span class="keyword">if</span> (callback-func-ptr? (car l))
+        (car l)
+      (searchForFuncPtr1 (cdr l)))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">searchForFuncPtr</span> (s) 
+  (<span class="keyword">let*</span> ((cur-thread (thread-by-id (current-thread s) (thread-table s)))
+         (operand-stack (operand-stack (top (thread-call-stack cur-thread)))))
+    (searchForFuncPtr1 operand-stack))) 
+
+
+(<span class="keyword">defun</span> <span class="function-name">invoke-CUSTOMCODE</span> (s)
+  (<span class="keyword">let*</span> ((call-back-func (searchForFuncPtr s))
+         (funcname (callback-funcname call-back-func)))
+    (<span class="keyword">cond</span> ((equal funcname '*runClinit*) 
+              (runClinit s))
+          ((equal funcname '*initInitialThreadBehavior*)
+           (initInitialThreadBehavior s))
+          ((equal funcname '*newInstanceReturnObject*)
+           (newInstanceReturnObject s))
+          ((equal funcname  '*initThreadBehaviorFromThread*)
+           (initThreadBehaviorFromThread s))
+          ((equal funcname  '*interruptedGetOutput1Behavior*)
+           (interruptedGetOutput1Behavior s))
+          (t s)))) <span class="comment">;; so far unknown
+</span>
+</pre>
+  </body>
+</html>

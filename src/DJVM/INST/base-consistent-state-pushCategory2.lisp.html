@@ -1,0 +1,58 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-consistent-state-pushCategory2.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+
+(include-book <span class="string"><a href="base.lisp.html">"base"</a></span>)
+(include-book <span class="string"><a href="base-consistent-state.lisp.html">"base-consistent-state"</a></span>)
+
+(local (include-book <span class="string"><a href="base-consistent-state-pushCategory2-support.lisp.html">"base-consistent-state-pushCategory2-support"</a></span>))
+
+(DEFTHM
+  CONSISTENT-STATE-PUSHSTACK-CONSISTENT-STATE-PUSHSTACK-2
+  (IMPLIES (AND (CONSISTENT-VALUE-X V (INSTANCE-CLASS-TABLE S)
+                                    (HEAP S))
+                (CATEGORY2 V)
+                (&lt;= (+ 2
+                       (LEN (OPERAND-STACK (CURRENT-FRAME S))))
+                    (MAX-STACK S))
+                (CONSISTENT-STATE S))
+           (CONSISTENT-STATE (PUSHSTACK V (pushStack '(topx . topx) S)))))
+
+
+
+
+
+</pre>
+  </body>
+</html>

@@ -1,0 +1,247 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>bcv-functions.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"BCV"</span>)
+(include-book <span class="string"><a href="typechecker.lisp.html">"../BCV/typechecker"</a></span>)
+(include-book <span class="string"><a href="../DJVM/consistent-state.lisp.html">"../DJVM/consistent-state"</a></span>)
+
+(<span class="keyword">defun</span> <span class="function-name">good-java-type</span> (typ icl)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable isArrayType)))))
+  (or (JVM::PRIMITIVE-TYPE? typ)
+      (and (isclasstype typ)
+           (JVM::CLASS-EXISTS? (name-of typ) icl))
+      (and (isArrayType typ)
+           (not (equal (component-type typ) 'NULL))
+           (good-java-type (component-type typ) icl))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">wff-icl</span> (icl)
+  (<span class="keyword">if</span> (not (consp icl)) t
+    (and (stringp (jvm::classname (car icl)))
+         (wff-icl (cdr icl)))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">all-subclass-of-java-lang-Object</span> (nl icl)
+  (<span class="keyword">if</span> (endp nl)
+      t
+    (and (mem <span class="string">"java.lang.Object"</span>
+              (djvm::collect-superclass-list (car nl) icl))
+         (all-subclass-of-java-lang-Object (cdr nl) icl))))
+      
+
+(<span class="keyword">defun</span> <span class="function-name">good-icl</span> (icl)
+  (and (wff-icl icl)
+       (djvm::class-exists? <span class="string">"java.lang.Object"</span> icl)
+       (not (djvm::class-exists? 
+             (djvm::super (class-by-name <span class="string">"java.lang.Object"</span> icl))
+             icl))
+       <span class="comment">;; add an extra assertion that all classes has a super class of
+</span>       <span class="comment">;; "java.lang.Object"!! Thu Jul 14 12:29:12 2005
+</span>       <span class="comment">;; which, we will try to prove it later from consistent-state!! 
+</span>       (all-subclass-of-java-lang-Object 
+        (djvm::all-class-names icl) icl)
+       (djvm::consistent-class-hierachy icl)))
+
+
+(<span class="keyword">defun</span> <span class="function-name">good-bcv-type</span> (typ icl)
+  (or (equal typ 'ONEWORD)
+      (equal typ 'TWOWORD)
+      (equal typ 'topx)
+      (equal typ 'REFERENCE)
+      (equal typ 'UNINITIALIZED)
+      (equal typ 'UNINITIALIZEDTHIS)
+      (equal typ 'NULL)
+      (good-java-type typ icl)))
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">consistent-sig-type</span> (type icl)
+  (and (not (equal type 'TWOWORD))
+       (not (equal type 'ONEWORD))
+       (not (equal type 'VOID))
+       (not (equal type 'SHORT)) <span class="comment">;; these should not be seen 
+</span>       (not (equal type 'BYTE))  <span class="comment">;; assuming translate-type!! 
+</span>       (not (equal type 'CHAR))  <span class="comment">;;
+</span>       (not (equal type 'BOOLEAN))
+       <span class="comment">;; (not (equal type 'uninitialized))
+</span>       <span class="comment">;; (not (equal type 'reference))
+</span>       (good-bcv-type type icl)))
+
+
+<span class="comment">;; (defun consistent-sig-stack (stack icl)
+;;   (if (endp stack) t
+;;     (if (endp (cdr stack)) 
+;;         (and (equal (sizeof (car stack)) 1)
+;;              (consistent-sig-type (car stack) icl)
+;;              (consistent-sig-stack (cdr stack) icl))
+;;       (if (equal (sizeof (cadr stack)) 2)
+;;           (and (consistent-sig-type (cadr stack) icl)
+;;                (equal (car stack) 'topx)
+;;                (consistent-sig-stack (cddr stack) icl))
+;;         nil)))) ;; this nil is not reachable!! Thu Jul 28 00:52:23 2005
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">consistent-sig-stack</span> (stack icl)
+  (<span class="keyword">if</span> (endp stack) t
+    (<span class="keyword">if</span> (endp (cdr stack)) 
+        (and (equal (sizeof (car stack)) 1)
+             (consistent-sig-type (car stack) icl)
+             (consistent-sig-stack (cdr stack) icl))
+      (<span class="keyword">if</span> (equal (sizeof (cadr stack)) 2)
+          (and (consistent-sig-type (cadr stack) icl)
+               (equal (car stack) 'topx)
+               (consistent-sig-stack (cddr stack) icl))
+        (and (equal (sizeof (car stack)) 1)
+             (consistent-sig-type (car stack) icl)
+             (consistent-sig-stack (cdr stack) icl))))))
+
+
+<span class="comment">;;;; We shall prove that opstack-sig from a consistent-opstack will produce 
+;;;; a consistent-sig-stack
+;;;;
+;;;; Sun May 22 17:19:06 2005
+;;;;
+;;;; Notice that our consistent-sig-stack allow a sequence of topx 
+;;;; on the opstack!! which will not happen. 
+;;;; 
+;;;; Sun May 22 17:21:11 2005
+</span>
+(<span class="keyword">defun</span> <span class="function-name">consistent-sig-locals</span> (locals icl)
+  (<span class="keyword">if</span> (endp locals) t
+    (<span class="keyword">if</span> (equal (sizeof (car locals)) 1)
+        (and (consistent-sig-type (car locals) icl)
+             (consistent-sig-locals (cdr locals) icl))
+      (<span class="keyword">if</span> (equal (sizeof (car locals)) 2)
+          (<span class="keyword">if</span> (endp (cdr locals)) nil
+            (and (consistent-sig-type (car locals) icl)
+                 (equal (cadr locals) 'topx)
+                 (consistent-sig-locals (cddr locals) icl)))
+        nil))))
+
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">sig-frame-more-general</span> (gframe sframe env)
+  (FrameIsAssignable sframe gframe env))
+
+(include-book <span class="string"><a href="bcv-functions-basic.lisp.html">"bcv-functions-basic"</a></span>)
+
+<span class="comment">;; (defun make-static-class-decl (cn super cp fs ms is as ats)
+;;   (LIST 'CLASS cn super
+;;         (CONS 'CONSTANT_POOL CP)
+;;         (CONS 'FIELDS fs)
+;;         (CONS 'METHODS ms)
+;;         (CONS 'INTERFACES is)
+;;         (CONS 'ACCESSFLAGS as)
+;;         (CONS 'ATTRIBUTES ats)))
+</span>
+
+<span class="comment">;; (defun scl-decl-bcv2jvm (scl-decl)
+;;   (make-static-class-decl 
+;;     (classClassName scl-decl)
+;;     (classSuperClassName scl-decl)
+;;     (classConstantPool scl-decl)
+;;     (classFields scl-decl)
+;;     (classMethods scl-decl)
+;;     (classInterfaces scl-decl)
+;;     (classAccessFlags scl-decl)
+;;     (classAttributes scl-decl)))
+</span>
+
+
+
+<span class="comment">;; (defun scl-bcv2jvm (scl)
+;;   (if (endp scl) nil
+;;     (cons (scl-decl-bcv2jvm (car scl))
+;;           (scl-bcv2jvm (cdr scl)))))
+</span>
+<span class="comment">;; (defun scl-jvm2bcv (raw-scl)
+;;   (if (endp raw-scl) nil
+;;     (cons (make-class-def (car raw-scl))
+;;           (scl-jvm2bcv (cdr raw-scl)))))
+</span>
+
+<span class="comment">;; (defun good-scl (scl)
+;;   (equal (scl-jvm2bcv (scl-bcv2jvm scl)) scl))
+</span>
+
+(<span class="keyword">defun</span> <span class="function-name">icl-scl-compatible</span> (icl scl)
+  (and (good-scl scl)
+       (JVM::WFF-STATIC-CLASS-TABLE-STRONG (scl-bcv2jvm scl))
+       (djvm::class-table-is-loaded-from icl (scl-bcv2jvm scl))))
+
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">normal-frame</span> (frame-pair)
+  (mv-nth 0 frame-pair))
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(acl2::set-verify-guards-eagerness 0)
+
+<span class="comment">;;;
+;;; useful in proof of bcv-check general implies bcv-check specific
+;;; 
+</span>(<span class="keyword">defun</span> <span class="function-name">sig-pop-opstack</span> (type sig-frame)
+  (make-sig-frame
+    (frameLocals sig-frame)
+    (popMatchingType type (frameStack sig-frame))
+    (frameFlags sig-frame)))
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">sig-push-opstack</span> (v sig-frame)
+  (make-sig-frame
+    (frameLocals sig-frame)
+    (pushOperandStack v (frameStack sig-frame))
+    (frameFlags sig-frame)))
+<span class="comment">;;;
+;;; need these to express some generic rules. 
+;;; base-bcv-fact-isMatchingType-consistent-sig-type!! 
+;;;
+</span></pre>
+  </body>
+</html>

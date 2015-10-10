@@ -1,0 +1,137 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>base-locals.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #87cefa;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      .variable-name {
+        /* font-lock-variable-name-face */
+        color: #eedd82;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"DJVM"</span>)
+(include-book <span class="string"><a href="../consistent-state.lisp.html">"../../DJVM/consistent-state"</a></span>)
+(include-book <span class="string"><a href="../../M6-DJVM-shared/jvm-bytecode.lisp.html">"../../M6-DJVM-shared/jvm-bytecode"</a></span>)
+
+(<span class="keyword">defconst</span> <span class="variable-name">*local-index-limit*</span> 256)
+
+(acl2::set-verify-guards-eagerness 2)
+
+<span class="comment">;; (defun wff-aload (<a href="inst.lisp.html">inst</a>)
+;;   (and  (wff-one-arg <a href="inst.lisp.html">inst</a>)
+;;         (integerp (arg <a href="inst.lisp.html">inst</a>))
+;;         (&lt;= 0 (arg <a href="inst.lisp.html">inst</a>))
+;;         (&lt; (arg <a href="inst.lisp.html">inst</a>) *local-index-limit*)))
+;;;
+;;; moved into ALOAD.lisp
+;;;
+</span>
+(defthm wff-call-frame-implies-truelistp
+  (implies (wff-call-frame frame)
+           (true-listp (locals frame)))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable wff-call-frame 
+                                     locals)))
+  <span class="builtin">:rule-classes</span> <span class="builtin">:forward-chaining</span>)
+
+
+
+(<span class="keyword">defun</span> <span class="function-name">valid_local_type</span> (type)
+  (or (equal type 'topx)
+      (primitive-type? type)
+      (equal type 'REF)))
+      
+
+
+<span class="comment">;; (defun valid_local_type (type)
+;;   (or (equal type 'topx)
+;;       (equal type 'INT)    
+;; ; BYTE, INT, CHAR, SHORT all appears as INT!! 
+;; ; Thu Mar 10 15:31:30 2005 
+;;       (equal type 'REF)
+;;       (equal type 'FLOAT)  
+;;       (equal type 'LONG)
+;;       (equal type 'DOUBLE)  ; 
+;; ;     (equal type 'RETADDR) ; We do not deal with it.
+;; ;     (equal type 'CALLBACK) ; How about this?? Wed May 18 12:28:49 2005 Still
+;; ;     need thinking!! 
+;;       ))
+</span>      
+<span class="comment">;;
+;; this define whether we are allow to read from that location
+;;
+;; Sat May 21 17:55:45 2005 
+</span>(<span class="keyword">defun</span> <span class="function-name">valid-local-index</span> (index locals)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:measure</span> (len locals)
+                  <span class="builtin">:guard</span> (and (integerp index)
+                              (&lt; index (len locals)))
+                  <span class="builtin">:guard-hints</span>  ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (enable category1 tag-of)))))
+  (<span class="keyword">if</span> (not (consp locals)) 
+      nil
+    (<span class="keyword">if</span> (&lt; index 0) nil
+      (<span class="keyword">cond</span> ((category1Loc locals)
+             (and (valid_local_type (tag-of (car locals)))
+                  (or (and (equal index 0)
+                           (not (equal (tag-of (car locals)) 'topx)))
+                      (valid-local-index (- index 1) (shift1slot locals)))))
+            ((category2Loc locals)
+             (and (valid_local_type (tag-of (car locals)))
+                  (or (and (equal index 0)
+                           (not (equal (tag-of (car locals)) 'topx)))
+                      (valid-local-index (- index 2) (shift2slot locals)))))))))
+
+
+<span class="comment">;----------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">invalidate-category2-value</span> (index s)
+  (<span class="keyword">declare</span> (xargs <span class="builtin">:guard</span> (and (integerp index)
+                              (current-frame-guard s)
+                              (wff-call-frame (current-frame s))
+                              (&lt;= -1 index)
+                              (&lt; index (- (len (locals (current-frame s))) 1))
+                              (or (&lt; index 0)
+                                  (wff-tagged-value (local-at index s))))))
+  (<span class="keyword">if</span> (&lt; index 0) s
+    (<span class="keyword">if</span> (equal (type-size (tag-of (local-at index s))) 1) s
+      (state-set-local-at index '(topx . topx) s))))
+
+</pre>
+  </body>
+</html>

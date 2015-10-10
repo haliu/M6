@@ -1,0 +1,193 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.16 in css mode. -->
+<html>
+  <head>
+    <title>IFEQ.lisp</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #f5deb3;
+        background-color: #000000;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #b0c4de;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #ff7f24;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #00ffff;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #ffa07a;
+      }
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+(<span class="keyword">in-package</span> <span class="string">"ACL2"</span>)
+(include-book <span class="string"><a href="djvm-model.lisp.html">"djvm-model"</a></span>)
+(include-book <span class="string"><a href="bcv-simple-model.lisp.html">"bcv-simple-model"</a></span>)
+(include-book <span class="string"><a href="generic.lisp.html">"generic"</a></span>)
+
+(include-book <span class="string"><a href="consistent-state-properties.lisp.html">"consistent-state-properties"</a></span>)
+(include-book <span class="string"><a href="bcv-method-properties.lisp.html">"bcv-method-properties"</a></span>)
+
+
+<span class="comment">;--- EXPORT ----
+</span>
+(encapsulate () 
+  (local (include-book <span class="string"><a href="djvm-IFEQ.lisp.html">"djvm-IFEQ"</a></span>))
+  (defthm consistent-state-preserved-by-DJVM-IFEQ
+    (implies (and (<a href="consistent-state.lisp.html">consistent-state</a> st)
+                  (equal (next-inst st) inst)
+                  (equal (op-code inst) '<a href="IFEQ.lisp.html">IFEQ</a>)
+                  (djvm-check-IFEQ inst st))
+             (<a href="consistent-state.lisp.html">consistent-state</a>
+              (djvm-execute-IFEQ inst st)))))
+
+
+<span class="comment">;;(i-am-here) ;; Mon Nov 21 10:57:11 2005
+</span>
+
+
+
+(defthm bcv-simple-inst-implies-next-pc-bounded-IFEQ
+  (implies (and (bcv-simple-inst pc inst sig-vector)
+                (equal (g 'pc (cdr (assoc-equal pc sig-vector))) pc)
+                (equal (op-code inst) '<a href="IFEQ.lisp.html">IFEQ</a>))
+           (assoc-equal (+ 1 pc) sig-vector)))
+
+
+
+(defthm bcv-simple-inst-implies-next-pc-bounded-IFEQ-2
+  (implies (and (bcv-simple-inst pc inst sig-vector)
+                (equal (op-code inst) '<a href="IFEQ.lisp.html">IFEQ</a>))
+           (assoc-equal (cadr inst) sig-vector)))
+
+
+
+(local (in-theory (disable collect-witness-bcv-method)))
+
+
+(defthm bcv-simple-inst-implies-next-pc-bounded-IFEQ-specific
+  (implies (and (bcv-simple-inst pc (next-inst st)
+                                 (collect-witness-bcv-method 
+                                  (current-method st)
+                                  (g 'method-table st)))
+                (equal (g 'pc (cdr (assoc-equal pc 
+                                                (collect-witness-bcv-method 
+                                                 (current-method st)
+                                                 (g 'method-table st)))))
+                       pc)
+                (equal (op-code (next-inst st)) '<a href="IFEQ.lisp.html">IFEQ</a>))
+           (assoc-equal (+ 1 pc) (collect-witness-bcv-method 
+                                  (current-method st)
+                                  (g 'method-table st)))))
+
+
+(defthm bcv-simple-inst-implies-next-pc-bounded-IFEQ-specific-2
+  (implies (and (bcv-simple-inst pc (next-inst st)
+                                 (collect-witness-bcv-method 
+                                  (current-method st)
+                                  (g 'method-table st)))
+                (equal (op-code (next-inst st)) '<a href="IFEQ.lisp.html">IFEQ</a>))
+           (assoc-equal (cadr (next-inst st))
+                        (collect-witness-bcv-method 
+                         (current-method st)
+                         (g 'method-table st)))))
+
+
+<span class="comment">;; (defthm consistent-state-implies-bcv-simple-inst
+;;   (implies (<a href="consistent-state.lisp.html">consistent-state</a> st)
+;;            (bcv-simple-inst (g 'pc (car (g 'call-stack st))) 
+;;                             (next-inst st)
+;;                             (collect-witness-bcv-method
+;;                              (current-method st)
+;;                              (g 'method-table st)))))
+</span>
+
+
+(defthm bcv-simple-inst-implies-next-pc-bounded-IFEQ-specific-2-futher
+  (implies (and (<a href="consistent-state.lisp.html">consistent-state</a> st)
+                (equal (op-code (next-inst st)) '<a href="IFEQ.lisp.html">IFEQ</a>))
+           (assoc-equal (cadr (next-inst st))
+                        (collect-witness-bcv-method 
+                         (current-method st)
+                         (g 'method-table st))))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:use</span> ((<span class="builtin">:instance</span>
+                         bcv-simple-inst-implies-next-pc-bounded-IFEQ-specific-2
+                         (pc (g 'pc (car (g 'call-stack st)))))
+                        (<span class="builtin">:instance</span> consistent-state-implies-bcv-simple-inst))
+           <span class="builtin">:in-theory</span> (disable <a href="consistent-state.lisp.html">consistent-state</a> 
+                               bcv-simple-inst
+                               consistent-state-implies-bcv-simple-inst
+                               collect-witness-bcv-method))))
+
+
+
+
+
+
+
+(local (in-theory (disable current-method <a href="consistent-state.lisp.html">consistent-state</a> 
+                           collect-witness-bcv-method
+                           bcv-simple-inst next-inst)))
+
+
+
+<span class="comment">;; (defthm bcv-method-implies-integerp-if-bound
+;;   (implies (and (bcv-method method method-table)
+;;                 (assoc-equal pc (collect-witness-bcv-method method method-table)))
+;;            (integerp pc))
+;;   :hints (("Goal" :in-theory (disable merged-code-safe
+;;                                       ;;collect-witness-bcv-method
+;;                                       extract-code
+;;                                       sig-method-init-frame
+;;                                       wff-code1)
+;;            :cases ((member pc (collect-pc-merged-code 
+;;                                (MERGESTACKMAPANDCODE (G 'STACKMAPS METHOD)
+;;                                                      (PARSECODE1 0 (G 'CODE METHOD))
+;;                                                      (G 'METHOD-NAME METHOD)
+;;                                                      METHOD-TABLE))))))
+;;   :rule-classes :forward-chaining)
+</span>
+
+(defthm bcv-simple-check-ifeq-implies-djvm-check
+  (IMPLIES (AND (CONSISTENT-STATE DJVM-S)
+                (equal (op-code (next-inst djvm-s)) '<a href="IFEQ.lisp.html">IFEQ</a>)
+                (BCV-SIMPLE-CHECK-IFEQ (next-inst djvm-s)   
+                                       (EXTRACT-SIG-FRAME (CAR (G 'CALL-STACK DJVM-S))
+                                                          (G 'METHOD-TABLE DJVM-S))))
+           (DJVM-CHECK-IFEQ (next-inst djvm-s) djvm-s))
+  <span class="builtin">:hints</span> ((<span class="string">"Goal"</span> <span class="builtin">:in-theory</span> (disable <a href="consistent-state.lisp.html">consistent-state</a>)
+           <span class="builtin">:use</span> ((<span class="builtin">:instance</span> bcv-method-implies-integerp-if-bound
+                            (method (current-method djvm-s))
+                            (method-table (g 'method-table djvm-s))
+                            (pc (cadr (next-inst djvm-s))))))))
+
+
+
+
+
+
+
+
+
+</pre>
+  </body>
+</html>
